@@ -60,10 +60,11 @@ const schema = z.object({
    */
   AI_CRED_AES_KEY: required("AI_CRED_AES_KEY"),
 
-  // WAHA
-  WAHA_API_BASE_URL: required("WAHA_API_BASE_URL"),
-  WAHA_API_KEY: required("WAHA_API_KEY"),
-  WAHA_WEBHOOK_BASE_URL: required("WAHA_WEBHOOK_BASE_URL"),
+  // WAHA — opcional até o WhatsApp ser provisionado. Sem estas vars o inbox/WAHA
+  // degrada (features de WhatsApp indisponíveis) mas o app sobe em produção.
+  WAHA_API_BASE_URL: z.string().optional().default(""),
+  WAHA_API_KEY: z.string().optional().default(""),
+  WAHA_WEBHOOK_BASE_URL: z.string().optional().default(""),
 
   // Upstash Redis
   UPSTASH_REDIS_REST_URL: z.string().optional().default(""),
