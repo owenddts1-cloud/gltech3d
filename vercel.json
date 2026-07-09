@@ -1,0 +1,17 @@
+{
+  "crons": [
+    {
+      "path": "/api/v1/cron/lgpd-sla-watcher",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/v1/cron/agent-dispatcher",
+      "schedule": "*/1 * * * *"
+    }
+  ],
+  "functions": {
+    "app/api/internal/agents/run/route.ts": {
+      "maxDuration": 300
+    }
+  }
+}
