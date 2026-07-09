@@ -6,12 +6,12 @@
     },
     {
       "path": "/api/v1/cron/agent-dispatcher",
-      "schedule": "*/1 * * * *"
+      "schedule": "0 3 * * *"
     }
   ],
   "functions": {
     "app/api/internal/agents/run/route.ts": {
-      "maxDuration": 300
+      "maxDuration": 60
     }
   }
 }
