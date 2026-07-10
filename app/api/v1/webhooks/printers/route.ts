@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { calculateRealCost } from "@/lib/pricing/engine";
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { randomUUID } from "node:crypto";
-import { loadAuthUser } from "@/lib/auth/server";
+import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -48,7 +48,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
   const url = new URL(req.url);
 
-  // 1) Shared-secret auth or active dashboard user session.
+  // Require an EXPLICIT orgId — never fall back to "the first organization".
+  const orgId = url.searchParams.get("orgId");
+  if (!orgId) {
+    return json(400, { ok: false, error: "missing_orgId", requestId });
+  }
+
+  // Auth: shared secret (production Klipper/OctoPrint) OR a logged-in dashboard
+  // user who is a MEMBER of orgId (browser simulator). The membership check is
+  // what stops a logged-in user of org A from mutating org B via ?orgId=B —
+  // the admin client below bypasses RLS, so org access must be verified here.
   const configured = process.env.PRINTER_WEBHOOK_SECRET;
   const provided = req.headers.get("x-webhook-secret") ?? url.searchParams.get("secret") ?? "";
 
@@ -58,7 +67,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   } else {
     const user = await loadAuthUser();
     if (user) {
-      authorized = true;
+      const activeOrg = await resolveActiveOrg(user);
+      if (activeOrg && activeOrg.orgId === orgId) authorized = true;
     }
   }
 
@@ -67,12 +77,6 @@ export async function POST(req: NextRequest): Promise<Response> {
       return json(503, { ok: false, error: "webhook_not_configured", requestId });
     }
     return json(401, { ok: false, error: "unauthorized", requestId });
-  }
-
-  // 2) Require an EXPLICIT orgId — never fall back to "the first organization".
-  const orgId = url.searchParams.get("orgId");
-  if (!orgId) {
-    return json(400, { ok: false, error: "missing_orgId", requestId });
   }
 
   // 3) Per-org rate limit.
