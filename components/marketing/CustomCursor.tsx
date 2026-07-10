@@ -46,7 +46,7 @@ export function CustomCursor() {
       if (cursorEl) {
         const state = cursorEl.getAttribute('data-cursor') || 'default';
         const text = cursorEl.getAttribute('data-cursor-text') || '';
-        setCursorState(state as any);
+        setCursorState(state as 'default' | 'pointer' | 'view' | 'explore');
         setHoverText(text);
       } else if (
         target.tagName === 'A' ||
@@ -121,7 +121,7 @@ export function CustomCursor() {
           translateY: '-50%',
           border,
           background,
-          mixBlendMode: mixBlendMode as any,
+          mixBlendMode: mixBlendMode as React.CSSProperties['mixBlendMode'],
           willChange: 'transform, width, height',
         }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
