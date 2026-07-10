@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { calculateRealCost } from "@/lib/pricing/engine";
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { randomUUID } from "node:crypto";
+import { loadAuthUser } from "@/lib/auth/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -47,14 +48,24 @@ export async function POST(req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
   const url = new URL(req.url);
 
-  // 1) Shared-secret auth (FAIL-CLOSED). Set PRINTER_WEBHOOK_SECRET and have
-  //    OctoPrint/Klipper send it as header `x-webhook-secret` (or `?secret=`).
+  // 1) Shared-secret auth or active dashboard user session.
   const configured = process.env.PRINTER_WEBHOOK_SECRET;
-  if (!configured || configured.length < 8) {
-    return json(503, { ok: false, error: "webhook_not_configured", requestId });
-  }
   const provided = req.headers.get("x-webhook-secret") ?? url.searchParams.get("secret") ?? "";
-  if (provided !== configured) {
+
+  let authorized = false;
+  if (configured && configured.length >= 8 && provided === configured) {
+    authorized = true;
+  } else {
+    const user = await loadAuthUser();
+    if (user) {
+      authorized = true;
+    }
+  }
+
+  if (!authorized) {
+    if (!configured || configured.length < 8) {
+      return json(503, { ok: false, error: "webhook_not_configured", requestId });
+    }
     return json(401, { ok: false, error: "unauthorized", requestId });
   }
 
