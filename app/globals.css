@@ -23,6 +23,9 @@
   /* Borders (light) */
   --color-border: #e7e3da;
   --color-border-strong: #d2cdbf;
+  --color-border-glass: rgba(231, 227, 218, 0.7);
+  --color-border-grid: rgba(231, 227, 218, 0.55);
+  --color-surface-glass: rgba(255, 255, 255, 0.72);
 
   /* Accent — Sage (11 stops) */
   --color-accent-50:  #f3f6f1;
@@ -158,6 +161,9 @@
   /* Borders (dark) */
   --color-border: #33312a;
   --color-border-strong: #444239;
+  --color-border-glass: rgba(51, 49, 42, 0.7);
+  --color-border-grid: rgba(51, 49, 42, 0.55);
+  --color-surface-glass: rgba(29, 28, 23, 0.72);
 
   /* Accent stays same hex stops; default shifts up for dark contrast */
   --color-accent-50:  #f3f6f1;
@@ -492,22 +498,17 @@
 
 /* Glassmorphism sutil derivado dos tokens de superfície. */
 .glass-panel {
-  background: var(--color-surface);
-  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  background: var(--color-surface-glass);
   -webkit-backdrop-filter: blur(10px) saturate(1.1);
   backdrop-filter: blur(10px) saturate(1.1);
-  border: 1px solid var(--color-border);
-  border-color: color-mix(in srgb, var(--color-border) 70%, transparent);
+  border: 1px solid var(--color-border-glass);
 }
 
 /* Grade de fundo discreta pra headers/heros internos do app. */
 .app-grid-bg {
   background-image:
-    linear-gradient(var(--color-border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--color-border) 55%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--color-border) 55%, transparent) 1px, transparent 1px);
+    linear-gradient(var(--color-border-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border-grid) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 

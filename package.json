@@ -100,5 +100,11 @@
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.0",
     "vitest": "^2.1.9"
-  }
+  },
+  "onlyBuiltDependencies": [
+    "@sentry/cli",
+    "esbuild",
+    "sharp",
+    "unrs-resolver"
+  ]
 }
