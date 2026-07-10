@@ -124,6 +124,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     // Run on all paths except static assets / Next internals.
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|mp4|webm|mov|m4v|ogg|mp3|wav|woff|woff2|ttf|otf)$).*)",
   ],
 };

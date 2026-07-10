@@ -73,6 +73,19 @@ export {
   Tag,
   Question,
   Keyboard,
+  // super app 3D — novas abas
+  Printer,
+  Package,
+  Cube,
+  CalendarBlank,
+  ShoppingCart,
+  Sparkle,
+  Handshake,
+  Toolbox,
+  Ruler,
+  AddressBook,
+  ChartLineUp,
+  FolderOpen,
   // misc
   DotsThree,
   CaretDown,
@@ -81,5 +94,6 @@ export {
   CaretLeft,
   CaretRight,
   ArrowRight,
+  ArrowLeft,
   SignOut,
 } from "@phosphor-icons/react/dist/ssr";

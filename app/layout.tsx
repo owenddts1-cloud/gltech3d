@@ -23,21 +23,22 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "GLTech3D — CRM & atendimento",
-    template: "%s · GLTech3D",
+    default: "GLTECH CRM — Super App 3D",
+    template: "%s · GLTECH CRM",
   },
   description:
-    "Centralize WhatsApp, e-mail e Instagram em um único atendimento. IA que resolve sozinha o que dá pra resolver, time humano focado no que importa. Multi-tenant, LGPD-nativo, sob medida pra operações brasileiras.",
-  applicationName: "Deskcomm",
-  authors: [{ name: "Deskcomm" }],
+    "O super app da GLTech3D: fazenda de impressão, projetos, produtos, ordens de serviço, vendas multicanal, atendimento e IA — tudo num só painel. Multi-tenant, LGPD-nativo.",
+  applicationName: "GLTECH CRM",
+  authors: [{ name: "GLTech3D" }],
   keywords: [
+    "impressão 3D",
+    "print farm",
     "CRM",
-    "atendimento",
-    "WhatsApp",
+    "ERP",
     "e-commerce",
-    "IA conversacional",
+    "marketplace",
+    "IA",
     "LGPD",
-    "multi-tenant",
   ],
   robots: { index: false, follow: false },
 };

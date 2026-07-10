@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────────────────────
-   DeskcommCRM — Design System tokens (Sage palette · density Aerada)
+   GLTECH CRM — Design System tokens (Sage palette · density Aerada)
    Source of truth: /app/design/lib/tokens.ts (PALETTES.sage)
    Light + dark drawn separately (NOT inverted).
    ───────────────────────────────────────────────────────────────────────── */
@@ -280,12 +280,18 @@
   }
 
   /* Scrollbar — subtle greige */
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-neutral-300) transparent;
+  @supports (scrollbar-width: thin) {
+    * {
+      scrollbar-width: thin;
+    }
   }
-  [data-theme="dark"] * {
-    scrollbar-color: var(--color-neutral-600) transparent;
+  @supports (scrollbar-color: auto auto) {
+    * {
+      scrollbar-color: var(--color-neutral-300) transparent;
+    }
+    [data-theme="dark"] * {
+      scrollbar-color: var(--color-neutral-600) transparent;
+    }
   }
   ::-webkit-scrollbar {
     width: 10px;
@@ -323,27 +329,234 @@
    Portado de _landing-original/app/globals.css (Tailwind 4 → CSS puro).
    ───────────────────────────────────────────────────────────────────────── */
 .marketing-root {
-  background-color: #f9f7f2;
-  color: #2d241e;
+  background-color: #faf9f6;
+  color: #2b2622;
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 .marketing-root .font-sora {
   font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
 }
 .marketing-root .grid-bg {
-  background-image: linear-gradient(#e8e2d9 1px, transparent 1px),
-    linear-gradient(90deg, #e8e2d9 1px, transparent 1px);
+  background-image: linear-gradient(#e2e2e2 1px, transparent 1px),
+    linear-gradient(90deg, #e2e2e2 1px, transparent 1px);
   background-size: 40px 40px;
 }
 .marketing-root .hero-gradient {
   background: radial-gradient(
     circle at center,
-    rgba(232, 226, 217, 0.4) 0%,
-    rgba(249, 247, 242, 1) 70%
+    rgba(229, 229, 229, 0.4) 0%,
+    rgba(250, 249, 246, 1) 70%
   );
 }
 .marketing-root .glass-card {
   background: rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* ── Cinematic landing (scroll-jacked media stage) ──────────────────────── */
+/* Guarantee a serif stack for the display modifier words, independent of the
+   Tailwind config's fontFamily overrides. */
+.marketing-root .font-serif {
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+}
+
+/* Radial vignette that focuses the pinned product in the media stage. */
+.marketing-root .cine-vignette {
+  background: radial-gradient(
+    circle at 50% 45%,
+    transparent 0%,
+    transparent 44%,
+    rgba(250, 249, 246, 0.82) 78%,
+    rgba(250, 249, 246, 0.96) 100%
+  );
+}
+
+/* Rotating conic glow ring behind the product (masked to a thin ring). */
+.marketing-root .cine-ring {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--ring, #a6815c) 60%, transparent) 80deg,
+    transparent 170deg,
+    color-mix(in srgb, var(--ring, #a6815c) 35%, transparent) 260deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  opacity: 0.55;
+}
+
+/* Blueprint grid behind the exploded rocket (RocketExploded stage), fading
+   radially so it only reads near the diagram. */
+.marketing-root .cine-blueprint {
+  background-image:
+    linear-gradient(rgba(142, 109, 77, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(142, 109, 77, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask: radial-gradient(ellipse 62% 58% at 50% 48%, #000 0%, transparent 100%);
+  mask: radial-gradient(ellipse 62% 58% at 50% 48%, #000 0%, transparent 100%);
+}
+
+/* Studio-grey stage behind the scroll-scrubbed rocket video (RocketVideoScrub).
+   Clean graphite sweep so a grey-studio render blends seamlessly. */
+.marketing-root .cine-studio-sweep {
+  background: radial-gradient(
+    ellipse 120% 90% at 50% 42%,
+    #ececec 0%,
+    #e5e5e5 46%,
+    #dcdcdc 74%,
+    #d6d6d6 100%
+  );
+}
+
+/* Very faint engineering grid over the sweep, masked toward the center. */
+.marketing-root .cine-studio-grid {
+  background-image:
+    linear-gradient(rgba(43, 38, 34, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(43, 38, 34, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask: radial-gradient(ellipse 66% 60% at 50% 48%, #000 0%, transparent 100%);
+  mask: radial-gradient(ellipse 66% 60% at 50% 48%, #000 0%, transparent 100%);
+}
+
+/* Soft neutral vignette that focuses the rocket in the studio stage. */
+.marketing-root .cine-studio-vignette {
+  background: radial-gradient(
+    circle at 50% 45%,
+    transparent 0%,
+    transparent 46%,
+    rgba(202, 202, 202, 0.5) 80%,
+    rgba(182, 182, 182, 0.78) 100%
+  );
+}
+
+/* Grounding "floor" shadow at the bottom of the studio sweep. */
+.marketing-root .cine-studio-floor {
+  background: radial-gradient(
+    ellipse 52% 100% at 50% 100%,
+    rgba(43, 38, 34, 0.14) 0%,
+    transparent 70%
+  );
+}
+
+/* Hero readability scrim over the full-bleed video: lightens the far left/right
+   (where the section copy sits) and softens the bottom into the page. */
+.marketing-root .cine-hero-scrim {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(236, 236, 236, 0.86) 0%,
+      rgba(236, 236, 236, 0.28) 26%,
+      transparent 45%,
+      transparent 55%,
+      rgba(236, 236, 236, 0.28) 74%,
+      rgba(236, 236, 236, 0.86) 100%
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(236, 236, 236, 0.4) 0%,
+      transparent 22%,
+      transparent 82%,
+      rgba(250, 249, 246, 0.9) 100%
+    );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   GLTECH CRM — utilitários visuais do app (super app 3D)
+   Usam os tokens --color-* (respeitam paleta + light/dark). Não vazam pra
+   marketing (escopo fora de .marketing-root). Micro-interações premium.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Card que "levanta" no hover — profundidade sutil pra grids do Dashboard. */
+.card-hover {
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms ease;
+  will-change: transform;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-border-strong);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 8px 24px -8px rgba(0, 0, 0, 0.12);
+}
+[data-theme="dark"] .card-hover:hover {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 8px 24px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* Glassmorphism sutil derivado dos tokens de superfície. */
+.glass-panel {
+  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
+  border: 1px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+/* Grade de fundo discreta pra headers/heros internos do app. */
+.app-grid-bg {
+  background-image:
+    linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-border) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-border) 55%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Brilho de destaque atrás de KPIs/ícones (usa o accent da paleta ativa). */
+.accent-glow {
+  background: radial-gradient(
+    120px 120px at 50% 0%,
+    var(--color-accent) 0%,
+    transparent 70%
+  );
+  background: radial-gradient(
+    120px 120px at 50% 0%,
+    color-mix(in srgb, var(--color-accent) 18%, transparent) 0%,
+    transparent 70%
+  );
+}
+
+/* Entrada suave (fade + subida). Pareado com presets de motion no React,
+   mas disponível como classe pura pra Server Components. */
+@keyframes gltech-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-up {
+  animation: gltech-fade-up 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Chip/badge de status usado por OS, vendas, impressoras. */
+.status-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  flex: none;
+}
+
+/* Respeita quem prefere menos movimento. */
+@media (prefers-reduced-motion: reduce) {
+  .card-hover,
+  .card-hover:hover,
+  .animate-fade-up {
+    transition: none;
+    animation: none;
+    transform: none;
+  }
 }

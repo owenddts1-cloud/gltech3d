@@ -1,0 +1,17 @@
+GL ROCKET — renders reais (opcional)
+=====================================
+
+Coloque aqui os PNGs do seu foguete GL ROCKET, do MONTADO ao EXPLODIDO,
+nesta ordem de nome (fundo transparente de preferência):
+
+  frame-01.png   -> foguete inteiro / montado
+  frame-02.png   -> começando a separar
+  frame-03.png   -> vista explodida parcial
+  frame-04.png   -> vista explodida (aviônica/ogiva separando)
+  frame-05.png   -> vista explodida total
+  frame-06.png   -> detalhe / topo (opcional)
+
+Depois me avise: eu troco a animação vetorial (SVG) pela vista explodida
+com os SEUS renders reais, sincronizada com o scroll (efeito Apple/scrub).
+
+Formatos aceitos: .png (ideal com transparência) ou .webp.

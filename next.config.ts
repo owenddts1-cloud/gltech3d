@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
+  // Hide the on-screen dev indicator ("N" badge / build activity) in dev.
+  devIndicators: false,
   // typedRoutes moved out of experimental in Next 15.5+
   typedRoutes: true,
   experimental: {

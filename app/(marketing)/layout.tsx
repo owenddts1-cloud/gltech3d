@@ -20,11 +20,14 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+import { CustomCursor } from "@/components/marketing/CustomCursor";
+
 export default function MarketingLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className={`${inter.variable} ${sora.variable} marketing-root min-h-screen`}>
+      <CustomCursor />
       {children}
     </div>
   );

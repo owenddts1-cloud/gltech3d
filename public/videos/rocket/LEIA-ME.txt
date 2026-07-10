@@ -1,0 +1,32 @@
+GL ROCKET — vídeo do scrollytelling (scroll-scrub)
+===================================================
+
+O hero (components/marketing/HeroScrollVideo.tsx) carrega:
+
+  public/videos/gl-rocket-explode-scrub.mp4          (desktop)
+  public/videos/gl-rocket-explode-scrub-mobile.mp4   (mobile)
+  public/videos/gl-rocket-poster.jpg                 (opcional, 1º frame)
+
+STOPGAP ATUAL:
+os dois -scrub.mp4 acima são hoje uma CÓPIA do gl-rocket-explode.mp4 original
+(sem re-encode). O scrub responde ao scroll, mas pode ENGASGAR, porque o vídeo
+não tem todo frame como keyframe.
+
+PARA FICAR LISO (faça uma vez):
+o scrub por scroll só é liso se TODO frame for keyframe (-g 1). Rode:
+
+  # desktop
+  ffmpeg -i entrada.mp4 -an -vf "scale=1600:-2" -c:v libx264 \
+    -g 1 -keyint_min 1 -crf 23 -pix_fmt yuv420p -movflags +faststart \
+    public/videos/gl-rocket-explode-scrub.mp4
+
+  # mobile (mais leve)
+  ffmpeg -i entrada.mp4 -an -vf "scale=960:-2" -c:v libx264 \
+    -g 1 -keyint_min 1 -crf 25 -pix_fmt yuv420p -movflags +faststart \
+    public/videos/gl-rocket-explode-scrub-mobile.mp4
+
+  # poster (opcional)
+  ffmpeg -i entrada.mp4 -frames:v 1 public/videos/gl-rocket-poster.jpg
+
+Substitua os arquivos em public/videos/ pelos re-encodados e recarregue
+(Ctrl+Shift+R). O nome PRECISA ser exatamente gl-rocket-explode-scrub.mp4.

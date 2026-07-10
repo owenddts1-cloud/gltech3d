@@ -1,6 +1,7 @@
 'use client';
 
 import { products } from '@/lib/marketing/products';
+import { motion } from 'motion/react';
 
 // Mapeamento de ícones por nome de categoria
 const categoryIcons: Record<string, string> = {
@@ -44,37 +45,89 @@ export default function Categories({ selectedCategory, onSelectCategory }: Categ
   };
 
   return (
-    <section id="categorias" className="py-20 px-6 max-w-7xl mx-auto">
-      <div className="mb-10 text-center">
-        <span className="text-[10px] font-bold tracking-[0.2em] text-[#8E6D4D] uppercase">Explorar</span>
-        <h2 className="text-3xl font-bold mt-2 font-sora">Categorias</h2>
+    <section id="categorias" className="py-20 px-6 max-w-7xl mx-auto relative z-10">
+      <div className="mb-16 text-center">
+        <div className="inline-flex px-3 py-1.5 rounded-full bg-[#A6815C]/10 border border-[#A6815C]/20 text-[9px] font-extrabold text-[#8E6D4D] uppercase tracking-[0.25em] mb-4">
+          Explorar Catálogo
+        </div>
+        <h2 className="text-3xl md:text-5xl font-black mt-2 font-sora text-[#2B2622] tracking-tight">
+          Navegar por Categoria
+        </h2>
+        <p className="text-xs md:text-sm text-[#6B5E55] mt-3 max-w-md mx-auto leading-relaxed font-medium">
+          Filtre os modelos 3D ativos e consulte especificações, pesos e compatibilidade de manufatura.
+        </p>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
         {categories.map((cat, idx) => {
           const isActive =
             (cat.name === "Todas as Categorias" && selectedCategory === "") ||
             cat.name === selectedCategory;
 
           return (
-            <button
+            <motion.button
               key={idx}
               onClick={() => handleCategoryClick(cat.name)}
-              className={`p-6 rounded-3xl transition-all cursor-pointer group text-left w-full border ${
+              data-cursor="explore"
+              data-cursor-text="FILTRAR"
+              whileHover={{ y: -6, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className={`relative p-5 rounded-[2.25rem] transition-all cursor-pointer group text-left w-full border flex flex-col justify-between aspect-[1.05] overflow-hidden ${
                 isActive
-                  ? "bg-[#F0EEE9] border-[#A6815C] shadow-sm"
-                  : "bg-[#F0EEE9]/50 border-transparent hover:border-[#A6815C]/50 hover:bg-[#F0EEE9]"
+                  ? "bg-[#2B2622] border-[#2B2622] text-white shadow-xl shadow-[#2B2622]/20"
+                  : "bg-white/40 backdrop-blur-xl border-white/60 hover:border-[#A6815C]/40 hover:bg-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.015)]"
               }`}
+              style={{
+                transition: 'background-color 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.25s',
+              }}
             >
-              <div className={`text-2xl mb-4 transition-transform origin-left ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
-                {cat.icon}
+              {/* Glow decorativo de fundo para cards ativos */}
+              {isActive && (
+                <div className="absolute top-0 right-0 w-16 h-16 bg-[#A6815C]/20 rounded-full blur-xl pointer-events-none" />
+              )}
+
+              {/* Indicador de status/ativo no topo superior direito */}
+              {isActive && (
+                <div className="absolute top-4 right-4 flex items-center justify-center">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#A6815C] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#A6815C]"></span>
+                  </span>
+                </div>
+              )}
+
+              {/* Moldura táctil para o emoji/ícone */}
+              <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center text-2xl transition-all duration-300 ${
+                isActive
+                  ? "bg-white/10 border border-white/10 shadow-[inset_0_2px_4px_rgba(255,255,255,0.1)]"
+                  : "bg-[#2B2622]/5 border border-[#2B2622]/5 shadow-sm group-hover:bg-[#A6815C]/10 group-hover:border-[#A6815C]/20"
+              }`}>
+                <div className="group-hover:animate-bounce-subtle transition-transform duration-300">
+                  {cat.icon}
+                </div>
               </div>
-              <span className={`text-xs font-semibold transition-colors ${isActive ? 'text-[#8E6D4D]' : 'text-[#6B5E55]'}`}>
+
+              <span
+                className={`text-[13px] font-extrabold tracking-wide transition-colors mt-4 block ${
+                  isActive ? 'text-white' : 'text-[#6B5E55] group-hover:text-[#2B2622]'
+                }`}
+              >
                 {cat.name}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>
+      
+      <style jsx global>{`
+        @keyframes bounce-subtle {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-4px) rotate(-5deg); }
+        }
+        .group:hover .group-hover\:animate-bounce-subtle {
+          animation: bounce-subtle 0.6s ease-in-out;
+        }
+      `}</style>
     </section>
   );
 }
