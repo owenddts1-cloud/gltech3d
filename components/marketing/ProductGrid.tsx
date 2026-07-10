@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Star, ArrowUpRight } from 'lucide-react';
 import { products, type Product } from '@/lib/marketing/products';
 import { motion } from 'motion/react';
+import { TiltCard } from '@/components/marketing/TiltCard';
 
 interface ProductGridProps {
   selectedCategory: string;
@@ -39,6 +40,7 @@ export default function ProductGrid({ selectedCategory }: ProductGridProps) {
               transition={{ duration: 0.5, delay: index * 0.05 }}
               className="h-full"
             >
+              <TiltCard className="h-full">
               <Link
                 href={`/product/${product.id}`}
                 data-cursor="view"
@@ -112,6 +114,7 @@ export default function ProductGrid({ selectedCategory }: ProductGridProps) {
                   </div>
                 </div>
               </Link>
+              </TiltCard>
             </motion.div>
           ))}
         </div>

@@ -6,7 +6,7 @@ import {
   Kanban, Users, UsersThree, Gear, CaretDoubleLeft, CaretDoubleRight, CaretDown,
   Inbox, ScalesSimple, Robot, PlugsConnected, House,
   Gauge, Printer, Ruler, ClipboardText, Sparkle, ShoppingCart, Package, Cube,
-  CalendarBlank, ChartLineUp, Toolbox, Handshake, AddressBook,
+  CalendarBlank, ChartLineUp, Toolbox, Handshake, AddressBook, Calculator,
 } from "@/lib/ui/icons";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,7 @@ function isGroup(e: NavEntry): e is NavGroup {
 const NAV: NavEntry[] = [
   { href: "/app/dashboard", label: "Dashboard", icon: Gauge },
   { href: "/app/printers", label: "Impressoras & Filamentos", icon: Printer },
+  { href: "/app/calculator", label: "Calculadora 3D", icon: Calculator },
   {
     key: "clientes",
     label: "Clientes",

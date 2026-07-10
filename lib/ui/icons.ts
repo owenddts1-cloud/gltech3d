@@ -86,6 +86,7 @@ export {
   AddressBook,
   ChartLineUp,
   FolderOpen,
+  Calculator,
   // misc
   DotsThree,
   CaretDown,

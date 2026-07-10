@@ -7,7 +7,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
           <div>
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 bg-[#A6815C] rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-[#A6815C] rounded-lg flex items-center justify-center transition-transform duration-300 hover:scale-110 hover:rotate-3">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                 </svg>
@@ -22,13 +22,17 @@ export default function Footer() {
           <div>
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#A6815C] mb-6">Fale Conosco</h4>
             <ul className="space-y-4 text-sm">
-              <li className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center"><MessageCircle className="w-4 h-4" /></span>
-                <span>WhatsApp <br /><small className="text-white/40">(31) 99928-4834</small></span>
+              <li>
+                <a href="https://wa.me/5531999284834" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
+                  <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center transition-colors group-hover:bg-[#A6815C]"><MessageCircle className="w-4 h-4" /></span>
+                  <span className="transition-colors group-hover:text-white">WhatsApp <br /><small className="text-white/40">(31) 99928-4834</small></span>
+                </a>
               </li>
-              <li className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center"><Instagram className="w-4 h-4" /></span>
-                <span>Instagram <br /><small className="text-white/40">@gltech3d</small></span>
+              <li>
+                <a href="https://www.instagram.com/gltech3d/" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
+                  <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center transition-colors group-hover:bg-[#A6815C]"><Instagram className="w-4 h-4" /></span>
+                  <span className="transition-colors group-hover:text-white">Instagram <br /><small className="text-white/40">@gltech3d</small></span>
+                </a>
               </li>
             </ul>
           </div>
@@ -36,13 +40,17 @@ export default function Footer() {
           <div>
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#A6815C] mb-6">Onde Comprar</h4>
             <ul className="space-y-4 text-sm">
-              <li className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center"><ShoppingCart className="w-4 h-4" /></span>
-                <span>Shopee <br /><small className="text-white/40">Loja Oficial</small></span>
+              <li>
+                <a href="https://shopee.com.br/gltech3d" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
+                  <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center transition-colors group-hover:bg-[#A6815C]"><ShoppingCart className="w-4 h-4" /></span>
+                  <span className="transition-colors group-hover:text-white">Shopee <br /><small className="text-white/40">Loja Oficial</small></span>
+                </a>
               </li>
-              <li className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center"><Package className="w-4 h-4" /></span>
-                <span>Mercado Livre <br /><small className="text-white/40">Loja Oficial</small></span>
+              <li>
+                <a href="https://www.mercadolivre.com.br" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
+                  <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center transition-colors group-hover:bg-[#A6815C]"><Package className="w-4 h-4" /></span>
+                  <span className="transition-colors group-hover:text-white">Mercado Livre <br /><small className="text-white/40">Loja Oficial</small></span>
+                </a>
               </li>
             </ul>
           </div>

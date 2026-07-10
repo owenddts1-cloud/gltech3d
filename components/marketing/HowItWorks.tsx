@@ -2,6 +2,7 @@
 
 import { motion } from 'motion/react';
 import { UploadCloud, Printer, Truck } from 'lucide-react';
+import { TiltCard } from '@/components/marketing/TiltCard';
 
 const steps = [
   {
@@ -44,13 +45,13 @@ export default function HowItWorks() {
           {steps.map((step, i) => {
             const Icon = step.icon;
             return (
+              <TiltCard key={step.title} className="h-full" max={6}>
               <motion.div
-                key={step.title}
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.5, delay: i * 0.12 }}
-                className="relative rounded-2xl bg-white border border-[#E8E2D9] p-7 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#A6815C]/10 transition-all"
+                className="relative h-full rounded-2xl bg-white border border-[#E8E2D9] p-7 hover:shadow-xl hover:shadow-[#A6815C]/10 transition-all"
               >
                 <span className="absolute top-6 right-6 text-5xl font-extrabold font-sora text-[#E8E2D9] select-none">
                   {i + 1}
@@ -61,6 +62,7 @@ export default function HowItWorks() {
                 <h3 className="text-lg font-bold font-sora text-[#2D241E] mb-2">{step.title}</h3>
                 <p className="text-sm text-[#6B5E55] leading-relaxed">{step.desc}</p>
               </motion.div>
+              </TiltCard>
             );
           })}
         </div>

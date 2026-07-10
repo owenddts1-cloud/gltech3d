@@ -117,4 +117,6 @@ export type AuditAction =
   | "ai_agent.run_failed"
   | "channel.connected"
   | "channel.reconnected"
-  | "lead.captured";
+  | "lead.captured"
+  | "marketing.lead_recovery_triggered"
+  | "instagram.broadcast";

@@ -1,29 +1,39 @@
-import { ModulePage } from "@/components/shell/module/ModulePage";
-import { Gauge, ChartLineUp, ChartBar, ShoppingCart, Printer, Sparkle } from "@/lib/ui/icons";
+import { fetchPrintersAndFilaments } from "@/app/actions/printers/actions";
+import { DashboardClient } from "./_components/DashboardClient";
 
 export const metadata = { title: "Dashboard" };
+export const dynamic = "force-dynamic";
 
-export default function DashboardPage() {
-  return (
-    <ModulePage
-      icon={Gauge}
-      title="Dashboard"
-      subtitle="A central de comando da GLTech3D: faturamento, produção, estoque e o Health Score da operação num só lugar."
-      primaryLabel="Novo widget"
-      kpis={[
-        { label: "Faturamento (mês)", hint: "Somado de todos os canais" },
-        { label: "Pedidos pendentes", hint: "OS aguardando produção" },
-        { label: "Impressoras ativas", hint: "Online agora" },
-        { label: "Health Score", hint: "Eficiência da operação" },
-      ]}
-      features={[
-        { icon: ChartLineUp, title: "Vendas ao longo do tempo", desc: "Gráfico de linha com evolução do faturamento e ticket médio por período." },
-        { icon: ChartBar, title: "Faturamento por plataforma", desc: "Rosca comparando Shopee, Mercado Livre, Facebook e vendas orgânicas." },
-        { icon: ShoppingCart, title: "Saldo a receber", desc: "Quanto já entrou vs. o que está retido pelas plataformas." },
-        { icon: Printer, title: "Status da fazenda", desc: "Impressoras imprimindo, ociosas, em manutenção ou offline em tempo real." },
-        { icon: Gauge, title: "Metas", desc: "Barras de progresso das metas de vendas e produção do mês." },
-        { icon: Sparkle, title: "Health Score", desc: "Nota da operação com base em sucesso de impressão e tempo médio de envio." },
-      ]}
-    />
-  );
+export default async function DashboardPage() {
+  const result = await fetchPrintersAndFilaments();
+  
+  // Cast from unknown[] (server action boundary) to the client-expected types.
+  // The server action returns JSON-serializable data that matches these shapes.
+  const initialData = result.ok && result.printers ? {
+    printers: result.printers as Array<{
+      id: string; name: string; status: "idle" | "printing" | "error" | "offline";
+      powerDraw: number; depreciationPerHour: number; activeFilamentId?: string | null;
+      activePrintJob?: { filename: string; progress: number; timeElapsed: number; timeRemaining: number; filamentId: string; weightGrams: number; } | null;
+    }>,
+    filaments: result.filaments as Array<{
+      id: string; name: string; color: string; material: string; weightGrams: number;
+      initialWeightGrams: number; costPerGram: number; minWeightAlert: number; supplier: string;
+    }>,
+    printJobs: result.printJobs as Array<{
+      id: string; printerId: string; printerName: string; filename: string; weightGrams: number;
+      printTimeSeconds: number; filamentId: string | null; filamentName: string;
+      costs: { materialCost: number; energyCost: number; depreciationCost: number; totalCost: number; } | null;
+      completedAt: string;
+    }>,
+    kEnergy: result.kEnergy,
+    orgId: result.orgId
+  } : {
+    printers: [],
+    filaments: [],
+    printJobs: [],
+    kEnergy: 0.85,
+    orgId: null
+  };
+
+  return <DashboardClient initialData={initialData} />;
 }

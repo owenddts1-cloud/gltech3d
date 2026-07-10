@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/lib/types/leads";
 import { KanbanCardActions } from "./KanbanCardActions";
+import { motion } from "motion/react";
 
 interface KanbanCardProps {
   lead: Lead;
@@ -48,17 +49,39 @@ export function KanbanCard({
     onSelect(lead.id, additive);
   };
 
+  // Determine border glow class based on tags or status
+  const isCompleted = lead.tags.includes("completed") || lead.tags.includes("concluido") || lead.status === "won";
+  const isProducing = lead.tags.includes("producing") || lead.tags.includes("producao") || lead.tags.includes("imprimindo");
+  const isAlert = lead.tags.includes("error") || lead.tags.includes("alert") || lead.tags.includes("alerta") || lead.tags.includes("falha");
+
+  const glowClass = isCompleted
+    ? "glow-completed"
+    : isProducing
+    ? "glow-producing"
+    : isAlert
+    ? "glow-alert"
+    : "";
+
   return (
     <Draggable draggableId={lead.id} index={index}>
-      {(provided, snapshot) => (
-        <div
+      {(provided, snapshot) => {
+        // @hello-pangea/dnd's dragHandleProps carries a native onDragStart that
+        // collides with framer-motion's typed onDragStart; strip it (native
+        // HTML5 drag is already disabled via draggable=false in draggableProps).
+        const { onDragStart: _onDragStart, ...dragHandleProps } =
+          provided.dragHandleProps ?? {};
+        return (
+        <motion.div
           ref={provided.innerRef}
           {...provided.draggableProps}
-          {...provided.dragHandleProps}
+          {...dragHandleProps}
           onClick={handleClick}
+          layoutId={lead.id}
+          layout
           className={cn(
             "group rounded-md border border-border bg-surface p-3 shadow-xs transition-colors",
             "hover:border-border-strong",
+            glowClass,
             snapshot.isDragging && "rotate-1 shadow-md ring-1 ring-accent/40",
             isSelected && "ring-2 ring-accent",
           )}
@@ -99,8 +122,9 @@ export function KanbanCard({
               {ownerInitials(lead.owner_user_id)}
             </div>
           </div>
-        </div>
-      )}
+        </motion.div>
+        );
+      }}
     </Draggable>
   );
 }

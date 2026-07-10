@@ -25,12 +25,12 @@ const LERP = 0.09;            // suavização do currentTime (menor = mais "pesa
 
 // Momentos-chave do vídeo (0..1) para sincronizar os textos
 const BEATS = {
-  introOut: 0.12,   // título hero some
-  tiltIn: 0.18,     // "Engenharia em cada camada"
-  tiltOut: 0.45,
-  explodeIn: 0.55,  // "Vista explodida — avionica & eletrônica"
-  explodeOut: 0.92,
-  finalIn: 0.94,    // CTA final
+  introOut: 0.15,   // título hero some (dá mais tempo de leitura no topo)
+  tiltIn: 0.22,     // "Precisão em cada camada"
+  tiltOut: 0.44,
+  explodeIn: 0.52,  // "Vista explodida — aviônica & eletrônica"
+  explodeOut: 0.80,
+  finalIn: 0.86,    // CTA final (aparece antes do fim, alcançável)
 };
 
 // Paleta (mesma do site)
@@ -70,7 +70,22 @@ function useDustParticles(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
     };
     resize();
 
-    const N = 40;
+    // Cursor influence: partículas repelem do ponteiro e o campo inteiro faz um
+    // parallax suave em direção a ele.
+    const pointer = { x: -1, y: -1, active: false };
+    let parX = 0;
+    let parY = 0;
+    const onPointerMove = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      pointer.x = (e.clientX - r.left) / (r.width || 1);
+      pointer.y = (e.clientY - r.top) / (r.height || 1);
+      pointer.active = true;
+    };
+    const onPointerLeave = () => { pointer.active = false; };
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('pointerout', onPointerLeave, { passive: true });
+
+    const N = 55;
     const ps = Array.from({ length: N }, () => ({
       x: Math.random(),
       y: Math.random(),
@@ -83,15 +98,33 @@ function useDustParticles(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
 
     const tick = (t: number) => {
       ctx.clearRect(0, 0, w, h);
+      // Parallax do campo (suavizado) em direção ao ponteiro.
+      const tpx = pointer.active ? (pointer.x - 0.5) : 0;
+      const tpy = pointer.active ? (pointer.y - 0.5) : 0;
+      parX += (tpx * 0.035 - parX) * 0.06;
+      parY += (tpy * 0.035 - parY) * 0.06;
       for (const p of ps) {
         p.x += p.vx;
         p.y += p.vy;
         if (p.y < -0.02) { p.y = 1.02; p.x = Math.random(); }
         if (p.x < -0.02) p.x = 1.02;
         if (p.x > 1.02) p.x = -0.02;
+        // Repulsão do ponteiro.
+        if (pointer.active) {
+          const dx = p.x - pointer.x;
+          const dy = p.y - pointer.y;
+          const d2 = dx * dx + dy * dy;
+          const R = 0.16;
+          if (d2 < R * R && d2 > 1e-6) {
+            const d = Math.sqrt(d2);
+            const f = (1 - d / R) * 0.007;
+            p.x += (dx / d) * f;
+            p.y += (dy / d) * f;
+          }
+        }
         const flicker = 0.7 + 0.3 * Math.sin(t * 0.001 + p.ph);
         ctx.beginPath();
-        ctx.arc(p.x * w, p.y * h, p.r, 0, Math.PI * 2);
+        ctx.arc((p.x - parX) * w, (p.y - parY) * h, p.r, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(140, 120, 100, ${p.a * flicker})`;
         ctx.fill();
       }
@@ -101,7 +134,12 @@ function useDustParticles(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
 
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerout', onPointerLeave);
+    };
   }, [canvasRef]);
 }
 
@@ -128,11 +166,16 @@ export default function HeroScrollVideo() {
   const [progress, setProgress] = useState(0);
   const [ready, setReady] = useState(false);
   const [reduced, setReduced] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useDustParticles(canvasRef);
 
   useEffect(() => {
     setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Loop de scrub: scroll → progress alvo → lerp → video.currentTime (com seek-throttling)
@@ -226,7 +269,7 @@ export default function HeroScrollVideo() {
       video.removeEventListener('loadedmetadata', onMeta);
       video.removeEventListener('seeked', onSeeked);
     };
-  }, []);
+  }, [isMobile]);
 
   const scrollToProducts = () => {
     document.getElementById('produtos')?.scrollIntoView({ behavior: 'smooth' });
@@ -247,7 +290,13 @@ export default function HeroScrollVideo() {
     >
       {/* Palco fixo (sticky) */}
       <div className="sticky top-0 h-screen w-full overflow-hidden">
-        {/* Vídeo scrubbed */}
+        {/* Fundo estúdio full-bleed: cobre a página de ponta a ponta e as barras
+            do object-contain (para mostrar o foguete inteiro) somem nele. */}
+        <div
+          className="absolute inset-0"
+          style={{ background: 'radial-gradient(120% 100% at 50% 38%, #dbd9d5 0%, #e7e5e1 55%, #ececec 100%)' }}
+        />
+        {/* Vídeo scrubbed — full-bleed object-cover encostando nas laterais */}
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
@@ -257,18 +306,15 @@ export default function HeroScrollVideo() {
         >
           <video
             ref={videoRef}
-            className="h-full w-full object-cover"
-            style={{ transform: 'scale(1.06)' }}
+            key={isMobile ? 'mobile' : 'desktop'}
+            src={isMobile ? "/videos/gl-rocket-explode-scrub-mobile.mp4" : "/videos/gl-rocket-explode-scrub.mp4"}
+            className="h-full w-full object-cover transition-transform"
             muted
             playsInline
             autoPlay
             preload="auto"
             poster="/videos/gl-rocket-poster.jpg"
-          >
-            {/* mobile primeiro: o browser escolhe pela media query */}
-            <source src="/videos/gl-rocket-explode-scrub-mobile.mp4" media="(max-width: 767px)" type="video/mp4" />
-            <source src="/videos/gl-rocket-explode-scrub.mp4" type="video/mp4" />
-          </video>
+          />
         </div>
 
         {/* Partículas de poeira por cima do vídeo */}
@@ -383,7 +429,7 @@ export default function HeroScrollVideo() {
       <style jsx>{`
         @keyframes glFloat {
           0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-10px) scale(1.005); }
+          50% { transform: translateY(-6px) scale(1); }
         }
         @media (prefers-reduced-motion: reduce) {
           * { animation: none !important; }

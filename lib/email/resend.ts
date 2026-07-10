@@ -88,3 +88,96 @@ export async function sendEmail(args: SendArgs): Promise<SendResult> {
 export function isEmailConfigured(): boolean {
   return getClient() !== null;
 }
+
+interface BatchSendResult {
+  successCount: number;
+  results: { email: string; success: boolean; error?: string }[];
+}
+
+export async function sendBatchEmails(batch: SendArgs[]): Promise<BatchSendResult> {
+  const client = getClient();
+  const from = fromAddress();
+
+  if (!client) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[email] RESEND_API_KEY não configurada — batch de e-mails não enviado. Qtd:",
+        batch.length,
+      );
+    }
+    return {
+      successCount: 0,
+      results: batch.map((b) => ({
+        email: Array.isArray(b.to) ? b.to.join(",") : b.to,
+        success: false,
+        error: "not_configured",
+      })),
+    };
+  }
+
+  // O Resend permite no máximo 100 e-mails por lote na API de batch.
+  const CHUNK_SIZE = 100;
+  const chunks: SendArgs[][] = [];
+  for (let i = 0; i < batch.length; i += CHUNK_SIZE) {
+    chunks.push(batch.slice(i, i + CHUNK_SIZE));
+  }
+
+  let successCount = 0;
+  const results: { email: string; success: boolean; error?: string }[] = [];
+
+  for (const chunk of chunks) {
+    try {
+      const payload = chunk.map((item) => ({
+        from: from,
+        to: item.to,
+        subject: item.subject,
+        html: item.html,
+        text: item.text,
+        replyTo: item.replyTo,
+        tags: item.tags,
+      }));
+
+      const { data, error } = await client.batch.send(payload);
+
+      if (error) {
+        console.error("[email] Erro no envio em lote do Resend:", error);
+        for (const item of chunk) {
+          const emailStr = Array.isArray(item.to) ? item.to.join(",") : item.to;
+          results.push({
+            email: emailStr,
+            success: false,
+            error: error.message,
+          });
+        }
+      } else if (data?.data) {
+        data.data.forEach((res, index) => {
+          const item = chunk[index];
+          if (!item) return;
+          const emailStr = Array.isArray(item.to) ? item.to.join(",") : item.to;
+          if (res.id) {
+            successCount++;
+            results.push({ email: emailStr, success: true });
+          } else {
+            results.push({ email: emailStr, success: false, error: "send_failed" });
+          }
+        });
+      } else {
+        // Fallback se a estrutura de retorno for diferente mas sem erros explícitos
+        for (const item of chunk) {
+          const emailStr = Array.isArray(item.to) ? item.to.join(",") : item.to;
+          results.push({ email: emailStr, success: true });
+        }
+        successCount += chunk.length;
+      }
+    } catch (err) {
+      console.error("[email] Exceção ao enviar lote do Resend:", err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      for (const item of chunk) {
+        const emailStr = Array.isArray(item.to) ? item.to.join(",") : item.to;
+        results.push({ email: emailStr, success: false, error: errMsg });
+      }
+    }
+  }
+
+  return { successCount, results };
+}

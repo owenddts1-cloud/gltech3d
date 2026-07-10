@@ -6,6 +6,7 @@ import HeroScrollVideo from '@/components/marketing/HeroScrollVideo';
 import Categories from '@/components/marketing/Categories';
 import ProductGrid from '@/components/marketing/ProductGrid';
 import HowItWorks from '@/components/marketing/HowItWorks';
+import SocialProof from '@/components/marketing/SocialProof';
 import LeadForm from '@/components/marketing/LeadForm';
 import NewsletterBar from '@/components/marketing/NewsletterBar';
 import Footer from '@/components/marketing/Footer';
@@ -25,6 +26,7 @@ export default function Home() {
         />
         <ProductGrid selectedCategory={selectedCategory} />
         <HowItWorks />
+        <SocialProof />
         <LeadForm />
         <NewsletterBar />
         <Footer />

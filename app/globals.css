@@ -469,6 +469,67 @@
     );
 }
 
+/* Tilt 3D reativo ao cursor nos cards da landing. */
+.marketing-root .tilt-card {
+  perspective: 1000px;
+}
+.marketing-root .tilt-inner {
+  position: relative;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.marketing-root .tilt-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 240ms ease;
+  background: radial-gradient(
+    220px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.45),
+    transparent 60%
+  );
+}
+.marketing-root .tilt-card:hover .tilt-glow {
+  opacity: 1;
+}
+
+/* Marquee (faixa de marcas) — rolagem infinita, pausa no hover, bordas fade. */
+.marketing-root .marquee-mask {
+  overflow: hidden;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.marketing-root .marquee {
+  display: flex;
+  width: max-content;
+  animation: gltech-marquee 32s linear infinite;
+}
+.marketing-root .marquee:hover {
+  animation-play-state: paused;
+}
+@keyframes gltech-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marketing-root .marquee {
+    animation: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marketing-root .tilt-inner {
+    transition: none;
+    transform: none;
+  }
+  .marketing-root .tilt-glow {
+    display: none;
+  }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    GLTECH CRM — utilitários visuais do app (super app 3D)
    Usam os tokens --color-* (respeitam paleta + light/dark). Não vazam pra
@@ -560,4 +621,135 @@
     animation: none;
     transform: none;
   }
+}
+
+/* Custom Cursor styles */
+.custom-cursor-outer {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #8E6D4D;
+  background: transparent;
+  transform: translate3d(var(--cursor-follower-x, -100px), var(--cursor-follower-y, -100px), 0) translate3d(-50%, -50%, 0);
+  opacity: 0;
+  transition: opacity 0.2s ease, width 0.2s ease, height 0.2s ease, background 0.2s ease, border 0.2s ease;
+  mix-blend-mode: normal;
+}
+
+.custom-cursor-inner {
+  transform: translate3d(var(--cursor-x, -100px), var(--cursor-y, -100px), 0) translate3d(-50%, -50%, 0);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Visibility states */
+[data-cursor-visible="true"] .custom-cursor-outer {
+  opacity: 1;
+}
+[data-cursor-visible="true"] .custom-cursor-inner {
+  opacity: 1;
+}
+
+/* Interactive States */
+[data-cursor-state="pointer"] .custom-cursor-outer {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: #ffffff;
+  mix-blend-mode: difference;
+}
+[data-cursor-state="pointer"] .custom-cursor-inner {
+  opacity: 0;
+}
+
+[data-cursor-state="view"] .custom-cursor-outer {
+  width: 80px;
+  height: 80px;
+  border: none;
+  background: #2B2622;
+}
+[data-cursor-state="view"] .custom-cursor-outer .cursor-text {
+  display: block;
+}
+[data-cursor-state="view"] .custom-cursor-inner {
+  opacity: 0;
+}
+
+[data-cursor-state="explore"] .custom-cursor-outer {
+  width: 72px;
+  height: 72px;
+  border: none;
+  background: #A6815C;
+}
+[data-cursor-state="explore"] .custom-cursor-outer .cursor-text {
+  display: block;
+}
+[data-cursor-state="explore"] .custom-cursor-inner {
+  opacity: 0;
+}
+
+/* Kanban Card Border Glows */
+.glow-completed {
+  position: relative;
+}
+.glow-completed::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to right, hsla(142, 70%, 45%, 0.4), hsla(142, 70%, 45%, 0.1));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: glow-pulse-green 3s infinite alternate;
+}
+
+.glow-producing {
+  position: relative;
+}
+.glow-producing::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to right, hsla(217, 91%, 60%, 0.5), hsla(217, 91%, 60%, 0.1));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: glow-pulse-blue 2s infinite linear;
+}
+
+.glow-alert {
+  position: relative;
+}
+.glow-alert::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to right, hsla(0, 100%, 50%, 0.6), hsla(0, 100%, 50%, 0.2));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: glow-pulse-red 1.5s infinite alternate;
+}
+
+@keyframes glow-pulse-green {
+  0% { opacity: 0.3; }
+  100% { opacity: 0.9; }
+}
+
+@keyframes glow-pulse-blue {
+  0% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+@keyframes glow-pulse-red {
+  0% { opacity: 0.4; }
+  100% { opacity: 1; filter: drop-shadow(0 0 2px hsla(0, 100%, 50%, 0.5)); }
 }

@@ -2,6 +2,7 @@
 
 import { products } from '@/lib/marketing/products';
 import { motion } from 'motion/react';
+import { TiltCard } from '@/components/marketing/TiltCard';
 
 // Mapeamento de ícones por nome de categoria
 const categoryIcons: Record<string, string> = {
@@ -65,56 +66,66 @@ export default function Categories({ selectedCategory, onSelectCategory }: Categ
             cat.name === selectedCategory;
 
           return (
-            <motion.button
+            <motion.div
               key={idx}
-              onClick={() => handleCategoryClick(cat.name)}
-              data-cursor="explore"
-              data-cursor-text="FILTRAR"
-              whileHover={{ y: -6, scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className={`relative p-5 rounded-[2.25rem] transition-all cursor-pointer group text-left w-full border flex flex-col justify-between aspect-[1.05] overflow-hidden ${
-                isActive
-                  ? "bg-[#2B2622] border-[#2B2622] text-white shadow-xl shadow-[#2B2622]/20"
-                  : "bg-white/40 backdrop-blur-xl border-white/60 hover:border-[#A6815C]/40 hover:bg-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.015)]"
-              }`}
-              style={{
-                transition: 'background-color 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.25s',
-              }}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.45, delay: idx * 0.04 }}
+              className="h-full"
             >
-              {/* Glow decorativo de fundo para cards ativos */}
-              {isActive && (
-                <div className="absolute top-0 right-0 w-16 h-16 bg-[#A6815C]/20 rounded-full blur-xl pointer-events-none" />
-              )}
+              <TiltCard max={5}>
+                <motion.button
+                  onClick={() => handleCategoryClick(cat.name)}
+                  data-cursor="explore"
+                  data-cursor-text="FILTRAR"
+                  whileHover={{ y: -6, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`relative p-5 rounded-[2.25rem] transition-all cursor-pointer group text-left w-full border flex flex-col justify-between aspect-[1.05] overflow-hidden ${
+                    isActive
+                      ? "bg-[#2B2622] border-[#2B2622] text-white shadow-xl shadow-[#2B2622]/20"
+                      : "bg-white/40 backdrop-blur-xl border-white/60 hover:border-[#A6815C]/40 hover:bg-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.015)]"
+                  }`}
+                  style={{
+                    transition: 'background-color 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.25s',
+                  }}
+                >
+                  {/* Glow decorativo de fundo para cards ativos */}
+                  {isActive && (
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-[#A6815C]/20 rounded-full blur-xl pointer-events-none" />
+                  )}
 
-              {/* Indicador de status/ativo no topo superior direito */}
-              {isActive && (
-                <div className="absolute top-4 right-4 flex items-center justify-center">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#A6815C] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#A6815C]"></span>
+                  {/* Indicador de status/ativo no topo superior direito */}
+                  {isActive && (
+                    <div className="absolute top-4 right-4 flex items-center justify-center">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#A6815C] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#A6815C]"></span>
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Moldura táctil para o emoji/ícone */}
+                  <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center text-2xl transition-all duration-300 ${
+                    isActive
+                      ? "bg-white/10 border border-white/10 shadow-[inset_0_2px_4px_rgba(255,255,255,0.1)]"
+                      : "bg-[#2B2622]/5 border border-[#2B2622]/5 shadow-sm group-hover:bg-[#A6815C]/10 group-hover:border-[#A6815C]/20"
+                  }`}>
+                    <div className="group-hover:animate-bounce-subtle transition-transform duration-300">
+                      {cat.icon}
+                    </div>
+                  </div>
+
+                  <span
+                    className={`text-[13px] font-extrabold tracking-wide transition-colors mt-4 block ${
+                      isActive ? 'text-white' : 'text-[#6B5E55] group-hover:text-[#2B2622]'
+                    }`}
+                  >
+                    {cat.name}
                   </span>
-                </div>
-              )}
-
-              {/* Moldura táctil para o emoji/ícone */}
-              <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center text-2xl transition-all duration-300 ${
-                isActive
-                  ? "bg-white/10 border border-white/10 shadow-[inset_0_2px_4px_rgba(255,255,255,0.1)]"
-                  : "bg-[#2B2622]/5 border border-[#2B2622]/5 shadow-sm group-hover:bg-[#A6815C]/10 group-hover:border-[#A6815C]/20"
-              }`}>
-                <div className="group-hover:animate-bounce-subtle transition-transform duration-300">
-                  {cat.icon}
-                </div>
-              </div>
-
-              <span
-                className={`text-[13px] font-extrabold tracking-wide transition-colors mt-4 block ${
-                  isActive ? 'text-white' : 'text-[#6B5E55] group-hover:text-[#2B2622]'
-                }`}
-              >
-                {cat.name}
-              </span>
-            </motion.button>
+                </motion.button>
+              </TiltCard>
+            </motion.div>
           );
         })}
       </div>

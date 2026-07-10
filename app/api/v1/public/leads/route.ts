@@ -22,6 +22,7 @@ import { landingLeadSchema, normalizeBrPhone } from "@/lib/schemas/public-leads"
 import { sendEmail } from "@/lib/email/resend";
 import { buildLeadNotifyEmail } from "@/lib/email/templates/lead-notify";
 import { buildLeadWelcomeEmail } from "@/lib/email/templates/lead-welcome";
+import { buildNewsletterWelcomeEmail } from "@/lib/email/templates/newsletter-welcome";
 import { sendWAHA, resolveWahaChatId } from "@/lib/waha/send";
 
 export const dynamic = "force-dynamic";
@@ -125,8 +126,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     replyTo: input.email,
   });
 
-  // 2) Welcome the lead (skip for newsletter-only signups).
-  if (!isNewsletter) {
+  // 2) Welcome the lead or newsletter subscriber.
+  if (isNewsletter) {
+    const welcome = buildNewsletterWelcomeEmail({ email: input.email });
+    void sendEmail({
+      to: input.email,
+      subject: welcome.subject,
+      html: welcome.html,
+      text: welcome.text,
+    });
+  } else {
     const welcome = buildLeadWelcomeEmail({ name: input.name, whatsappUrl: WHATSAPP_URL });
     void sendEmail({
       to: input.email,
@@ -140,6 +149,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       void sendWhatsappWelcome(admin, orgId, phoneE164, input.name);
     }
   }
+
+  // 4) WhatsApp notification to director — best-effort.
+  void sendWhatsappNotificationToDirector(
+    admin,
+    orgId,
+    input.name ?? "Interessado(a)",
+    input.email,
+    phoneE164 ?? "",
+    input.type
+  );
 
   return ok(
     { received: true, type: input.type },
@@ -187,5 +206,45 @@ async function sendWhatsappWelcome(
     await sendWAHA({ sessionName, chatId, text });
   } catch {
     // best-effort; ignore
+  }
+}
+
+/**
+ * Sends a WhatsApp notification to the director (31999284834) via the active WAHA session.
+ */
+async function sendWhatsappNotificationToDirector(
+  admin: ReturnType<typeof createAdminClient>,
+  orgId: string,
+  leadName: string,
+  leadEmail: string,
+  leadPhone: string,
+  leadType: "lead" | "newsletter",
+): Promise<void> {
+  try {
+    const { data: session } = await admin
+      .from("channel_sessions")
+      .select("waha_session_name")
+      .eq("organization_id", orgId)
+      .eq("status", "WORKING")
+      .limit(1)
+      .maybeSingle();
+
+    const sessionName = session?.waha_session_name as string | undefined;
+    if (!sessionName) return;
+
+    // Director's WhatsApp number in E.164 format with WAHA suffix
+    const chatId = "5531999284834@c.us";
+
+    const text =
+      `🔔 *Novo Lead Capturado!* 🚀\n\n` +
+      `*Tipo:* ${leadType === "newsletter" ? "Inscrição na Newsletter" : "Formulário de Contato"}\n` +
+      `*Nome:* ${leadName}\n` +
+      `*E-mail:* ${leadEmail}\n` +
+      `*WhatsApp:* ${leadPhone || "Não informado"}\n\n` +
+      `Acesse o painel do DeskcommCRM para gerenciar.`;
+
+    await sendWAHA({ sessionName, chatId, text });
+  } catch (err) {
+    console.error("[whatsapp-director-notify] failed", err);
   }
 }
