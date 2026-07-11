@@ -104,10 +104,12 @@
     "typescript": "^5.6.0",
     "vitest": "^2.1.9"
   },
-  "onlyBuiltDependencies": [
-    "@sentry/cli",
-    "esbuild",
-    "sharp",
-    "unrs-resolver"
-  ]
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@sentry/cli",
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
 }
