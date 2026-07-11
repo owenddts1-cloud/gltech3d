@@ -2,28 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-const IMAGES = [
-  "https://motionsites.ai/assets/hero-space-voyage-preview-eECLH3Yc.gif",
-  "https://motionsites.ai/assets/hero-codenest-preview-Cgppc2qV.gif",
-  "https://motionsites.ai/assets/hero-vex-ventures-preview-BczMFIiw.gif",
-  "https://motionsites.ai/assets/hero-stellar-ai-v2-preview-DjvxjG3C.gif",
-  "https://motionsites.ai/assets/hero-asme-preview-B_nGDnTP.gif",
-  "https://motionsites.ai/assets/hero-transform-data-preview-Cx5OU29N.gif",
-  "https://motionsites.ai/assets/hero-vitara-preview-Cjz2QYyU.gif",
-  "https://motionsites.ai/assets/hero-terra-preview-BFjrCr7T.gif",
-  "https://motionsites.ai/assets/hero-skyelite-preview-DHaZIgUv.gif",
-  "https://motionsites.ai/assets/hero-aethera-preview-DknSlcTa.gif",
-  "https://motionsites.ai/assets/hero-designpro-preview-D8c5_een.gif",
-  "https://motionsites.ai/assets/hero-stellar-ai-preview-D3HL6bw1.gif",
-  "https://motionsites.ai/assets/hero-xportfolio-preview-D4A8maiC.gif",
-  "https://motionsites.ai/assets/hero-orbit-web3-preview-BXt4OttD.gif",
-  "https://motionsites.ai/assets/hero-nexora-preview-cx5HmUgo.gif",
-  "https://motionsites.ai/assets/hero-evr-ventures-preview-DZxeVFEX.gif",
-  "https://motionsites.ai/assets/hero-planet-orbit-preview-DWAP8Z1P.gif",
-  "https://motionsites.ai/assets/hero-new-era-preview-CocuDUm9.gif",
-  "https://motionsites.ai/assets/hero-wealth-preview-B70idl_u.gif",
-  "https://motionsites.ai/assets/hero-luminex-preview-CxOP7ce6.gif",
-  "https://motionsites.ai/assets/hero-celestia-preview-0yO3jXO8.gif"
+const MEUS_PRODUTOS = [
+  { nome: "Charizard Articulável", cat: "Action Figure", img: "https://images.unsplash.com/photo-1608889174637-3c44f6326f2a?w=500&auto=format&fit=crop&q=60" },
+  { nome: "Batman Gotham Night", cat: "Action Figure", img: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?w=500&auto=format&fit=crop&q=60" },
+  { nome: "Luminária Lua Cheia", cat: "Luminárias", img: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=500&auto=format&fit=crop&q=60" },
+  { nome: "Base Apple Watch", cat: "Protótipos", img: "https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=500&auto=format&fit=crop&q=60" },
+  { nome: "Banguela Fúria da Noite", cat: "Chaveiros", img: "https://images.unsplash.com/photo-1560169897-fc0cdbdfa4d5?w=500&auto=format&fit=crop&q=60" },
+  { nome: "Kit Vasos Modernos", cat: "Decoração", img: "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=500&auto=format&fit=crop&q=60" },
+  { nome: "Chibi Naruto", cat: "Anime", img: "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop&q=60" }
 ];
 
 export default function MarqueeSection() {
@@ -34,7 +20,7 @@ export default function MarqueeSection() {
     const handleScroll = () => {
       if (!sectionRef.current) return;
       const top = sectionRef.current.offsetTop;
-      const offset = (window.scrollY - top + window.innerHeight) * 0.3;
+      const offset = (window.scrollY - top + window.innerHeight) * 0.25;
       setScrollOffset(offset);
     };
 
@@ -42,34 +28,47 @@ export default function MarqueeSection() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const row1 = [...IMAGES.slice(0, 11), ...IMAGES.slice(0, 11), ...IMAGES.slice(0, 11)];
-  const row2 = [...IMAGES.slice(11), ...IMAGES.slice(11), ...IMAGES.slice(11)];
+  const linha1 = [...MEUS_PRODUTOS, ...MEUS_PRODUTOS, ...MEUS_PRODUTOS];
+  const linha2 = [...MEUS_PRODUTOS].reverse().concat([...MEUS_PRODUTOS].reverse());
 
   return (
-    <section ref={sectionRef} className="bg-[#0C0C0C] pt-24 sm:pt-32 md:pt-40 pb-10 overflow-hidden flex flex-col gap-3 w-full">
-      {/* Linha 1 -> Desloca para a Direita */}
+    <section id="portfolio-marquee" ref={sectionRef} className="bg-[#F4F1EB] py-16 overflow-hidden flex flex-col gap-6 w-full border-t border-gray-200/50">
+      
+      {/* Linha 1 -> Avança para a direita baseado no scroll */}
       <div 
-        className="flex gap-3 clean-marquee" 
-        style={{ 
-          transform: `translate3d(${scrollOffset - 200}px, 0px, 0px)`,
-          willChange: 'transform'
-        }}
+        className="flex gap-4" 
+        style={{ transform: `translate3d(${scrollOffset - 200}px, 0px, 0px)`, willChange: 'transform' }}
       >
-        {row1.map((src, idx) => (
-          <img key={`r1-${idx}`} src={src} loading="lazy" className="w-[340px] h-[220px] md:w-[420px] md:h-[270px] rounded-3xl object-cover flex-shrink-0" alt="Work structural asset" />
+        {linha1.map((prod, idx) => (
+          <div key={`l1-${idx}`} className="w-[280px] h-[340px] bg-white rounded-3xl p-3 flex flex-col justify-between border border-gray-200/60 shadow-sm flex-shrink-0">
+            <div className="w-full h-[70%] bg-gray-50 rounded-2xl overflow-hidden relative">
+              <div className="absolute top-2 left-2 bg-[#A88060] text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">{prod.cat}</div>
+              <div className="w-full h-full flex items-center justify-center font-bold text-gray-300 text-sm bg-stone-200">Foto do Produto</div>
+            </div>
+            <div className="p-2">
+              <h4 className="text-sm font-bold uppercase tracking-tight text-gray-800">{prod.nome}</h4>
+              <span className="text-xs text-[#A88060] font-medium">Coleção GLTech3D</span>
+            </div>
+          </div>
         ))}
       </div>
 
-      {/* Linha 2 -> Desloca para a Esquerda */}
+      {/* Linha 2 -> Recua para a esquerda baseado no scroll */}
       <div 
-        className="flex gap-3 clean-marquee" 
-        style={{ 
-          transform: `translate3d(${-scrollOffset}px, 0px, 0px)`,
-          willChange: 'transform'
-        }}
+        className="flex gap-4" 
+        style={{ transform: `translate3d(${-scrollOffset}px, 0px, 0px)`, willChange: 'transform' }}
       >
-        {row2.map((src, idx) => (
-          <img key={`r2-${idx}`} src={src} loading="lazy" className="w-[340px] h-[220px] md:w-[420px] md:h-[270px] rounded-3xl object-cover flex-shrink-0" alt="Work design preview" />
+        {linha2.map((prod, idx) => (
+          <div key={`l2-${idx}`} className="w-[280px] h-[340px] bg-white rounded-3xl p-3 flex flex-col justify-between border border-gray-200/60 shadow-sm flex-shrink-0">
+            <div className="w-full h-[70%] bg-gray-50 rounded-2xl overflow-hidden relative">
+              <div className="absolute top-2 left-2 bg-[#2D2A26] text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">{prod.cat}</div>
+              <div className="w-full h-full flex items-center justify-center font-bold text-gray-300 text-sm bg-stone-200">Foto do Produto</div>
+            </div>
+            <div className="p-2">
+              <h4 className="text-sm font-bold uppercase tracking-tight text-gray-800">{prod.nome}</h4>
+              <span className="text-xs text-gray-500 font-medium">Alta Resolução 3D</span>
+            </div>
+          </div>
         ))}
       </div>
     </section>

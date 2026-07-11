@@ -337,13 +337,28 @@
    Portado de _landing-original/app/globals.css (Tailwind 4 → CSS puro).
    ───────────────────────────────────────────────────────────────────────── */
 .marketing-root {
-  background-color: #0C0C0C;
-  color: #D7E2EA;
+  background-color: #F4F1EB;
+  color: #1A1A1A;
   font-family: 'Kanit', sans-serif;
 }
 
 .marketing-root * {
   box-sizing: border-box;
+}
+
+/* Vidro Líquido Adaptado para Elementos Claros */
+.marketing-root .liquid-glass-light {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(168, 128, 96, 0.15);
+}
+
+/* Estilo do Título Principal Escuro e Elegante */
+.marketing-root .hero-heading-dark {
+  color: #2D2A26;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 /* Efeito Avançado de Vidro Líquido com Borda Interna Realista */
