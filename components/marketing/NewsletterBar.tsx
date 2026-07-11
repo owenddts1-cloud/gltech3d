@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'motion/react';
+import { useRef, useState } from 'react';
+import { motion, useMotionValue, useSpring } from 'motion/react';
 import { toast } from 'sonner';
 import { Mail, Loader2 } from 'lucide-react';
 
@@ -9,6 +9,22 @@ export default function NewsletterBar() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+
+  // Atração magnética do formulário em direção ao cursor dentro do bloco.
+  const mvx = useMotionValue(0);
+  const mvy = useMotionValue(0);
+  const sx = useSpring(mvx, { stiffness: 220, damping: 18 });
+  const sy = useSpring(mvy, { stiffness: 220, damping: 18 });
+
+  function onBlockMove(e: React.PointerEvent<HTMLDivElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    mvx.set(((e.clientX - r.left) / r.width - 0.5) * 22);
+    mvy.set(((e.clientY - r.top) / r.height - 0.5) * 16);
+  }
+  function onBlockLeave() {
+    mvx.set(0);
+    mvy.set(0);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,12 +73,29 @@ export default function NewsletterBar() {
 
       <div className="px-6">
       <motion.div
+        onPointerMove={onBlockMove}
+        onPointerLeave={onBlockLeave}
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-60px' }}
         transition={{ duration: 0.5 }}
         className="relative overflow-hidden max-w-5xl mx-auto rounded-3xl bg-[#2D241E] text-white px-8 py-10 md:px-12 md:flex md:items-center md:justify-between gap-8"
       >
+        {/* Texto decorativo de fundo em marquee horizontal */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 z-0 flex items-center overflow-hidden">
+          <motion.div
+            className="flex whitespace-nowrap"
+            animate={{ x: ['0%', '-50%'] }}
+            transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
+          >
+            {Array.from({ length: 2 }).map((_, i) => (
+              <span key={i} className="font-sora text-7xl md:text-9xl font-black uppercase tracking-tight text-white/[0.04] pr-12">
+                GLTech3D&nbsp;•&nbsp;Impressão 3D&nbsp;•&nbsp;Sob Demanda&nbsp;•&nbsp;
+              </span>
+            ))}
+          </motion.div>
+        </div>
+
         {/* Glows decorativos animados */}
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <motion.div
@@ -83,6 +116,7 @@ export default function NewsletterBar() {
             Lançamentos, promoções e peças novas direto no seu e-mail. Sem spam.
           </p>
         </div>
+        <motion.div className="relative z-10" style={{ x: sx, y: sy }}>
         {done ? (
           <div className="relative z-10 flex items-center gap-2 text-[#E8D9C6] font-medium">
             <Mail className="w-5 h-5" /> Você está na lista. Obrigado!
@@ -109,6 +143,7 @@ export default function NewsletterBar() {
             </button>
           </form>
         )}
+        </motion.div>
       </motion.div>
       </div>
     </section>

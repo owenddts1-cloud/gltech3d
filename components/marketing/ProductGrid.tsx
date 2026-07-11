@@ -54,7 +54,7 @@ export default function ProductGrid({ selectedCategory }: ProductGridProps) {
                       src={product.image}
                       alt={product.name}
                       fill
-                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                       referrerPolicy="no-referrer"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                     />
@@ -66,8 +66,8 @@ export default function ProductGrid({ selectedCategory }: ProductGridProps) {
                       </span>
                     </div>
 
-                    {/* Status Dot / Category Tag */}
-                    <div className="absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-neutral-200/10 text-[9px] font-bold uppercase tracking-wider text-[#2B2622] shadow-sm">
+                    {/* Status Dot / Category Tag — descola para cima/esquerda no hover */}
+                    <div className="absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-neutral-200/10 text-[9px] font-bold uppercase tracking-wider text-[#2B2622] shadow-sm transition-transform duration-500 ease-out will-change-transform group-hover:-translate-x-1 group-hover:-translate-y-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                       {product.category}
                     </div>
@@ -104,7 +104,7 @@ export default function ProductGrid({ selectedCategory }: ProductGridProps) {
                       Pronto p/ Envio
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 transition-transform duration-500 ease-out will-change-transform group-hover:translate-x-1 group-hover:translate-y-1">
                     <span className="text-lg font-bold font-mono tracking-tight text-[#2B2622] group-hover:text-[#A6815C] transition-colors">
                       R$ {product.priceRange ? product.priceRange : product.price.toFixed(2)}
                     </span>

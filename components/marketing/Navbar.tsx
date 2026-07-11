@@ -13,6 +13,12 @@ const LINKS = [
   { id: 'contato', label: 'Contato' },
 ];
 
+// Rotas dedicadas (não são âncoras da home).
+const ROUTE_LINKS = [
+  { href: '/orcamento', label: 'Orçamento' },
+  { href: '/tecnologias', label: 'Tecnologias' },
+];
+
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -88,6 +94,15 @@ export default function Navbar() {
               {l.label}
             </button>
           ))}
+          {ROUTE_LINKS.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="relative px-4 py-2 text-sm font-semibold text-[#6B5E55] hover:text-[#2D241E] transition-colors"
+            >
+              {l.label}
+            </Link>
+          ))}
         </div>
 
         <Link
@@ -117,6 +132,16 @@ export default function Navbar() {
               >
                 {l.label}
               </button>
+            ))}
+            {ROUTE_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setIsOpen(false)}
+                className="text-left py-2.5 px-4 font-semibold text-[#6B5E55] hover:text-[#A6815C] hover:bg-[#A6815C]/10 rounded-xl transition-all"
+              >
+                {l.label}
+              </Link>
             ))}
             <Link
               href="/login"

@@ -88,6 +88,7 @@ export default function Categories({ selectedCategory, onSelectCategory }: Categ
                   }`}
                   style={{
                     transition: 'background-color 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.25s',
+                    transformStyle: 'preserve-3d',
                   }}
                 >
                   {/* Glow decorativo de fundo para cards ativos */}
@@ -105,12 +106,15 @@ export default function Categories({ selectedCategory, onSelectCategory }: Categ
                     </div>
                   )}
 
-                  {/* Moldura táctil para o emoji/ícone */}
-                  <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center text-2xl transition-all duration-300 ${
-                    isActive
-                      ? "bg-white/10 border border-white/10 shadow-[inset_0_2px_4px_rgba(255,255,255,0.1)]"
-                      : "bg-[#2B2622]/5 border border-[#2B2622]/5 shadow-sm group-hover:bg-[#A6815C]/10 group-hover:border-[#A6815C]/20"
-                  }`}>
+                  {/* Moldura táctil para o emoji/ícone — salta em parallax (translateZ) no tilt */}
+                  <div
+                    className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center text-2xl transition-all duration-300 ${
+                      isActive
+                        ? "bg-white/10 border border-white/10 shadow-[inset_0_2px_4px_rgba(255,255,255,0.1)]"
+                        : "bg-[#2B2622]/5 border border-[#2B2622]/5 shadow-sm group-hover:bg-[#A6815C]/10 group-hover:border-[#A6815C]/20"
+                    }`}
+                    style={{ transform: 'translateZ(38px)' }}
+                  >
                     <div className="group-hover:animate-bounce-subtle transition-transform duration-300">
                       {cat.icon}
                     </div>
@@ -120,6 +124,7 @@ export default function Categories({ selectedCategory, onSelectCategory }: Categ
                     className={`text-[13px] font-extrabold tracking-wide transition-colors mt-4 block ${
                       isActive ? 'text-white' : 'text-[#6B5E55] group-hover:text-[#2B2622]'
                     }`}
+                    style={{ transform: 'translateZ(16px)' }}
                   >
                     {cat.name}
                   </span>
