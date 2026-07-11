@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Kanit:wght@300;400;500;700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -335,9 +337,50 @@
    Portado de _landing-original/app/globals.css (Tailwind 4 → CSS puro).
    ───────────────────────────────────────────────────────────────────────── */
 .marketing-root {
-  background-color: #faf9f6;
-  color: #2b2622;
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  background-color: #0C0C0C;
+  color: #D7E2EA;
+  font-family: 'Kanit', sans-serif;
+}
+
+.marketing-root * {
+  box-sizing: border-box;
+}
+
+/* Efeito Avançado de Vidro Líquido com Borda Interna Realista */
+.marketing-root .liquid-glass {
+  background: rgba(255, 255, 255, 0.01);
+  background-blend-mode: luminosity;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+}
+
+.marketing-root .liquid-glass::before {
+  content: "";
+  position: absolute; 
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.1) 20%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(255, 255, 255, 0.1) 80%,
+    rgba(255, 255, 255, 0.4) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Gradiente de Título Metálico Premium */
+.marketing-root .hero-heading {
+  background: linear-gradient(180deg, #646973 0%, #BBCCD7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .marketing-root .font-sora {
   font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;

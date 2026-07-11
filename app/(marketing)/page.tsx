@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import Navbar from '@/components/marketing/Navbar';
 import HeroScrollVideo from '@/components/marketing/HeroScrollVideo';
+import MarqueeSection from '@/components/marketing/MarqueeSection';
+import AboutSection from '@/components/marketing/AboutSection';
+import ServicesSection from '@/components/marketing/ServicesSection';
 import Categories from '@/components/marketing/Categories';
 import ProductGrid from '@/components/marketing/ProductGrid';
 import HowItWorks from '@/components/marketing/HowItWorks';
@@ -18,13 +20,19 @@ export default function Home() {
   return (
     <SmoothScroll>
       <main className="min-h-screen">
-        <Navbar />
         <HeroScrollVideo />
-        <Categories
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-        />
-        <ProductGrid selectedCategory={selectedCategory} />
+        <MarqueeSection />
+        <AboutSection />
+        <ServicesSection />
+        
+        <div id="produtos" className="relative z-20">
+          <Categories
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+          />
+          <ProductGrid selectedCategory={selectedCategory} />
+        </div>
+
         <HowItWorks />
         <SocialProof />
         <LeadForm />
@@ -34,3 +42,4 @@ export default function Home() {
     </SmoothScroll>
   );
 }
+
