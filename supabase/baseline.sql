@@ -4353,6 +4353,14 @@ alter table public.service_orders add constraint service_orders_priority_check
   check (priority in ('alta', 'media', 'baixa'));
 alter table public.service_orders add column if not exists material text;
 
+-- ---- print_jobs: vínculo com Ordem de Serviço (migration 0032) ----
+-- Depois de service_orders existir (o FK aponta pra ela).
+alter table public.print_jobs
+  add column if not exists service_order_id uuid
+  references public.service_orders(id) on delete set null;
+create index if not exists print_jobs_org_service_order_idx
+  on public.print_jobs (organization_id, service_order_id);
+
 -- ---- products: catálogo + BOM (migration 0030) ----
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
@@ -4384,4 +4392,150 @@ revoke all on public.products from anon;
 drop trigger if exists trg_products_audit on public.products;
 create trigger trg_products_audit
   after insert or update or delete on public.products
+  for each row execute function public.fn_audit_log_row();
+
+-- ---- inventory_assets: patrimônio da oficina (migration 0033) ----
+create table if not exists public.inventory_assets (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name text not null,
+  category text not null default 'outro'
+    check (category in ('impressora', 'ferramenta', 'movel', 'computador', 'estufa', 'eletronico', 'outro')),
+  quantity integer not null default 1,
+  purchase_value_cents bigint not null default 0,
+  purchase_date date,
+  useful_life_months integer not null default 60,
+  status text not null default 'ativo'
+    check (status in ('ativo', 'manutencao', 'inativo')),
+  notes text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists inventory_assets_org_idx on public.inventory_assets (organization_id);
+create index if not exists inventory_assets_org_status_idx on public.inventory_assets (organization_id, status);
+alter table public.inventory_assets enable row level security;
+drop policy if exists tenant_isolation_inventory_assets_all on public.inventory_assets;
+create policy tenant_isolation_inventory_assets_all on public.inventory_assets
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.inventory_assets from anon;
+drop trigger if exists trg_inventory_assets_audit on public.inventory_assets;
+create trigger trg_inventory_assets_audit
+  after insert or update or delete on public.inventory_assets
+  for each row execute function public.fn_audit_log_row();
+
+-- ---- projects + project_notes: engenharia e quadro de ideias (migration 0034) ----
+create table if not exists public.projects (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name text not null,
+  filament_type text,
+  weight_grams numeric not null default 0,
+  print_hours numeric not null default 0,
+  layer_height numeric not null default 0.2,
+  infill text,
+  speed integer not null default 0,
+  nozzle_temp integer not null default 0,
+  bed_temp integer not null default 0,
+  description text,
+  filament_cost_per_kg numeric not null default 0,
+  wattage integer not null default 0,
+  kwh_price numeric not null default 0.85,
+  depreciation_per_hour numeric not null default 0,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists projects_org_idx on public.projects (organization_id, created_at desc);
+alter table public.projects enable row level security;
+drop policy if exists tenant_isolation_projects_all on public.projects;
+create policy tenant_isolation_projects_all on public.projects
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.projects from anon;
+drop trigger if exists trg_projects_audit on public.projects;
+create trigger trg_projects_audit
+  after insert or update or delete on public.projects
+  for each row execute function public.fn_audit_log_row();
+
+create table if not exists public.project_notes (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  title text not null,
+  content text not null,
+  color text not null default 'yellow' check (color in ('yellow', 'pink', 'blue', 'green')),
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists project_notes_org_idx on public.project_notes (organization_id, created_at desc);
+alter table public.project_notes enable row level security;
+drop policy if exists tenant_isolation_project_notes_all on public.project_notes;
+create policy tenant_isolation_project_notes_all on public.project_notes
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.project_notes from anon;
+drop trigger if exists trg_project_notes_audit on public.project_notes;
+create trigger trg_project_notes_audit
+  after insert or update or delete on public.project_notes
+  for each row execute function public.fn_audit_log_row();
+
+-- ---- suppliers + supplier_purchases: fornecedores e compras (migration 0035) ----
+create table if not exists public.suppliers (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name text not null,
+  category text not null default 'filament'
+    check (category in ('filament', 'printer', 'shipping', 'tools', 'other')),
+  contact_person text,
+  phone text,
+  website text,
+  rating integer not null default 5 check (rating between 1 and 5),
+  avg_delivery_days integer not null default 5,
+  notes text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists suppliers_org_idx on public.suppliers (organization_id);
+alter table public.suppliers enable row level security;
+drop policy if exists tenant_isolation_suppliers_all on public.suppliers;
+create policy tenant_isolation_suppliers_all on public.suppliers
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.suppliers from anon;
+drop trigger if exists trg_suppliers_audit on public.suppliers;
+create trigger trg_suppliers_audit
+  after insert or update or delete on public.suppliers
+  for each row execute function public.fn_audit_log_row();
+
+create table if not exists public.supplier_purchases (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  supplier_id uuid references public.suppliers(id) on delete set null,
+  supplier_name text not null,
+  item_name text not null,
+  qty integer not null default 1,
+  unit_price_cents bigint not null default 0,
+  purchased_at date not null default now(),
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+create index if not exists supplier_purchases_org_idx
+  on public.supplier_purchases (organization_id, purchased_at desc);
+alter table public.supplier_purchases enable row level security;
+drop policy if exists tenant_isolation_supplier_purchases_all on public.supplier_purchases;
+create policy tenant_isolation_supplier_purchases_all on public.supplier_purchases
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.supplier_purchases from anon;
+drop trigger if exists trg_supplier_purchases_audit on public.supplier_purchases;
+create trigger trg_supplier_purchases_audit
+  after insert or update or delete on public.supplier_purchases
   for each row execute function public.fn_audit_log_row();

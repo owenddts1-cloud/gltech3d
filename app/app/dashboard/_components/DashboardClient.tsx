@@ -23,7 +23,6 @@ import {
   ChartLineUp,
   Warning,
   Info,
-  Clock,
   ArrowsClockwise,
   Plus,
   Play,
@@ -38,6 +37,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { calculateRealCost } from "@/lib/pricing/engine";
 import { savePrintersAndFilaments } from "@/app/actions/printers/actions";
+import { PrintingDetails } from "@/app/app/printers/_components/PrintingDetails";
 
 interface PrinterItem {
   id: string;
@@ -53,7 +53,20 @@ interface PrinterItem {
     timeRemaining: number;
     filamentId: string;
     weightGrams: number;
+    serviceOrderId?: string | null;
+    serviceOrderTitle?: string | null;
   } | null;
+}
+
+export interface ServiceOrderLite {
+  id: string;
+  title: string;
+  contactName: string | null;
+  status: string;
+  priority: string;
+  material: string | null;
+  totalCents: number;
+  slaDueAt: string | null;
 }
 
 interface FilamentItem {
@@ -83,6 +96,7 @@ interface PrintJobItem {
     depreciationCost: number;
     totalCost: number;
   } | null;
+  serviceOrderId: string | null;
   completedAt: string;
 }
 
@@ -91,6 +105,7 @@ interface DashboardClientProps {
     printers: PrinterItem[];
     filaments: FilamentItem[];
     printJobs: PrintJobItem[];
+    serviceOrders: ServiceOrderLite[];
     kEnergy: number;
     orgId: string | null;
   };
@@ -138,6 +153,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   const [printers, setPrinters] = useState<PrinterItem[]>(initialData.printers);
   const [filaments, setFilaments] = useState<FilamentItem[]>(initialData.filaments);
   const [printJobs, setPrintJobs] = useState<PrintJobItem[]>(initialData.printJobs);
+  const serviceOrders = initialData.serviceOrders;
   const [kEnergy, setKEnergy] = useState<number>(initialData.kEnergy);
   const [isPending, startSaveTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
@@ -176,6 +192,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   const [simWeight, setSimWeight] = useState(45);
   const [simTime, setSimTime] = useState(7200);
   const [simFilename, setSimFilename] = useState("GL_Rocket_NoseCone.gcode");
+  const [simServiceOrderId, setSimServiceOrderId] = useState("");
 
   const initializeMockData = async () => {
     const demoFilaments: FilamentItem[] = [
@@ -275,6 +292,20 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     });
   };
 
+  // Vincula/desvincula uma OS ao job ativo da impressora (grava no active_print_job).
+  const assignOsToActiveJob = (printerId: string, osId: string | null) => {
+    const os = osId ? serviceOrders.find((s) => s.id === osId) ?? null : null;
+    const updated = printers.map((p) => {
+      if (p.id !== printerId || !p.activePrintJob) return p;
+      return {
+        ...p,
+        activePrintJob: { ...p.activePrintJob, serviceOrderId: os?.id ?? null, serviceOrderTitle: os?.title ?? null },
+      };
+    });
+    setPrinters(updated);
+    handleSave(updated, filaments);
+  };
+
   const addPrinter = () => {
     if (!newPrinter.name) return toast.error("Insira o nome da máquina.");
     const printer = {
@@ -360,6 +391,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       filamentId: filament.id,
       filamentName: filament.name,
       costs: costInfo,
+      serviceOrderId: simServiceOrderId || null,
       completedAt: new Date().toISOString()
     };
 
@@ -385,7 +417,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
             filename: simFilename,
             weight_grams: Number(simWeight),
             print_time_seconds: Number(simTime),
-            filament_id: filament.id
+            filament_id: filament.id,
+            service_order_id: simServiceOrderId || null
           })
         });
         const resJson = await response.json();
@@ -697,33 +730,15 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   </div>
 
                   {printer.status === "printing" && printer.activePrintJob ? (
-                    <div className="mt-4 space-y-2">
-                      <div className="flex justify-between text-xs font-semibold text-zinc-200">
-                        <span className="truncate max-w-[150px]">{printer.activePrintJob.filename}</span>
-                        <span>{printer.activePrintJob.progress}%</span>
-                      </div>
-                      <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-orange-500 h-full transition-all duration-500" 
-                          style={{ width: `${printer.activePrintJob.progress}%` }} 
-                        />
-                      </div>
-                      <div className="flex justify-between text-[10px] text-zinc-400">
-                        <span className="flex items-center gap-1">
-                          <Clock size={12} />
-                          Restam: {Math.round(printer.activePrintJob.timeRemaining / 60)} min
-                        </span>
-                        {assignedFilament && (
-                          <span className="flex items-center gap-1">
-                            <span 
-                              className="h-2.5 w-2.5 rounded-full border border-white/20 inline-block"
-                              style={{ backgroundColor: assignedFilament.color }}
-                            />
-                            {assignedFilament.name}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    <PrintingDetails
+                      filename={printer.activePrintJob.filename}
+                      progress={printer.activePrintJob.progress}
+                      timeRemaining={printer.activePrintJob.timeRemaining}
+                      filament={assignedFilament ? { name: assignedFilament.name, color: assignedFilament.color } : null}
+                      serviceOrders={serviceOrders}
+                      linkedOs={serviceOrders.find((s) => s.id === printer.activePrintJob?.serviceOrderId) ?? null}
+                      onAssign={(osId) => assignOsToActiveJob(printer.id, osId)}
+                    />
                   ) : (
                     <div className="mt-4 flex flex-col items-center justify-center p-4 bg-zinc-900/30 rounded-md border border-zinc-800/40 text-center">
                       {printer.status === "error" ? (
@@ -935,6 +950,23 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 className="bg-zinc-900 border-zinc-800 text-zinc-200 focus:ring-orange-500 focus:border-orange-500"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sim_os">Ordem de Serviço (opcional)</Label>
+              <select
+                id="sim_os"
+                value={simServiceOrderId}
+                onChange={(e) => setSimServiceOrderId(e.target.value)}
+                className="w-full text-xs p-2 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              >
+                <option value="" className="bg-zinc-950">Sem OS vinculada</option>
+                {serviceOrders.map((so) => (
+                  <option key={so.id} value={so.id} className="bg-zinc-950">
+                    {so.title}{so.contactName ? ` — ${so.contactName}` : ""}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <Button type="submit" disabled={isPending} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl">

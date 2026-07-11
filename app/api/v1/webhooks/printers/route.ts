@@ -35,6 +35,7 @@ const bodySchema = z.object({
   weight_grams: z.coerce.number().nonnegative().max(100_000).optional().default(0),
   print_time_seconds: z.coerce.number().nonnegative().max(30 * 24 * 3600).optional().default(0),
   filament_id: z.string().max(128).optional().nullable(),
+  service_order_id: z.string().uuid().optional().nullable(),
 });
 
 function json(status: number, payload: Record<string, unknown>): Response {
@@ -92,9 +93,26 @@ export async function POST(req: NextRequest): Promise<Response> {
   } catch {
     return json(400, { ok: false, error: "invalid_payload", requestId });
   }
-  const { printer_id, filename, weight_grams, print_time_seconds, filament_id } = parsed;
+  const { printer_id, filename, weight_grams, print_time_seconds, filament_id, service_order_id } = parsed;
 
   const supabase = createAdminClient();
+
+  // Se veio uma OS vinculada, confirme que ela pertence a ESTA org antes de
+  // gravar — o admin client abaixo bypassa RLS, então a checagem é obrigatória.
+  let linkedServiceOrderId: string | null = null;
+  if (service_order_id) {
+    const { data: so } = await supabase
+      .from("service_orders")
+      .select("id")
+      .eq("organization_id", orgId)
+      .eq("id", service_order_id)
+      .limit(1)
+      .maybeSingle();
+    if (!so) {
+      return json(400, { ok: false, error: "service_order_not_found", requestId });
+    }
+    linkedServiceOrderId = service_order_id;
+  }
 
   // Energy tariff stays an org-level scalar in settings.
   const { data: orgRow, error: orgErr } = await supabase
@@ -174,24 +192,28 @@ export async function POST(req: NextRequest): Promise<Response> {
     .eq("organization_id", orgId)
     .eq("id", printer.id);
 
-  // Log the job.
+  // Log the job. `service_order_id` só é incluído quando há OS vinculada, para
+  // não quebrar o insert em bancos onde a migration 0032 ainda não foi aplicada.
+  const jobRow: Record<string, unknown> = {
+    organization_id: orgId,
+    printer_client_id: printer.client_id,
+    printer_name: printer.name,
+    filename,
+    weight_grams,
+    print_time_seconds,
+    filament_client_id: targetFilamentId || null,
+    filament_name: filamentName,
+    material_cost: costInfo?.materialCost ?? null,
+    energy_cost: costInfo?.energyCost ?? null,
+    depreciation_cost: costInfo?.depreciationCost ?? null,
+    total_cost: costInfo?.totalCost ?? null,
+    completed_at: new Date().toISOString(),
+  };
+  if (linkedServiceOrderId) jobRow.service_order_id = linkedServiceOrderId;
+
   const { data: job, error: jobErr } = await supabase
     .from("print_jobs")
-    .insert({
-      organization_id: orgId,
-      printer_client_id: printer.client_id,
-      printer_name: printer.name,
-      filename,
-      weight_grams,
-      print_time_seconds,
-      filament_client_id: targetFilamentId || null,
-      filament_name: filamentName,
-      material_cost: costInfo?.materialCost ?? null,
-      energy_cost: costInfo?.energyCost ?? null,
-      depreciation_cost: costInfo?.depreciationCost ?? null,
-      total_cost: costInfo?.totalCost ?? null,
-      completed_at: new Date().toISOString(),
-    })
+    .insert(jobRow)
     .select("id")
     .single();
 

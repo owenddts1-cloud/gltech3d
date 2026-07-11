@@ -23,7 +23,8 @@ interface PrintJobRow {
   id: string; printer_client_id: string | null; printer_name: string | null; filename: string | null;
   weight_grams: number | string; print_time_seconds: number | string; filament_client_id: string | null;
   filament_name: string | null; material_cost: number | string | null; energy_cost: number | string | null;
-  depreciation_cost: number | string | null; total_cost: number | string | null; completed_at: string;
+  depreciation_cost: number | string | null; total_cost: number | string | null;
+  service_order_id: string | null; completed_at: string;
 }
 
 const num = (v: number | string | null | undefined): number => (v == null ? 0 : Number(v));
@@ -72,6 +73,7 @@ function mapJob(r: PrintJobRow) {
           totalCost: num(r.total_cost),
         }
       : null,
+    serviceOrderId: r.service_order_id ?? null,
     completedAt: r.completed_at,
   };
 }

@@ -66,3 +66,5 @@ deskcommcrm-setup-kit.zip
 
 .vercel
 .env*
+# Exceção: o template sem segredos deve ser versionado.
+!.env.local.example

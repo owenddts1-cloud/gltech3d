@@ -100,4 +100,8 @@ export {
   SignOut,
   Bell,
   TrendUp,
+  Star,
+  Globe,
+  Coins,
+  ArrowsDownUp,
 } from "@phosphor-icons/react/dist/ssr";
