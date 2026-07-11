@@ -80,5 +80,5 @@ export async function signInWithPassword(
   });
 
   // Server-side redirect ensures fresh session cookie is sent to browser.
-  redirect(next || "/app/inbox");
+  redirect(next || "/app/dashboard");
 }

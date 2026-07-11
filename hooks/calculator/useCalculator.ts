@@ -45,7 +45,6 @@ export interface CalculatorOutputs {
 export interface Preset {
   id: string;
   label: string;
-  emoji: string;
   description: string;
   values: Partial<CalculatorInputs>;
 }
@@ -54,7 +53,6 @@ export const PRESETS: Preset[] = [
   {
     id: "chaveiro",
     label: "Chaveiro",
-    emoji: "🔑",
     description: "Peça leve e rápida",
     values: {
       pesoPeca: 12,
@@ -68,7 +66,6 @@ export const PRESETS: Preset[] = [
   {
     id: "peca-tecnica",
     label: "Peça técnica",
-    emoji: "⚙️",
     description: "Funcional, filamento especial",
     values: {
       pesoPeca: 150,
@@ -82,7 +79,6 @@ export const PRESETS: Preset[] = [
   {
     id: "miniatura",
     label: "Miniatura",
-    emoji: "🎨",
     description: "Alta resolução e detalhe",
     values: {
       pesoPeca: 45,
@@ -96,7 +92,6 @@ export const PRESETS: Preset[] = [
   {
     id: "lote-10",
     label: "Lote 10 un",
-    emoji: "📦",
     description: "Produção em escala",
     values: {
       pesoPeca: 45,

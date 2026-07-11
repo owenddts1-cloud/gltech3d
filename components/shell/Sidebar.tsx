@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { LogOut, Zap } from "lucide-react";
 import {
   Kanban, Users, UsersThree, Gear, CaretDoubleLeft, CaretDoubleRight, CaretDown,
   Inbox, ScalesSimple, Robot, PlugsConnected, House,
@@ -11,8 +13,16 @@ import {
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { toggleSidebar } from "@/app/actions/shell/toggleSidebar";
-import { usePermission } from "@/hooks/auth/AuthProvider";
+import { usePermission, useUser, useAuth, useActiveOrg } from "@/hooks/auth/AuthProvider";
 import { ConnectionHealthDot } from "@/components/connections/ConnectionHealthDot";
+import { Logo } from "./Logo";
+
+function initials(name: string | null, email: string): string {
+  if (name && name.trim()) {
+    return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+  }
+  return email.slice(0, 2).toUpperCase();
+}
 
 interface NavLeaf {
   href: string;
@@ -33,8 +43,6 @@ function isGroup(e: NavEntry): e is NavGroup {
   return (e as NavGroup).children !== undefined;
 }
 
-// Nova arquitetura de informação do super app GLTECH CRM. "Clientes" e "Vendas"
-// são grupos expansíveis; o resto são abas diretas. Ordem aprovada pelo usuário.
 const NAV: NavEntry[] = [
   { href: "/app/dashboard", label: "Dashboard", icon: Gauge },
   { href: "/app/printers", label: "Impressoras & Filamentos", icon: Printer },
@@ -86,23 +94,17 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const [isPending, startTransition] = useTransition();
   const canLgpd = usePermission("lgpd.execute_redact");
   const canAiAgents = usePermission("ai.agents.view");
+  const user = useUser();
+  const activeOrg = useActiveOrg();
+  const { signOut } = useAuth();
 
-  // Resolução genérica de permissão por string. Abas sem `permission` são
-  // sempre visíveis; strings desconhecidas caem para visível (fail-open) —
-  // os módulos novos ainda não têm RBAC próprio no milestone 1.
   const permissions: Record<string, boolean> = {
     "lgpd.execute_redact": canLgpd,
     "ai.agents.view": canAiAgents,
   };
   const canSee = (perm?: string) => (perm ? permissions[perm] ?? true : true);
 
-  const [open, setOpen] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    for (const e of NAV) {
-      if (isGroup(e) && e.children.some((c) => isActive(pathname, c.href))) init[e.key] = true;
-    }
-    return init;
-  });
+  const [open, setOpen] = useState<Record<string, boolean>>({});
 
   function renderLeaf(item: NavLeaf, opts?: { nested?: boolean }) {
     const active = isActive(pathname, item.href);
@@ -114,15 +116,22 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         title={collapsed ? item.label : undefined}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+          "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors z-10",
           active
-            ? "bg-accent text-accent-foreground"
-            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+            ? "text-primary font-semibold"
+            : "text-muted-foreground hover:text-foreground",
           collapsed && "justify-center px-2",
           opts?.nested && !collapsed && "ml-3 pl-4",
         )}
       >
-        <Icon size={opts?.nested ? 16 : 18} weight={active ? "fill" : "regular"} aria-hidden />
+        {active && (
+          <motion.div
+            layoutId="sidebar-active-pill"
+            className="absolute inset-0 bg-primary/10 border-l-2 border-primary rounded-r-md -z-10"
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          />
+        )}
+        <Icon size={opts?.nested ? 16 : 18} weight={active ? "fill" : "regular"} aria-hidden className="shrink-0" />
         {!collapsed && <span className="truncate">{item.label}</span>}
         {item.healthDot && (
           <ConnectionHealthDot className={cn(collapsed ? "absolute right-1.5 top-1.5" : "ml-auto")} />
@@ -137,7 +146,6 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
     const groupActive = children.some((c) => isActive(pathname, c.href));
     const Icon = group.icon;
 
-    // Colapsado: sem sub-lista; o ícone do grupo leva à primeira sub-aba.
     if (collapsed) {
       const first = children[0]!;
       return (
@@ -147,32 +155,37 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           title={group.label}
           aria-current={groupActive ? "page" : undefined}
           className={cn(
-            "flex items-center justify-center rounded-md px-2 py-2 text-sm transition-colors",
+            "relative flex items-center justify-center rounded-md px-2 py-2 text-sm transition-colors z-10",
             groupActive
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
+          {groupActive && (
+            <motion.div
+              layoutId="sidebar-active-pill"
+              className="absolute inset-0 bg-primary/10 border-l-2 border-primary rounded-r-md -z-10"
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            />
+          )}
           <Icon size={18} weight={groupActive ? "fill" : "regular"} aria-hidden />
         </Link>
       );
     }
 
-    const isOpen = open[group.key] ?? groupActive;
+    const isOpen = open[group.key] ?? false;
     return (
-      <div key={group.key}>
+      <div key={group.key} className="space-y-0.5">
         <button
           type="button"
           onClick={() => setOpen((s) => ({ ...s, [group.key]: !isOpen }))}
           aria-expanded={isOpen}
           className={cn(
-            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-            groupActive
-              ? "text-foreground"
-              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors text-muted-foreground hover:text-foreground",
+            groupActive && "text-foreground font-medium",
           )}
         >
-          <Icon size={18} weight={groupActive ? "fill" : "regular"} aria-hidden />
+          <Icon size={18} weight={groupActive ? "fill" : "regular"} aria-hidden className="shrink-0" />
           <span className="truncate">{group.label}</span>
           <CaretDown
             size={14}
@@ -181,7 +194,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           />
         </button>
         {isOpen && (
-          <div className="mt-0.5 space-y-0.5 border-l border-border/60 pl-1">
+          <div className="mt-0.5 space-y-0.5 border-l border-zinc-800/80 pl-1">
             {children.map((c) => renderLeaf(c, { nested: true }))}
           </div>
         )}
@@ -190,46 +203,92 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   }
 
   return (
-    <aside
+    <motion.aside
+      layout="position"
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
-        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-card transition-[width] duration-200",
+        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-card/75 backdrop-blur-md border-zinc-800/60 shadow-lg",
         collapsed ? "w-16" : "w-60",
       )}
     >
-      <div className={cn("flex items-center border-b px-4 h-14", collapsed ? "justify-center" : "justify-start")}>
-        {collapsed ? (
-          <span aria-hidden className="text-lg font-bold text-primary">G</span>
-        ) : (
-          <span className="font-semibold tracking-tight">
-            GLTECH <span className="text-primary">CRM</span>
-          </span>
-        )}
+      <div className={cn("flex items-center border-b border-zinc-800/60 px-4 h-14", collapsed ? "justify-center" : "justify-start")}>
+        <Logo collapsed={collapsed} />
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label="Navegação principal">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2 scrollbar-none" aria-label="Navegação principal">
         {NAV.map((entry) => {
           if (isGroup(entry)) return renderGroup(entry);
           if (!canSee(entry.permission)) return null;
           return renderLeaf(entry);
         })}
       </nav>
-      <div className="space-y-1 border-t p-2">
+      
+      {/* Conta (fixada magneticamente no rodapé, isolada da navegação) */}
+      <div className="space-y-1 border-t border-zinc-800/60 p-2 bg-zinc-950/20">
+        <div className={cn("mb-1 flex items-center gap-3 rounded-lg bg-zinc-900/40 border border-zinc-800/30 p-2", collapsed && "justify-center bg-transparent border-none p-1")}>
+          {/* Avatar com borda gradiente ativa */}
+          <div className="relative shrink-0 flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-tr from-orange-600 via-amber-500 to-emerald-500 rounded-full animate-spin-slow opacity-90 p-[1.5px]" />
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-zinc-950 text-[10px] font-bold text-zinc-100 border border-zinc-900 z-10 m-[1.5px]">
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt={user.full_name || "User Avatar"} className="h-full w-full rounded-full object-cover" />
+              ) : (
+                initials(user.full_name, user.email)
+              )}
+            </div>
+            {/* Status dot */}
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950 z-20" />
+          </div>
+          
+          {!collapsed && (
+            <>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-semibold text-zinc-100 leading-tight">
+                  {user.full_name || user.email.split("@")[0]}
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="truncate text-[10px] text-zinc-400 font-medium">
+                    {activeOrg?.name || "Workspace"}
+                  </span>
+                  <span className="flex items-center gap-0.5 bg-orange-500/10 text-orange-500 text-[8px] font-bold px-1 py-0.2 rounded uppercase border border-orange-500/20 tracking-wider">
+                    <Zap size={6} fill="currentColor" />
+                    PRO
+                  </span>
+                </div>
+              </div>
+              <motion.button
+                type="button"
+                onClick={() => startTransition(async () => { await signOut(); })}
+                disabled={isPending}
+                title="Sair"
+                aria-label="Sair"
+                whileHover={{ rotate: 15, scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-500 shrink-0"
+              >
+                <LogOut size={15} strokeWidth={2} />
+              </motion.button>
+            </>
+          )}
+        </div>
+
         <Link
           href="/"
           title={collapsed ? "Voltar à Landing" : undefined}
           className={cn(
-            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-400 hover:bg-zinc-800/35 hover:text-zinc-100 transition-colors",
             collapsed && "justify-center px-2",
           )}
         >
-          <House size={14} aria-hidden />
+          <House size={14} aria-hidden className="shrink-0" />
           {!collapsed && <span>Voltar à Landing</span>}
         </Link>
+        
         <button
           type="button"
           onClick={() => startTransition(() => toggleSidebar(collapsed))}
           disabled={isPending}
           className={cn(
-            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-400 hover:bg-zinc-800/35 hover:text-zinc-100 transition-colors",
             collapsed && "justify-center px-2",
           )}
           aria-label={collapsed ? "Expandir sidebar" : "Recolher sidebar"}
@@ -238,6 +297,6 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           {!collapsed && <span>Recolher</span>}
         </button>
       </div>
-    </aside>
+    </motion.aside>
   );
 }

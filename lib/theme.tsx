@@ -40,14 +40,16 @@ function readStoredPalette(): PaletteId {
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
 function readStoredTheme(): Theme {
-  if (typeof window === "undefined") return "system";
+  // Default = light (visual claro premium, estilo das referências). Só vira dark
+  // se o usuário escolher explicitamente no toggle.
+  if (typeof window === "undefined") return "light";
   try {
     const v = window.localStorage.getItem(STORAGE_KEY);
     if (v === "light" || v === "dark" || v === "system") return v;
   } catch {
     // localStorage indisponível (modo privado, sandbox) — segue com default.
   }
-  return "system";
+  return "light";
 }
 
 function getSystemTheme(): ResolvedTheme {

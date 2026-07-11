@@ -69,29 +69,29 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
   clay: {
     id: "clay",
     name: "Clay",
-    description: "Terracota quente. Acolhedor, artesanal, brasileiro.",
+    description: "Cyber Orange sobre Zinc. Alto contraste, premium, moderno (Linear/Vercel).",
     accent: {
-      50: "#fbf3ef", 100: "#f4e0d3", 200: "#e7bda5", 300: "#d79376",
-      400: "#c47353", 500: "#b05a3d", 600: "#934531", 700: "#76382a",
-      800: "#5e2f25", 900: "#4d2820", 950: "#28130f",
+      50: "#fff7ed", 100: "#ffedd5", 200: "#fed7aa", 300: "#fdba74",
+      400: "#fb923c", 500: "#f97316", 600: "#ea580c", 700: "#c2410c",
+      800: "#9a3412", 900: "#7c2d12", 950: "#431407",
     },
     neutralLight: {
-      50: "#fbf8f4", 100: "#f3eee5", 200: "#e6dccb", 300: "#cebfa6",
-      400: "#a5957c", 500: "#7a6c57", 600: "#5b5043", 700: "#453d33",
-      800: "#2d2823", 900: "#1c1814", 950: "#0e0c0a",
+      50: "#fafafa", 100: "#f4f4f5", 200: "#e4e4e7", 300: "#d4d4d8",
+      400: "#a1a1aa", 500: "#71717a", 600: "#52525b", 700: "#3f3f46",
+      800: "#27272a", 900: "#18181b", 950: "#09090b",
     },
     neutralDark: {
-      50: "#f6f1ea", 100: "#e6dccb", 200: "#b8aa94", 300: "#8a7e6b",
-      400: "#5d5447", 500: "#403930", 600: "#302b25", 700: "#24211c",
-      800: "#1b1815", 900: "#13110f", 950: "#0a0908",
+      50: "#fafafa", 100: "#f4f4f5", 200: "#e4e4e7", 300: "#a1a1aa",
+      400: "#71717a", 500: "#52525b", 600: "#3f3f46", 700: "#27272a",
+      800: "#18181b", 900: "#111113", 950: "#09090b",
     },
     states: {
-      light: { success: "#5e8b62", warning: "#9c6321", error: "#a94431", info: "#506e8a" },
-      dark:  { success: "#85a98a", warning: "#cf8d4a", error: "#c8765d", info: "#7e9fbb" },
+      light: { success: "#16a34a", warning: "#d97706", error: "#dc2626", info: "#2563eb" },
+      dark:  { success: "#10b981", warning: "#f59e0b", error: "#f87171", info: "#38bdf8" },
     },
     surfaces: {
-      light: { bg: "#fbf8f4", surface: "#ffffff", surfaceElevated: "#f5f0e6", text: "#1c1814", textMuted: "#5b5043", border: "#e6dccb" },
-      dark:  { bg: "#13110f", surface: "#1b1815", surfaceElevated: "#24211c", text: "#f6f1ea", textMuted: "#8a7e6b", border: "#302b25" },
+      light: { bg: "#fafafa", surface: "#ffffff", surfaceElevated: "#f4f4f5", text: "#18181b", textMuted: "#52525b", border: "#e4e4e7" },
+      dark:  { bg: "#09090b", surface: "#141416", surfaceElevated: "#1c1c20", text: "#fafafa", textMuted: "#a1a1aa", border: "#27272a" },
     },
   },
   mist: {

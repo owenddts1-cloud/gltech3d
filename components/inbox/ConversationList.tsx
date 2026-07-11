@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo } from "react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConversationListItem } from "./ConversationListItem";
@@ -83,12 +84,17 @@ export function ConversationList({
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto">
         {items.map((c) => (
-          <ConversationListItem
+          <motion.div
             key={c.id}
-            conversation={c}
-            isSelected={c.id === selectedId}
-            onSelect={onSelect}
-          />
+            layout
+            transition={{ type: "spring", stiffness: 500, damping: 42 }}
+          >
+            <ConversationListItem
+              conversation={c}
+              isSelected={c.id === selectedId}
+              onSelect={onSelect}
+            />
+          </motion.div>
         ))}
         {q.hasNextPage && (
           <div className="flex justify-center p-3">

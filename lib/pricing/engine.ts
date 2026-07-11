@@ -47,3 +47,54 @@ export function calculateRealCost({
     totalCost: parseFloat(totalCost.toFixed(2))
   };
 }
+
+export interface ProductPricingInput {
+  filamentGrams: number;
+  costPerGram: number;       // R$/g do filamento
+  printTimeSeconds: number;
+  kEnergy?: number;
+  powerDraw?: number;        // W
+  depreciationPerHour?: number; // R$/h
+  extraCostCents: number;    // insumos extras somados (embalagem, parafusos, tags…)
+  marginPct: number;         // margem de lucro desejada (%)
+}
+
+export interface ProductPricingResult {
+  materialCost: number;
+  energyCost: number;
+  depreciationCost: number;
+  extrasCost: number;
+  totalCost: number;         // custo unitário real
+  suggestedPrice: number;    // preço sugerido com a margem
+  profit: number;            // lucro unitário
+}
+
+/**
+ * Custo real + preço sugerido de um produto (BOM). Reaproveita
+ * {@link calculateRealCost} para material/energia/depreciação e soma os insumos
+ * extras; aplica a margem para chegar ao preço sugerido.
+ */
+export function computeProductPricing(input: ProductPricingInput): ProductPricingResult {
+  const base = calculateRealCost({
+    m_piece: input.filamentGrams,
+    c_gram: input.costPerGram,
+    t_print: input.printTimeSeconds,
+    k_energy: input.kEnergy,
+    power_draw: input.powerDraw,
+    d_machine: input.depreciationPerHour,
+  });
+  const extrasCost = Math.max(0, input.extraCostCents) / 100;
+  const totalCost = parseFloat((base.totalCost + extrasCost).toFixed(2));
+  const suggestedPrice = parseFloat((totalCost * (1 + input.marginPct / 100)).toFixed(2));
+  const profit = parseFloat((suggestedPrice - totalCost).toFixed(2));
+
+  return {
+    materialCost: base.materialCost,
+    energyCost: base.energyCost,
+    depreciationCost: base.depreciationCost,
+    extrasCost,
+    totalCost,
+    suggestedPrice,
+    profit,
+  };
+}

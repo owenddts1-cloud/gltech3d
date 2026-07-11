@@ -16,6 +16,10 @@ import { ConversationHeader } from "./ConversationHeader";
 import { CRMSidePanel } from "./CRMSidePanel";
 import { InboxKeyboardShortcuts } from "./InboxKeyboardShortcuts";
 import { ShortcutsHelpDialog } from "./ShortcutsHelpDialog";
+import { InboxConnectionBadge } from "./InboxConnectionBadge";
+import { NewContactDialog } from "@/components/contacts/NewContactDialog";
+import { Button } from "@/components/ui/button";
+import { Plus } from "@/lib/ui/icons";
 
 function tabToFilter(tab: InboxFiltersValue["tab"]): Partial<ConversationsFilters> {
   switch (tab) {
@@ -49,6 +53,7 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [visibleIds, setVisibleIds] = useState<string[]>([]);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [newContactOpen, setNewContactOpen] = useState(false);
   const composerRef = useRef<ComposerHandle | null>(null);
 
   const filters: ConversationsFilters = useMemo(
@@ -103,6 +108,20 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
   return (
     <div className="grid h-[calc(100vh-3.5rem)] w-full grid-cols-1 md:grid-cols-[300px_1fr] xl:grid-cols-[300px_1fr_320px]">
       <div className="flex h-full min-h-0 flex-col border-r border-border">
+        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold tracking-tight text-foreground">Conversas</h2>
+            <InboxConnectionBadge />
+          </div>
+          <Button
+            size="sm"
+            className="h-7 gap-1 rounded-lg px-2 text-xs font-semibold"
+            onClick={() => setNewContactOpen(true)}
+          >
+            <Plus size={13} weight="bold" aria-hidden />
+            <span className="hidden sm:inline">Novo Contato</span>
+          </Button>
+        </div>
         <InboxFilters value={filterValue} onChange={setFilterValue} />
         <div className="min-h-0 flex-1 overflow-hidden">
           <ConversationList
@@ -151,6 +170,7 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
         onToggleHelp={() => setHelpOpen((v) => !v)}
       />
       <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
+      <NewContactDialog open={newContactOpen} onOpenChange={setNewContactOpen} />
     </div>
   );
 }

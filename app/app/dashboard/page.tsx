@@ -1,39 +1,20 @@
-import { fetchPrintersAndFilaments } from "@/app/actions/printers/actions";
-import { DashboardClient } from "./_components/DashboardClient";
+import { fetchDashboardOverview, type DashboardOverview as TOverview } from "@/app/actions/dashboard/overview";
+import { DashboardOverview } from "./_components/DashboardOverview";
 
 export const metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  const result = await fetchPrintersAndFilaments();
-  
-  // Cast from unknown[] (server action boundary) to the client-expected types.
-  // The server action returns JSON-serializable data that matches these shapes.
-  const initialData = result.ok && result.printers ? {
-    printers: result.printers as Array<{
-      id: string; name: string; status: "idle" | "printing" | "error" | "offline";
-      powerDraw: number; depreciationPerHour: number; activeFilamentId?: string | null;
-      activePrintJob?: { filename: string; progress: number; timeElapsed: number; timeRemaining: number; filamentId: string; weightGrams: number; } | null;
-    }>,
-    filaments: result.filaments as Array<{
-      id: string; name: string; color: string; material: string; weightGrams: number;
-      initialWeightGrams: number; costPerGram: number; minWeightAlert: number; supplier: string;
-    }>,
-    printJobs: result.printJobs as Array<{
-      id: string; printerId: string; printerName: string; filename: string; weightGrams: number;
-      printTimeSeconds: number; filamentId: string | null; filamentName: string;
-      costs: { materialCost: number; energyCost: number; depreciationCost: number; totalCost: number; } | null;
-      completedAt: string;
-    }>,
-    kEnergy: result.kEnergy,
-    orgId: result.orgId
-  } : {
-    printers: [],
-    filaments: [],
-    printJobs: [],
-    kEnergy: 0.85,
-    orgId: null
-  };
+const EMPTY: TOverview = {
+  kpis: { faturamentoMesCents: 0, faturamentoPrevCents: 0, osAtivas: 0, filamentoMesGramas: 0, lowStock: 0, clientes: 0, lucroEstimadoCents: 0 },
+  osByStatus: { orcamento: 0, aprovado: 0, em_producao: 0, concluido: 0 },
+  revenueSeries: [],
+  spending: { filament: 0, energy: 0, depreciation: 0 },
+  feed: [],
+  activeOrders: [],
+  performance: { successRate: 0, goals: [] },
+};
 
-  return <DashboardClient initialData={initialData} />;
+export default async function DashboardPage() {
+  const r = await fetchDashboardOverview();
+  return <DashboardOverview data={r.ok ? r.data : EMPTY} />;
 }

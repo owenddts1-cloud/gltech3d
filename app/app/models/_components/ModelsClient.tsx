@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import dynamic from "next/dynamic";
+import dynamicImport from "next/dynamic";
 import { 
   Cube, 
   Eye, 
@@ -11,19 +11,26 @@ import {
   ArrowsClockwise,
   Gear
 } from "@/lib/ui/icons";
+import {
+  Sun,
+  Layers,
+  RotateCw,
+  Sparkles
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 // Lazy-load ThreeViewer to keep initial page bundle small and prevent SSR errors
-const ThreeViewer = dynamic(() => import("./ThreeViewer"), {
+const ThreeViewer = dynamicImport(() => import("./ThreeViewer"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[400px] flex flex-col items-center justify-center bg-black/40 border border-border/30 rounded-lg">
-      <ArrowsClockwise className="h-8 w-8 text-blue-500 animate-spin mb-2" />
-      <p className="text-xs text-text-muted">Carregando renderizador WebGL/Three.js...</p>
+    <div className="w-full h-[400px] flex flex-col items-center justify-center bg-zinc-950/40 border border-zinc-800/40 rounded-lg">
+      <ArrowsClockwise className="h-8 w-8 text-orange-500 animate-spin mb-2" />
+      <p className="text-xs text-zinc-400">Carregando renderizador WebGL/Three.js...</p>
     </div>
   )
 });
@@ -43,12 +50,56 @@ interface StlModel {
   uploadedAt: string;
 }
 
+function SpotlightCard({ children, className, ...props }: { children: React.ReactNode, className?: string } & React.HTMLAttributes<HTMLDivElement>) {
+  const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const [isFocused, setIsFocused] = useState(false);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setCoords({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  return (
+    <div
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setIsFocused(true)}
+      onMouseLeave={() => setIsFocused(false)}
+      className={cn(
+        "relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-950/40 p-5 shadow-lg backdrop-blur-md transition-all duration-300",
+        className
+      )}
+      {...props}
+    >
+      <div
+        className="pointer-events-none absolute -inset-px opacity-0 transition-opacity duration-300"
+        style={{
+          opacity: isFocused ? 1 : 0,
+          background: `radial-gradient(350px circle at ${coords.x}px ${coords.y}px, rgba(255, 107, 0, 0.12), transparent 80%)`,
+        }}
+      />
+      {children}
+    </div>
+  );
+}
+
 export function ModelsClient() {
   const [models, setModels] = useState<StlModel[]>([]);
   const [activeInspector, setActiveInspector] = useState<StlModel | null>(null);
   const [inspectorColor, setInspectorColor] = useState("#3b82f6");
   const [inspectorWireframe, setInspectorWireframe] = useState(false);
   const [inspectorRotate, setInspectorRotate] = useState(true);
+  
+  // Advanced simulation states
+  const [sliceHeightPercent, setSliceHeightPercent] = useState(100);
+  const [dirLightIntensity, setDirLightIntensity] = useState(0.8);
+  const [ambientLightIntensity, setAmbientLightIntensity] = useState(0.6);
+  const [rotateX, setRotateX] = useState(0);
+  const [rotateY, setRotateY] = useState(0);
+  const [rotateZ, setRotateZ] = useState(0);
+
   const [isParsing, setIsParsing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,8 +164,8 @@ export function ModelsClient() {
     if (!ctx) return "";
 
     const grad = ctx.createLinearGradient(0, 0, 300, 220);
-    grad.addColorStop(0, "#090d16");
-    grad.addColorStop(1, "#151b2e");
+    grad.addColorStop(0, "#09090b");
+    grad.addColorStop(1, "#18181b");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 300, 220);
 
@@ -127,7 +178,7 @@ export function ModelsClient() {
     const maxDim = Math.max(dx, dy, dz);
     const scale = 95 / maxDim;
 
-    ctx.strokeStyle = "rgba(59, 130, 246, 0.55)";
+    ctx.strokeStyle = "rgba(249, 115, 22, 0.45)"; // Orange tone
     ctx.lineWidth = 1;
     ctx.beginPath();
 
@@ -163,7 +214,7 @@ export function ModelsClient() {
     ctx.stroke();
 
     // Render wireframe boundaries box
-    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.fillStyle = "rgba(244, 244, 245, 0.85)";
     ctx.font = "bold 10px sans-serif";
     ctx.fillText(`${dx.toFixed(1)} x ${dy.toFixed(1)} x ${dz.toFixed(1)} mm`, 12, 204);
 
@@ -243,14 +294,17 @@ export function ModelsClient() {
       {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text">Repositório de Modelos 3D</h1>
-          <p className="text-sm text-text-muted">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
+            <Cube className="text-orange-500" />
+            Repositório de Modelos 3D
+          </h1>
+          <p className="text-sm text-zinc-400">
             Envie arquivos STL. Eles são processados em segundo plano via Web Worker para evitar travamento da tela.
           </p>
         </div>
         <div className="flex gap-2">
           {models.length === 0 && (
-            <Button onClick={loadDemoModels} variant="outline" className="gap-2">
+            <Button onClick={loadDemoModels} variant="outline" className="gap-2 border-zinc-800 hover:bg-zinc-900">
               <ArrowsClockwise className="h-4 w-4" />
               Carregar Modelos Demo
             </Button>
@@ -266,7 +320,7 @@ export function ModelsClient() {
           <Button 
             onClick={() => fileInputRef.current?.click()} 
             disabled={isParsing}
-            className="gap-2 bg-accent hover:bg-accent-strong text-white"
+            className="gap-2 bg-orange-600 hover:bg-orange-700 text-white font-medium"
           >
             <Plus className="h-4 w-4" />
             {isParsing ? "Analisando STL..." : "Adicionar Arquivo STL"}
@@ -277,16 +331,16 @@ export function ModelsClient() {
       {/* Model Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {models.map((model) => (
-          <Card key={model.id} className="overflow-hidden border-border/50 bg-surface/40 hover:border-border-strong transition-all flex flex-col justify-between">
+          <SpotlightCard key={model.id} className="overflow-hidden border border-zinc-800/60 bg-zinc-950/40 hover:border-zinc-700/80 transition-all flex flex-col justify-between p-0 rounded-2xl">
             {/* Thumbnail Canvas render */}
-            <div className="relative aspect-video w-full border-b border-border/20">
+            <div className="relative aspect-video w-full border-b border-zinc-800/40">
               <img
                 src={model.thumbnailUrl}
                 alt={model.name}
                 className="w-full h-full object-cover"
               />
               <div className="absolute top-2 right-2">
-                <Badge variant="secondary" className="bg-black/50 text-white border-0">
+                <Badge variant="secondary" className="bg-zinc-950/80 text-zinc-300 border border-zinc-800/80 text-[10px]">
                   {model.sizeKb} KB
                 </Badge>
               </div>
@@ -295,18 +349,24 @@ export function ModelsClient() {
             {/* Model Description */}
             <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
               <div>
-                <h3 className="font-semibold text-sm text-text truncate" title={model.name}>
+                <h3 className="font-semibold text-sm text-zinc-150 truncate" title={model.name}>
                   {model.name}
                 </h3>
-                <p className="text-xs text-text-muted mt-1">
+                <p className="text-[11px] text-zinc-400 mt-1">
                   Triângulos: {model.triangles.toLocaleString()} | Volume aproximado: {model.volumeCm3} cm³
                 </p>
               </div>
 
-              <div className="flex gap-2 pt-2 border-t border-border/20">
+              <div className="flex gap-2 pt-2 border-t border-zinc-800/40">
                 <Button 
-                  onClick={() => setActiveInspector(model)}
-                  className="flex-1 text-xs gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                  onClick={() => {
+                    setSliceHeightPercent(100);
+                    setRotateX(0);
+                    setRotateY(0);
+                    setRotateZ(0);
+                    setActiveInspector(model);
+                  }}
+                  className="flex-1 text-xs gap-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20 rounded-xl"
                 >
                   <Eye size={14} />
                   Inspecionar 3D
@@ -314,20 +374,20 @@ export function ModelsClient() {
                 <Button
                   onClick={() => removeModel(model.id)}
                   variant="outline"
-                  className="p-2 border-rose-500/20 hover:bg-rose-500/10 text-rose-400"
+                  className="p-2 border-red-500/20 hover:bg-red-500/10 text-red-400 rounded-xl"
                 >
                   <Trash size={14} />
                 </Button>
               </div>
             </div>
-          </Card>
+          </SpotlightCard>
         ))}
 
         {models.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center p-12 border border-dashed border-border/60 rounded-md text-center bg-surface-muted/5">
-            <Cube className="h-12 w-12 text-text-muted mb-3" />
-            <h3 className="font-semibold text-text">Nenhum arquivo 3D enviado</h3>
-            <p className="text-xs text-text-muted max-w-sm mt-1">
+          <div className="col-span-full flex flex-col items-center justify-center p-12 border border-dashed border-zinc-800 rounded-2xl text-center bg-zinc-950/20">
+            <Cube className="h-12 w-12 text-zinc-500 mb-3" />
+            <h3 className="font-semibold text-zinc-300">Nenhum arquivo 3D enviado</h3>
+            <p className="text-xs text-zinc-400 max-w-sm mt-1">
               Faça o upload de arquivos STL para visualizar sua geometria em 3D de alta performance ou clique em Carregar Modelos Demo.
             </p>
           </div>
@@ -337,11 +397,14 @@ export function ModelsClient() {
       {/* 3D Inspector Modal (Lazy-Loaded Three.js Viewport) */}
       {activeInspector && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
-          <Card className="max-w-4xl w-full p-6 space-y-4 bg-surface border-border flex flex-col h-[85vh]">
-            <div className="flex justify-between items-center pb-2 border-b border-border/40">
+          <Card className="max-w-5xl w-full p-6 space-y-4 bg-zinc-950 border border-zinc-800 shadow-2xl flex flex-col h-[90vh] rounded-2xl">
+            <div className="flex justify-between items-center pb-2 border-b border-zinc-800/60">
               <div>
-                <h3 className="font-bold text-lg text-text">{activeInspector.name}</h3>
-                <p className="text-xs text-text-muted">
+                <h3 className="font-bold text-lg text-zinc-100 flex items-center gap-2">
+                  <Sparkles className="text-orange-500 h-5 w-5" />
+                  {activeInspector.name}
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
                   Dimensões máximas: {
                     (activeInspector.boundingBox.max[0] - activeInspector.boundingBox.min[0]).toFixed(1)
                   }x{
@@ -351,76 +414,202 @@ export function ModelsClient() {
                   } mm
                 </p>
               </div>
-              <Button variant="ghost" onClick={() => setActiveInspector(null)}>Fechar Visualizador</Button>
+              <Button variant="ghost" className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900" onClick={() => setActiveInspector(null)}>Fechar Visualizador</Button>
             </div>
 
             {/* Visualizer and settings container */}
             <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 overflow-hidden">
               {/* WebGL Canvas viewport */}
-              <div className="md:col-span-3 h-full relative">
+              <div className="md:col-span-3 h-full relative rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950/20 shadow-inner">
                 <ThreeViewer
                   positions={activeInspector.positions}
                   boundingBox={activeInspector.boundingBox}
                   color={inspectorColor}
                   wireframe={inspectorWireframe}
                   autoRotate={inspectorRotate}
+                  sliceHeightPercent={sliceHeightPercent}
+                  dirLightIntensity={dirLightIntensity}
+                  ambientLightIntensity={ambientLightIntensity}
+                  rotateX={rotateX}
+                  rotateY={rotateY}
+                  rotateZ={rotateZ}
                 />
               </div>
 
               {/* Viewport Config panel */}
-              <div className="p-4 bg-surface-muted/20 border border-border/30 rounded-lg space-y-6 flex flex-col justify-between overflow-y-auto">
+              <div className="p-4 bg-zinc-900/30 border border-zinc-800/80 rounded-xl space-y-5 flex flex-col justify-between overflow-y-auto">
                 <div className="space-y-4">
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-text flex items-center gap-1.5">
-                    <Gear />
-                    Configurações do Grid
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-200 flex items-center gap-1.5 border-b border-zinc-800/60 pb-2">
+                    <Gear className="text-orange-500" />
+                    Controles e Fatiamento
                   </h4>
 
-                  <div className="space-y-2">
+                  {/* Slicing Simulator Z */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="slice-range" className="text-[11px] text-zinc-300 font-semibold flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Layers size={13} className="text-orange-500" />
+                        Fatiar Altura (Z)
+                      </span>
+                      <span className="text-orange-400 font-bold">{sliceHeightPercent}%</span>
+                    </Label>
+                    <input
+                      id="slice-range"
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={sliceHeightPercent}
+                      onChange={(e) => setSliceHeightPercent(Number(e.target.value))}
+                      className="w-full accent-orange-500 bg-zinc-800 rounded-lg cursor-pointer h-1.5"
+                    />
+                  </div>
+
+                  <div className="space-y-2 pt-1">
                     <Label htmlFor="color-picker-select">Cor do Material</Label>
                     <select
                       id="color-picker-select"
                       value={inspectorColor}
                       onChange={(e) => setInspectorColor(e.target.value)}
-                      className="w-full text-xs p-2 rounded-md border border-border bg-surface text-text"
+                      className="w-full text-xs p-2 rounded-md border border-zinc-800 bg-zinc-950 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-orange-500"
                     >
-                      <option value="#3b82f6">Azul Elétrico</option>
-                      <option value="#10b981">Verde Esmeralda</option>
-                      <option value="#ef4444">Vermelho Rocket</option>
-                      <option value="#f59e0b">Âmbar Gold</option>
-                      <option value="#d946ef">Magenta Shock</option>
-                      <option value="#64748b">Cinza Titânio</option>
+                      <option value="#3b82f6" className="bg-zinc-950">Azul Elétrico</option>
+                      <option value="#10b981" className="bg-zinc-950">Verde Esmeralda</option>
+                      <option value="#ef4444" className="bg-zinc-950">Vermelho Rocket</option>
+                      <option value="#f59e0b" className="bg-zinc-950">Âmbar Gold</option>
+                      <option value="#d946ef" className="bg-zinc-950">Magenta Shock</option>
+                      <option value="#64748b" className="bg-zinc-950">Cinza Titânio</option>
                     </select>
                   </div>
 
-                  <div className="space-y-3 pt-2">
+                  {/* manual rotation controls */}
+                  <div className="space-y-3 pt-2 border-t border-zinc-800/40">
+                    <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block flex items-center gap-1">
+                      <RotateCw size={11} className="text-orange-500" />
+                      Orientação Manual
+                    </span>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] text-zinc-300">
+                        <Label htmlFor="rot-x">Eixo X</Label>
+                        <span>{rotateX}°</span>
+                      </div>
+                      <input
+                        id="rot-x"
+                        type="range"
+                        min="0"
+                        max="360"
+                        value={rotateX}
+                        onChange={(e) => setRotateX(Number(e.target.value))}
+                        className="w-full accent-zinc-400 bg-zinc-800 rounded-lg h-1"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] text-zinc-300">
+                        <Label htmlFor="rot-y">Eixo Y</Label>
+                        <span>{rotateY}°</span>
+                      </div>
+                      <input
+                        id="rot-y"
+                        type="range"
+                        min="0"
+                        max="360"
+                        value={rotateY}
+                        onChange={(e) => setRotateY(Number(e.target.value))}
+                        disabled={inspectorRotate}
+                        className="w-full accent-zinc-400 bg-zinc-800 rounded-lg h-1 disabled:opacity-30"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] text-zinc-300">
+                        <Label htmlFor="rot-z">Eixo Z</Label>
+                        <span>{rotateZ}°</span>
+                      </div>
+                      <input
+                        id="rot-z"
+                        type="range"
+                        min="0"
+                        max="360"
+                        value={rotateZ}
+                        onChange={(e) => setRotateZ(Number(e.target.value))}
+                        className="w-full accent-zinc-400 bg-zinc-800 rounded-lg h-1"
+                      />
+                    </div>
+                  </div>
+
+                  {/* lighting settings */}
+                  <div className="space-y-3 pt-2 border-t border-zinc-800/40">
+                    <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-bold block flex items-center gap-1">
+                      <Sun size={12} className="text-orange-500" />
+                      Iluminação
+                    </span>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] text-zinc-300">
+                        <Label htmlFor="light-dir">Luz Direcional</Label>
+                        <span>{dirLightIntensity.toFixed(1)}</span>
+                      </div>
+                      <input
+                        id="light-dir"
+                        type="range"
+                        min="0.1"
+                        max="2"
+                        step="0.1"
+                        value={dirLightIntensity}
+                        onChange={(e) => setDirLightIntensity(Number(e.target.value))}
+                        className="w-full accent-zinc-400 bg-zinc-800 rounded-lg h-1"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] text-zinc-300">
+                        <Label htmlFor="light-amb">Luz Ambiente</Label>
+                        <span>{ambientLightIntensity.toFixed(1)}</span>
+                      </div>
+                      <input
+                        id="light-amb"
+                        type="range"
+                        min="0.1"
+                        max="2"
+                        step="0.1"
+                        value={ambientLightIntensity}
+                        onChange={(e) => setAmbientLightIntensity(Number(e.target.value))}
+                        className="w-full accent-zinc-400 bg-zinc-800 rounded-lg h-1"
+                      />
+                    </div>
+                  </div>
+
+                  {/* wireframe & rotate switches */}
+                  <div className="space-y-3 pt-2 border-t border-zinc-800/40">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="wireframe-toggle" className="cursor-pointer">Modo Wireframe</Label>
+                      <Label htmlFor="wireframe-toggle" className="cursor-pointer text-[11px] text-zinc-300">Modo Wireframe</Label>
                       <input 
                         id="wireframe-toggle"
                         type="checkbox" 
                         checked={inspectorWireframe}
                         onChange={(e) => setInspectorWireframe(e.target.checked)}
-                        className="rounded border-border text-accent focus:ring-accent h-4 w-4 cursor-pointer"
+                        className="rounded border-zinc-800 text-orange-500 focus:ring-orange-500 h-4 w-4 cursor-pointer bg-zinc-950"
                       />
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="rotate-toggle" className="cursor-pointer">Rotação Automática</Label>
+                      <Label htmlFor="rotate-toggle" className="cursor-pointer text-[11px] text-zinc-300">Rotação Automática</Label>
                       <input 
                         id="rotate-toggle"
                         type="checkbox" 
                         checked={inspectorRotate}
                         onChange={(e) => setInspectorRotate(e.target.checked)}
-                        className="rounded border-border text-accent focus:ring-accent h-4 w-4 cursor-pointer"
+                        className="rounded border-zinc-800 text-orange-500 focus:ring-orange-500 h-4 w-4 cursor-pointer bg-zinc-950"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3 bg-black/10 border border-border/10 rounded-md text-[10px] space-y-1.5 text-text-muted">
-                  <p className="font-semibold text-text flex items-center gap-1">
-                    <Info size={12} />
-                    Instruções
+                <div className="p-3 bg-zinc-950/40 border border-zinc-800/80 rounded-lg text-[10px] space-y-1.5 text-zinc-400">
+                  <p className="font-semibold text-zinc-200 flex items-center gap-1">
+                    <Info size={12} className="text-orange-500" />
+                    Interação de Tela
                   </p>
                   <p>Arrastar com botão esquerdo para girar.</p>
                   <p>Arrastar com botão direito para mover.</p>

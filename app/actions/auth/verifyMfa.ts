@@ -105,5 +105,5 @@ export async function verifyMfa(code: string, next?: string): Promise<VerifyMfaR
     userAgent,
   });
 
-  redirect(next || "/app/inbox");
+  redirect(next || "/app/dashboard");
 }

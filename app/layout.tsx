@@ -57,7 +57,7 @@ const PALETTE_MAP_JSON = JSON.stringify(allPaletteVars());
 const THEME_INIT_SCRIPT = `(function(){try{
 var s=localStorage.getItem('deskcomm-theme');
 var d=window.matchMedia('(prefers-color-scheme: dark)').matches;
-var r=(s==='dark'||s==='light')?s:((s==='system'||!s)&&d?'dark':'light');
+var r=(s==='dark'||s==='light')?s:(s==='system'&&d?'dark':'light');
 document.documentElement.setAttribute('data-theme',r);
 var p=localStorage.getItem('gltech-palette')||'${DEFAULT_PALETTE}';
 var M=${PALETTE_MAP_JSON};

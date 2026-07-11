@@ -7,8 +7,28 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { FileText, ArrowsClockwise, Printer as PrinterIcon, Package } from "@/lib/ui/icons";
+import { FileText, ArrowsClockwise, Printer as PrinterIcon, Package, Tag, Gear, Sparkle } from "@/lib/ui/icons";
 import { QuotePdfModal } from "./QuotePdfModal";
+
+// Ícones por preset (substituem os emojis antigos).
+const PRESET_ICONS: Record<string, typeof Tag> = {
+  chaveiro: Tag,
+  "peca-tecnica": Gear,
+  miniatura: Sparkle,
+  "lote-10": Package,
+};
+
+// Feedback cromático semântico da margem de lucro (markup %).
+type MarginTone = { label: string; text: string; bg: string; thumbBorder: string };
+function marginTone(margin: number): MarginTone {
+  if (margin < 30) {
+    return { label: "Margem de risco", text: "text-rose-500", bg: "bg-rose-500/10", thumbBorder: "[&::-webkit-slider-thumb]:border-rose-500" };
+  }
+  if (margin < 80) {
+    return { label: "Segurança", text: "text-amber-500", bg: "bg-amber-500/10", thumbBorder: "[&::-webkit-slider-thumb]:border-amber-500" };
+  }
+  return { label: "Lucrativa", text: "text-emerald-500", bg: "bg-emerald-500/10", thumbBorder: "[&::-webkit-slider-thumb]:border-emerald-500" };
+}
 
 // ─── Types ──────────────────────────────────────────────────────
 interface PrinterOption { id: string; name: string; powerDraw: number; depreciationPerHour: number; }
@@ -61,8 +81,8 @@ function AnatomyBar({ label, pct, color, value }: { label: string; pct: number; 
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-neutral-400 font-medium">{label}</span>
-        <span className="text-white font-bold tabular-nums">R$ {fmt(value)} <span className="text-neutral-500 font-normal">({pct.toFixed(1)}%)</span></span>
+        <span className="text-neutral-300 font-medium">{label}</span>
+        <span className="text-white font-bold tabular-nums">R$ {fmt(value)} <span className="text-neutral-400 font-normal">({pct.toFixed(1)}%)</span></span>
       </div>
       <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
         <motion.div
@@ -80,6 +100,7 @@ function AnatomyBar({ label, pct, color, value }: { label: string; pct: number; 
 // ─── Main Component ─────────────────────────────────────────────
 export function Calculadora3DClient({ initialData }: Props) {
   const { inputs, outputs, updateInput, activePreset, applyPreset, resetAll } = useCalculator();
+  const tone = marginTone(inputs.margemLucro);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedFilament, setSelectedFilament] = useState("");
@@ -134,21 +155,25 @@ export function Calculadora3DClient({ initialData }: Props) {
 
       {/* Presets Bar */}
       <div className="flex flex-wrap gap-2">
-        {PRESETS.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => applyPreset(p)}
-            className={`group flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium
-                        transition-all duration-200 border
-                        ${activePreset === p.id
-                          ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/30"
-                          : "bg-card text-muted-foreground border-border hover:border-emerald-500/50 hover:bg-emerald-500/5"
-                        }`}
-          >
-            <span className="text-base">{p.emoji}</span>
-            <span>{p.label}</span>
-          </button>
-        ))}
+        {PRESETS.map((p) => {
+          const Icon = PRESET_ICONS[p.id] ?? Package;
+          return (
+            <button
+              key={p.id}
+              onClick={() => applyPreset(p)}
+              title={p.description}
+              className={`group flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium
+                          transition-all duration-200 border
+                          ${activePreset === p.id
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/30"
+                            : "bg-card text-muted-foreground border-border hover:border-emerald-500/50 hover:bg-emerald-500/5"
+                          }`}
+            >
+              <Icon size={15} weight="duotone" aria-hidden />
+              <span>{p.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Two-Column Layout */}
@@ -219,7 +244,12 @@ export function Calculadora3DClient({ initialData }: Props) {
           <div className="mt-6 pt-5 border-t border-neutral-200/60">
             <div className="flex items-center justify-between mb-2">
               <Label className="text-xs font-medium text-neutral-600">Margem de Lucro</Label>
-              <span className="text-lg font-bold text-emerald-600 tabular-nums">{inputs.margemLucro}%</span>
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${tone.bg} ${tone.text}`}>
+                  {tone.label}
+                </span>
+                <span className={`text-lg font-bold tabular-nums ${tone.text}`}>{inputs.margemLucro}%</span>
+              </div>
             </div>
             <input
               type="range"
@@ -228,13 +258,13 @@ export function Calculadora3DClient({ initialData }: Props) {
               step={5}
               value={inputs.margemLucro}
               onChange={(e) => updateInput("margemLucro", Number(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer
+              className={`w-full h-2 rounded-full appearance-none cursor-pointer
                          bg-gradient-to-r from-red-400 via-amber-400 to-emerald-500
                          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5
                          [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full
                          [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md
-                         [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-emerald-500
-                         [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110"
+                         [&::-webkit-slider-thumb]:border-2 ${tone.thumbBorder}
+                         [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110`}
             />
             <div className="flex justify-between text-[10px] text-neutral-400 mt-1">
               <span>0%</span><span>150%</span><span>300%</span>
@@ -253,7 +283,7 @@ export function Calculadora3DClient({ initialData }: Props) {
             <div className="relative z-10 space-y-5">
               {/* Big price */}
               <div className="text-center pb-4 border-b border-white/10">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500 font-semibold mb-1">Preço Sugerido Unitário</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-400 font-semibold mb-1">Preço Sugerido Unitário</p>
                 <AnimatePresence mode="wait">
                   <motion.p
                     key={outputs.precoSugerido}
@@ -265,14 +295,14 @@ export function Calculadora3DClient({ initialData }: Props) {
                     R$ {fmt(outputs.precoSugerido)}
                   </motion.p>
                 </AnimatePresence>
-                <p className="text-xs text-emerald-400 font-semibold mt-1">
+                <p className={`text-xs font-semibold mt-1 ${tone.text}`}>
                   Lucro: R$ {fmt(outputs.lucroUnitario)} / un
                 </p>
               </div>
 
               {/* Anatomy */}
               <div>
-                <p className="text-[10px] uppercase tracking-[0.15em] text-neutral-500 font-semibold mb-3">Anatomia do Custo</p>
+                <p className="text-[10px] uppercase tracking-[0.15em] text-neutral-400 font-semibold mb-3">Anatomia do Custo</p>
                 <div className="space-y-2.5">
                   <AnatomyBar label="Filamento" pct={outputs.pctFilamento} color="#10b981" value={outputs.custoFilamento} />
                   <AnatomyBar label="Energia" pct={outputs.pctEnergia} color="#3b82f6" value={outputs.custoEnergia} />
@@ -315,7 +345,7 @@ export function Calculadora3DClient({ initialData }: Props) {
 function SummaryCell({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="p-2.5 rounded-lg bg-white/5 border border-white/5">
-      <p className="text-[10px] text-neutral-500 font-medium mb-0.5">{label}</p>
+      <p className="text-[10px] text-neutral-400 font-medium mb-0.5">{label}</p>
       <p className={`text-sm font-bold tabular-nums ${accent ? "text-emerald-400" : "text-white"}`}>{value}</p>
     </div>
   );

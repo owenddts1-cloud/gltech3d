@@ -90,6 +90,7 @@ export {
   // misc
   DotsThree,
   CaretDown,
+  CaretUp,
   CaretDoubleLeft,
   CaretDoubleRight,
   CaretLeft,
@@ -97,4 +98,6 @@ export {
   ArrowRight,
   ArrowLeft,
   SignOut,
+  Bell,
+  TrendUp,
 } from "@phosphor-icons/react/dist/ssr";
