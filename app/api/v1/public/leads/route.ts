@@ -12,9 +12,11 @@
  */
 import { randomUUID } from "node:crypto";
 import type { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 
 import { fail, ok } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { resolveGltechOrgId } from "@/lib/marketing/gltech-org";
@@ -37,13 +39,46 @@ function clientIp(req: NextRequest): string {
   return req.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
+/**
+ * Sends and logs the outcome. Never throws: a failed notification must not cost us the lead.
+ * Logs the failure reason only — recipient address is PII and stays out of the logs.
+ *
+ * Silent failure here is what hid a fully broken mail path: with no verified domain on the
+ * Resend account every send 403s, and the old `void sendEmail(...)` discarded that.
+ */
+async function bestEffortEmail(
+  kind: string,
+  requestId: string,
+  args: Parameters<typeof sendEmail>[0],
+): Promise<void> {
+  try {
+    const res = await sendEmail(args);
+    if (!res.ok) {
+      logger.error("lead_email_failed", { kind, requestId, reason: res.error, details: res.details });
+    }
+  } catch (err) {
+    logger.error("lead_email_threw", {
+      kind,
+      requestId,
+      details: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const requestId = randomUUID();
 
-  // Rate limit: 5 submissions / minute / IP (in-memory fallback if no Redis).
+  // Rate limit: 5 submissions / minute / IP.
+  //
+  // ATENÇÃO: sem UPSTASH_REDIS_REST_URL o checkRateLimit cai para um contador em memória,
+  // que em serverless é POR INSTÂNCIA — ou seja, praticamente sem limite. Esta rota é
+  // pública e dispara e-mail para um endereço escolhido por quem chama, então sem Redis
+  // ela é um amplificador de spam com o domínio da GLTech3D. Configure o Redis.
   const ip = clientIp(req);
   const rl = await checkRateLimit(`public-leads:${ip}`, 5, 60);
   if (!rl.allowed) {
+    // Evento de segurança: rajada num endpoint público não autenticado.
+    logger.warn("public_leads_rate_limited", { requestId, ip, count: rl.count, limit: rl.limit });
     return fail("rate_limited", "muitas tentativas, tente novamente em instantes", 429, {
       requestId,
     });
@@ -107,58 +142,69 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     metadata: { type: input.type, has_phone: !!phoneE164 },
   });
 
-  // --- Best-effort side-effects (never block the response) --------------------
+  // --- Best-effort side-effects ----------------------------------------------
+  // These run in after(), i.e. once the response is flushed. They must not delay the lead's
+  // 201, but a bare `void promise` is not the way to get that: the serverless function can
+  // freeze the moment we return and drop the in-flight send. after() keeps the invocation
+  // alive until they settle. Failures are logged and never surfaced to the caller.
   const createdAt = new Date();
 
-  // 1) Notify the directorate.
-  const notify = buildLeadNotifyEmail({
-    type: input.type,
-    name: input.name,
-    email: input.email,
-    phone: phoneE164,
-    createdAt,
-  });
-  void sendEmail({
-    to: DIRETORIA_EMAIL,
-    subject: notify.subject,
-    html: notify.html,
-    text: notify.text,
-    replyTo: input.email,
-  });
+  after(async () => {
+    const jobs: Promise<void>[] = [];
 
-  // 2) Welcome the lead or newsletter subscriber.
-  if (isNewsletter) {
-    const welcome = buildNewsletterWelcomeEmail({ email: input.email });
-    void sendEmail({
-      to: input.email,
-      subject: welcome.subject,
-      html: welcome.html,
-      text: welcome.text,
+    // 1) Notify the directorate.
+    const notify = buildLeadNotifyEmail({
+      type: input.type,
+      name: input.name,
+      email: input.email,
+      phone: phoneE164,
+      createdAt,
     });
-  } else {
-    const welcome = buildLeadWelcomeEmail({ name: input.name, whatsappUrl: WHATSAPP_URL });
-    void sendEmail({
-      to: input.email,
-      subject: welcome.subject,
-      html: welcome.html,
-      text: welcome.text,
-    });
+    jobs.push(bestEffortEmail("diretoria_notify", requestId, {
+      to: DIRETORIA_EMAIL,
+      subject: notify.subject,
+      html: notify.html,
+      text: notify.text,
+      replyTo: input.email,
+    }));
 
-    // 3) WhatsApp welcome — best-effort, only if a WORKING session + phone exist.
-    if (phoneE164) {
-      void sendWhatsappWelcome(admin, orgId, phoneE164, input.name);
+    // 2) Welcome the lead or newsletter subscriber.
+    if (isNewsletter) {
+      const welcome = buildNewsletterWelcomeEmail({ email: input.email });
+      jobs.push(bestEffortEmail("newsletter_welcome", requestId, {
+        to: input.email,
+        subject: welcome.subject,
+        html: welcome.html,
+        text: welcome.text,
+      }));
+    } else {
+      const welcome = buildLeadWelcomeEmail({ name: input.name, whatsappUrl: WHATSAPP_URL });
+      jobs.push(bestEffortEmail("lead_welcome", requestId, {
+        to: input.email,
+        subject: welcome.subject,
+        html: welcome.html,
+        text: welcome.text,
+      }));
+
+      // 3) WhatsApp welcome — only if a WORKING session + phone exist.
+      if (phoneE164) {
+        jobs.push(sendWhatsappWelcome(admin, orgId, phoneE164, input.name, requestId));
+      }
     }
-  }
 
-  // 4) WhatsApp notification to director — best-effort.
-  void sendWhatsappNotificationToDirector(
-    admin,
-    orgId,
-    input.name ?? "Interessado(a)",
-    input.email,
-    phoneE164 ?? "",
-    input.type
-  );
+    // 4) WhatsApp notification to director.
+    jobs.push(sendWhatsappNotificationToDirector(
+      admin,
+      orgId,
+      input.name ?? "Interessado(a)",
+      input.email,
+      phoneE164 ?? "",
+      input.type,
+      requestId,
+    ));
+
+    await Promise.allSettled(jobs);
+  });
 
   return ok(
     { received: true, type: input.type },
@@ -174,7 +220,8 @@ async function sendWhatsappWelcome(
   admin: ReturnType<typeof createAdminClient>,
   orgId: string,
   phoneE164: string,
-  name?: string | null,
+  name: string | null | undefined,
+  requestId: string,
 ): Promise<void> {
   try {
     const { data: session } = await admin
@@ -204,8 +251,12 @@ async function sendWhatsappWelcome(
       "Como podemos te ajudar?";
 
     await sendWAHA({ sessionName, chatId, text });
-  } catch {
-    // best-effort; ignore
+  } catch (err) {
+    // Best-effort: the lead is already saved. Log so a broken WAHA is visible, never throw.
+    logger.error("lead_whatsapp_welcome_failed", {
+      requestId,
+      details: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
@@ -219,6 +270,7 @@ async function sendWhatsappNotificationToDirector(
   leadEmail: string,
   leadPhone: string,
   leadType: "lead" | "newsletter",
+  requestId: string,
 ): Promise<void> {
   try {
     const { data: session } = await admin
@@ -245,6 +297,9 @@ async function sendWhatsappNotificationToDirector(
 
     await sendWAHA({ sessionName, chatId, text });
   } catch (err) {
-    console.error("[whatsapp-director-notify] failed", err);
+    logger.error("lead_whatsapp_director_notify_failed", {
+      requestId,
+      details: err instanceof Error ? err.message : String(err),
+    });
   }
 }

@@ -11,7 +11,7 @@ interface AppShellProps {
 
 export function AppShell({ sidebarCollapsed, children }: AppShellProps) {
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex min-h-screen w-full bg-zinc-100 dark:bg-zinc-950">
       <Sidebar collapsed={sidebarCollapsed} />
       <div className={cn("flex min-h-screen flex-1 flex-col transition-[margin] duration-200", sidebarCollapsed ? "ml-16" : "ml-60")}>
         <TopBar />

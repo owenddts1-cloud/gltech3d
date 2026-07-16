@@ -1,6 +1,22 @@
 import { MessageCircle, Instagram, ShoppingCart, Package, Clock, MapPin } from 'lucide-react';
+import type { LandingSettings } from '@/lib/landing/types';
 
-export default function Footer() {
+/** Fallbacks: os links que estavam cravados aqui antes do gerenciador existir. */
+const FALLBACK_LINKS = {
+  whatsapp: 'https://wa.me/5531999284834',
+  instagram: 'https://www.instagram.com/gltech3d/',
+  shopee: 'https://shopee.com.br/gltech3d',
+  mercadoLivre: 'https://www.mercadolivre.com.br',
+} as const;
+
+/**
+ * O rodapé repete os mesmos 4 canais do gerenciador de Links. Antes eles viviam
+ * cravados aqui: você trocava a URL da Shopee no painel e o rodapé continuava
+ * apontando para a antiga — inconsistência silenciosa dentro da mesma página.
+ */
+export default function Footer({ settings }: { settings?: LandingSettings }) {
+  const copy = settings?.sections?.footer;
+  const links = { ...FALLBACK_LINKS, ...settings?.links };
   return (
     <footer id="contato" className="bg-[#2D241E] text-[#F9F7F2] py-16 px-6">
       <div className="max-w-7xl mx-auto">
@@ -15,7 +31,8 @@ export default function Footer() {
               <span className="text-xl font-bold font-sora tracking-tight">GLTech3D</span>
             </div>
             <p className="text-sm text-[#F9F7F2]/60 leading-relaxed">
-              Produtos únicos de impressão 3D feitos com amor e precisão. Do arquivo ao objeto real.
+              {copy?.subtitle ??
+                'Produtos únicos de impressão 3D feitos com amor e precisão. Do arquivo ao objeto real.'}
             </p>
           </div>
 
@@ -23,13 +40,13 @@ export default function Footer() {
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#A6815C] mb-6">Fale Conosco</h4>
             <ul className="space-y-4 text-sm">
               <li>
-                <a href="https://wa.me/5531999284834" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
+                <a href={links.whatsapp} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
                   <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center transition-colors group-hover:bg-[#A6815C]"><MessageCircle className="w-4 h-4" /></span>
                   <span className="transition-colors group-hover:text-white">WhatsApp <br /><small className="text-white/40">(31) 99928-4834</small></span>
                 </a>
               </li>
               <li>
-                <a href="https://www.instagram.com/gltech3d/" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
+                <a href={links.instagram} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
                   <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center transition-colors group-hover:bg-[#A6815C]"><Instagram className="w-4 h-4" /></span>
                   <span className="transition-colors group-hover:text-white">Instagram <br /><small className="text-white/40">@gltech3d</small></span>
                 </a>
@@ -41,13 +58,13 @@ export default function Footer() {
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#A6815C] mb-6">Onde Comprar</h4>
             <ul className="space-y-4 text-sm">
               <li>
-                <a href="https://shopee.com.br/gltech3d" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
+                <a href={links.shopee} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
                   <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center transition-colors group-hover:bg-[#A6815C]"><ShoppingCart className="w-4 h-4" /></span>
                   <span className="transition-colors group-hover:text-white">Shopee <br /><small className="text-white/40">Loja Oficial</small></span>
                 </a>
               </li>
               <li>
-                <a href="https://www.mercadolivre.com.br" target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
+                <a href={links.mercadoLivre} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
                   <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center transition-colors group-hover:bg-[#A6815C]"><Package className="w-4 h-4" /></span>
                   <span className="transition-colors group-hover:text-white">Mercado Livre <br /><small className="text-white/40">Loja Oficial</small></span>
                 </a>

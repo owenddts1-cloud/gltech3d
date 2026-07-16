@@ -31,14 +31,27 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    const base = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+    ];
     return [
       {
-        source: "/(.*)",
+        // Tudo menos o preview: clickjacking segue barrado por completo.
+        source: "/((?!landing-preview).*)",
+        headers: [...base, { key: "X-Frame-Options", value: "DENY" }],
+      },
+      {
+        // O Live Preview do Landing Edit é um iframe MESMA ORIGEM. Com o DENY
+        // global o browser recusa o frame e a tela mostra o ícone de bloqueio.
+        // `frame-ancestors 'self'` libera só o nosso próprio host — nenhum site
+        // de terceiros consegue embutir esta rota.
+        source: "/landing-preview",
         headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          ...base,
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
         ],
       },
     ];

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Foto do modelo em produção">
+  <defs>
+    <pattern id="slicer-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M20 0H0V20" fill="none" stroke="#A6815C" stroke-opacity="0.14" stroke-width="1" />
+    </pattern>
+    <linearGradient id="bed-fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F9F7F2" stop-opacity="0" />
+      <stop offset="1" stop-color="#F9F7F2" stop-opacity="0.85" />
+    </linearGradient>
+  </defs>
+
+  <rect width="400" height="400" fill="#F4F1EA" />
+  <rect width="400" height="400" fill="url(#slicer-grid)" />
+  <rect width="400" height="400" fill="url(#bed-fade)" />
+
+  <!-- Cubo isométrico em wireframe: peça "ainda não impressa" -->
+  <g fill="none" stroke="#A6815C" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M200 132 L268 171 L268 249 L200 288 L132 249 L132 171 Z" stroke-opacity="0.55" stroke-width="1.5" />
+    <path d="M200 132 L200 210 L268 249" stroke-opacity="0.3" stroke-width="1.5" />
+    <path d="M200 210 L132 249" stroke-opacity="0.3" stroke-width="1.5" />
+    <path d="M132 171 L200 210 L268 171" stroke-opacity="0.3" stroke-width="1.5" />
+  </g>
+
+  <!-- Camadas em deposição na base -->
+  <g stroke="#A6815C" stroke-opacity="0.35" stroke-width="2" stroke-linecap="round">
+    <path d="M156 268 H244" />
+    <path d="M164 276 H236" stroke-opacity="0.22" />
+    <path d="M172 284 H228" stroke-opacity="0.12" />
+  </g>
+</svg>

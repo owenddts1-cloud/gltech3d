@@ -62,7 +62,7 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
       dark:  { success: "#82a077", warning: "#d09455", error: "#c87263", info: "#7da9bf" },
     },
     surfaces: {
-      light: { bg: "#faf9f6", surface: "#ffffff", surfaceElevated: "#f5f3ee", text: "#1c1a16", textMuted: "#5d594f", border: "#e7e3da" },
+      light: { bg: "#f0ede6", surface: "#ffffff", surfaceElevated: "#e5e1d7", text: "#1c1a16", textMuted: "#5d594f", border: "#ccc6b6" },
       dark:  { bg: "#161510", surface: "#1d1c17", surfaceElevated: "#272620", text: "#f5f4ef", textMuted: "#8e8b7f", border: "#33312a" },
     },
   },
@@ -90,7 +90,7 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
       dark:  { success: "#10b981", warning: "#f59e0b", error: "#f87171", info: "#38bdf8" },
     },
     surfaces: {
-      light: { bg: "#fafafa", surface: "#ffffff", surfaceElevated: "#f4f4f5", text: "#18181b", textMuted: "#52525b", border: "#e4e4e7" },
+      light: { bg: "#ececec", surface: "#ffffff", surfaceElevated: "#dedee0", text: "#18181b", textMuted: "#52525b", border: "#c9c9cc" },
       dark:  { bg: "#09090b", surface: "#141416", surfaceElevated: "#1c1c20", text: "#fafafa", textMuted: "#a1a1aa", border: "#27272a" },
     },
   },
@@ -118,7 +118,7 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
       dark:  { success: "#7ea286", warning: "#cd954b", error: "#c47866", info: "#7099b6" },
     },
     surfaces: {
-      light: { bg: "#f8f8f6", surface: "#ffffff", surfaceElevated: "#f1f1ed", text: "#181712", textMuted: "#4b4943", border: "#dddbd3" },
+      light: { bg: "#ededeb", surface: "#ffffff", surfaceElevated: "#deddd8", text: "#181712", textMuted: "#4b4943", border: "#c7c4ba" },
       dark:  { bg: "#11100d", surface: "#181712", surfaceElevated: "#21201d", text: "#f1f1ee", textMuted: "#7d7c75", border: "#2c2b27" },
     },
   },
@@ -146,7 +146,7 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
       dark:  { success: "#83a589", warning: "#cf914c", error: "#c77565", info: "#7c9eba" },
     },
     surfaces: {
-      light: { bg: "#faf8f8", surface: "#ffffff", surfaceElevated: "#f3eeee", text: "#181414", textMuted: "#4f4747", border: "#e2dddd" },
+      light: { bg: "#ece8e8", surface: "#ffffff", surfaceElevated: "#ded5d5", text: "#181414", textMuted: "#4f4747", border: "#ccbfbf" },
       dark:  { bg: "#111010", surface: "#191616", surfaceElevated: "#221f1f", text: "#f3f0f0", textMuted: "#827a7a", border: "#2e2a2a" },
     },
   },
@@ -174,7 +174,7 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
       dark:  { success: "#8aac82", warning: "#d29449", error: "#c47762", info: "#7ba2bb" },
     },
     surfaces: {
-      light: { bg: "#faf9f4", surface: "#ffffff", surfaceElevated: "#f3f0e3", text: "#191712", textMuted: "#534e3e", border: "#e3dfcc" },
+      light: { bg: "#edebe1", surface: "#ffffff", surfaceElevated: "#dedac7", text: "#191712", textMuted: "#534e3e", border: "#ccc7b0" },
       dark:  { bg: "#11100d", surface: "#181713", surfaceElevated: "#21201b", text: "#f3f1ea", textMuted: "#807a68", border: "#2c2a24" },
     },
   },

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { CheckCircle2, Send, Loader2 } from 'lucide-react';
+import type { LandingSettings } from '@/lib/landing/types';
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Informe seu nome'),
@@ -28,7 +29,8 @@ function maskPhone(value: string): string {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
-export default function LeadForm() {
+export default function LeadForm({ settings }: { settings?: LandingSettings }) {
+  const copy = settings?.sections?.orcamento;
   const [done, setDone] = useState(false);
   const {
     register,
@@ -77,10 +79,10 @@ export default function LeadForm() {
           className="text-center mb-10"
         >
           <span className="text-[11px] font-bold tracking-widest uppercase text-[#8E6D4D]">
-            Peça seu orçamento
+            {copy?.eyebrow ?? 'Peça seu orçamento'}
           </span>
           <h2 className="text-3xl md:text-4xl font-extrabold font-sora mt-2 text-[#2D241E]">
-            Vamos tirar sua ideia do papel
+            {copy?.title ?? 'Vamos tirar sua ideia do papel'}
           </h2>
           <p className="text-[#6B5E55] text-sm md:text-base mt-3 max-w-lg mx-auto">
             Deixe seu contato e nossa equipe responde rapidinho — por e-mail e WhatsApp.

@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { ShoppingBag, X, ExternalLink } from 'lucide-react';
-import type { Product } from '@/lib/marketing/products';
+import type { LandingProduct } from '@/lib/landing/types';
 
-export default function ProductActions({ product }: { product: Product }) {
+export default function ProductActions({ product }: { product: LandingProduct }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (

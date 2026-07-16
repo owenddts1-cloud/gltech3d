@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import type { LandingSettings } from '@/lib/landing/types';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -157,7 +158,13 @@ function windowFade(p: number, inStart: number, inEnd: number, outStart: number,
 // ---------------------------------------------------------------------------
 // Componente
 // ---------------------------------------------------------------------------
-export default function HeroScrollVideo() {
+/**
+ * `settings` vem do Landing Edit. Os textos abaixo são o padrão do site — o
+ * editor só sobrescreve o que você preencher, então campo vazio = texto atual.
+ */
+export default function HeroScrollVideo({ settings }: { settings?: LandingSettings }) {
+  const copy = settings?.sections?.hero;
+  const banner = copy?.image;
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -304,17 +311,32 @@ export default function HeroScrollVideo() {
             willChange: 'transform',
           }}
         >
-          <video
-            ref={videoRef}
-            key={isMobile ? 'mobile' : 'desktop'}
-            src={isMobile ? "/videos/gl-rocket-explode-scrub-mobile.mp4" : "/videos/gl-rocket-explode-scrub.mp4"}
-            className="h-full w-full object-cover transition-transform"
-            muted
-            playsInline
-            autoPlay
-            preload="auto"
-            poster="/videos/gl-rocket-poster.jpg"
-          />
+          {/* Banner do Landing Edit vence o vídeo. Também é a saída para o
+              vídeo do foguete estar ausente de /public — hoje ele dá 404 e o
+              topo fica só com o gradiente de fundo. */}
+          {banner ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={banner}
+              alt=""
+              className="h-full w-full object-cover"
+              // O topo é o LCP da página: carregar cedo e com prioridade.
+              fetchPriority="high"
+              decoding="async"
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              key={isMobile ? 'mobile' : 'desktop'}
+              src={isMobile ? "/videos/gl-rocket-explode-scrub-mobile.mp4" : "/videos/gl-rocket-explode-scrub.mp4"}
+              className="h-full w-full object-cover transition-transform"
+              muted
+              playsInline
+              autoPlay
+              preload="auto"
+              poster="/videos/gl-rocket-poster.jpg"
+            />
+          )}
         </div>
 
         {/* Partículas de poeira por cima do vídeo */}
@@ -341,11 +363,13 @@ export default function HeroScrollVideo() {
               style={{ borderColor: C.border, background: '#E8E2D9', color: C.brownDark }}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-              Impressão 3D • Feito no Brasil
+              {copy?.eyebrow ?? 'Impressão 3D • Feito no Brasil'}
             </span>
             <h1 className="font-sora text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1]" style={{ color: C.ink }}>
-              Do arquivo 3D <br />
-              <em className="font-serif font-normal italic" style={{ color: C.brownDark }}>à realidade</em>
+              {copy?.title ?? 'Do arquivo 3D'} <br />
+              <em className="font-serif font-normal italic" style={{ color: C.brownDark }}>
+                {copy?.subtitle ?? 'à realidade'}
+              </em>
             </h1>
             <p className="mt-6 max-w-lg text-base sm:text-lg md:text-xl font-medium leading-relaxed" style={{ color: '#4E443C' }}>
               Da peça decorativa ao nosso GL ROCKET: engenharia e impressão 3D de alta performance.
@@ -375,8 +399,8 @@ export default function HeroScrollVideo() {
           text="Estrutura impressa em PLA/PETG com tolerâncias de encaixe reais — projetada, fatiada e testada aqui." />
 
         {/* ~55%: vista explodida */}
-        <Caption side="left" opacity={explodeOpacity} eyebrow="Aviônica · Eletrônica" title="Vista explodida"
-          text="Placa de controle, servos do gimbal e bateria: todos os componentes internos visíveis, camada por camada." />
+        <Caption side="left" opacity={explodeOpacity} eyebrow="Impressão Premium" title="Fusão de Precisão"
+          text="Resolução milimétrica com filamentos importados. Modelos impressos camada por camada para alta resistência e acabamento liso impecável." />
 
         {/* ~95%: CTA final */}
         <div

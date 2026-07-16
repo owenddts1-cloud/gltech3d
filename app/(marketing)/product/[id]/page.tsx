@@ -2,15 +2,18 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Box, Ruler } from 'lucide-react';
-import { products } from '@/lib/marketing/products';
+import { getLandingCatalog } from '@/lib/landing/repository';
 import Navbar from '@/components/marketing/Navbar';
 import Footer from '@/components/marketing/Footer';
 import ProductGallery from '@/components/marketing/ProductGallery';
 import ProductActions from './ProductActions';
 
+// O parâmetro chama-se `id` por herança da rota, mas hoje carrega o slug.
+// Aceitamos os dois: links antigos com uuid continuam abrindo.
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const product = products.find((p) => p.id === id);
+  const { products } = await getLandingCatalog();
+  const product = products.find((p) => p.slug === id) ?? products.find((p) => p.id === id);
 
   if (!product) {
     notFound();
@@ -78,7 +81,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             <h2 className="text-2xl font-bold mt-2 font-sora mb-8">Você também vai gostar</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {relatedProducts.map((p) => (
-                <Link href={`/product/${p.id}`} key={p.id} className="group block">
+                <Link href={`/product/${p.slug}`} key={p.id} className="group block">
                   <div className="relative rounded-3xl overflow-hidden aspect-square mb-4 bg-white">
                     <Image
                       src={p.image}

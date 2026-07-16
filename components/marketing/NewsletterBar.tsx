@@ -1,11 +1,13 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { motion, useMotionValue, useSpring } from 'motion/react';
 import { toast } from 'sonner';
 import { Mail, Loader2 } from 'lucide-react';
+import type { LandingSettings } from '@/lib/landing/types';
 
-export default function NewsletterBar() {
+export default function NewsletterBar({ settings }: { settings?: LandingSettings }) {
+  const copy = settings?.sections?.newsletter;
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -111,7 +113,7 @@ export default function NewsletterBar() {
         </div>
 
         <div className="relative z-10 mb-6 md:mb-0">
-          <h3 className="text-2xl font-extrabold font-sora">Novidades da GLTech3D</h3>
+          <h3 className="text-2xl font-extrabold font-sora">{copy?.title ?? 'Novidades da GLTech3D'}</h3>
           <p className="text-sm text-white/70 mt-2 max-w-md">
             Lançamentos, promoções e peças novas direto no seu e-mail. Sem spam.
           </p>

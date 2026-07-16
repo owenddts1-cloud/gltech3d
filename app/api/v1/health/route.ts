@@ -122,14 +122,68 @@ async function checkWaha(): Promise<Check> {
   }
 }
 
+/**
+ * Resend only accepts a `from` whose domain is verified on the account. A valid API key with
+ * no verified domain therefore 403s every single send — which is invisible from the app side,
+ * since notifications are fire-and-forget. This check surfaces exactly that: it compares the
+ * domain in RESEND_FROM_EMAIL against the account's verified list.
+ */
+async function checkResend(): Promise<Check> {
+  const t0 = Date.now();
+  try {
+    const key = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM_EMAIL;
+    if (!key || !from) {
+      return { status: "degraded", latency_ms: 0, error: "not_configured" };
+    }
+
+    const fromDomain = from.match(/@([^\s>]+)/)?.[1]?.toLowerCase();
+    if (!fromDomain) {
+      return { status: "down", latency_ms: 0, error: "from_address_malformed" };
+    }
+    // Resend's shared sandbox sender only delivers to the account owner's own address.
+    if (fromDomain === "resend.dev") {
+      return { status: "degraded", latency_ms: 0, error: "using_sandbox_sender" };
+    }
+
+    const res = await withTimeout(
+      fetch("https://api.resend.com/domains", {
+        headers: { Authorization: `Bearer ${key}` },
+        cache: "no-store",
+      }),
+    );
+    if (!res.ok) {
+      return { status: "down", latency_ms: Date.now() - t0, error: `http_${res.status}` };
+    }
+
+    const body: unknown = await res.json();
+    const domains = (body as { data?: { name?: string; status?: string }[] })?.data ?? [];
+    const match = domains.find((d) => d.name?.toLowerCase() === fromDomain);
+    if (!match) {
+      return { status: "down", latency_ms: Date.now() - t0, error: `domain_not_added:${fromDomain}` };
+    }
+    if (match.status !== "verified") {
+      return { status: "down", latency_ms: Date.now() - t0, error: `domain_not_verified:${match.status}` };
+    }
+    return { status: "ok", latency_ms: Date.now() - t0 };
+  } catch (e) {
+    return {
+      status: "down",
+      latency_ms: Date.now() - t0,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
 export async function GET() {
-  const [supabase, redis, waha] = await Promise.all([
+  const [supabase, redis, waha, resend] = await Promise.all([
     checkSupabase(),
     checkRedis(),
     checkWaha(),
+    checkResend(),
   ]);
 
-  const checks = { supabase, redis, waha };
+  const checks = { supabase, redis, waha, resend };
   const anyDown = Object.values(checks).some((c) => c.status === "down");
   const anyDegraded = Object.values(checks).some((c) => c.status === "degraded");
   const status: "healthy" | "degraded" | "unhealthy" = anyDown

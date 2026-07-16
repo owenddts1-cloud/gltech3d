@@ -1,7 +1,11 @@
 /**
- * Catálogo estático da landing GLTech3D (storefront público).
- * Fonte de exibição apenas — o CRM/pipeline é a fonte de verdade operacional.
- * Ported de _landing-original/lib/data.ts, agora tipado (CLAUDE.md: sem `any`).
+ * NÃO É MAIS A FONTE DA LANDING. Desde a migration 0041 a landing lê a tabela
+ * `products` do Postgres via `lib/landing/repository.ts`, e o Landing Edit
+ * escreve nela.
+ *
+ * Este arquivo sobrevive apenas como semente de `scripts/seed-landing-catalog.ts`
+ * (a importação inicial arquivo → banco, já executada). Editar aqui não muda
+ * mais nada no site. Pode ser removido depois que o Landing Edit estiver em uso.
  */
 
 export interface ProductLinks {
@@ -10,6 +14,9 @@ export interface ProductLinks {
   whatsapp?: string;
   instagram?: string;
 }
+
+/** Posição no pódio de vendas. 1 = campeão (bloco grande), 2 e 3 = blocos menores. */
+export type BestsellerRank = 1 | 2 | 3;
 
 export interface Product {
   id: string;
@@ -22,11 +29,31 @@ export interface Product {
   images: string[];
   videos?: string[];
   isTop: boolean;
+  /** Preenchido só nos 3 mais vendidos. Governa a seção "Mais Vendidos". */
+  bestsellerRank?: BestsellerRank;
+  /** Copy longa do bloco campeão (rank 1). Cai para `description` se ausente. */
+  heroCopy?: string;
+  /**
+   * Modelo cadastrado antes da sessão de fotos. A UI mostra um placeholder no
+   * lugar da imagem em vez de renderizar `image`. Remover ao subir a foto real.
+   */
+  pendingPhoto?: boolean;
   material: string;
   dimensions: string;
   colors: string[];
   links: ProductLinks;
 }
+
+/** Links de venda padrão da loja. Todo produto compartilha os mesmos canais. */
+const STORE_LINKS: ProductLinks = {
+  shopee: "https://shopee.com.br/gltech3d",
+  mercadoLivre: "https://mercadolivre.com.br",
+  whatsapp: "https://wa.me/5531999284834",
+  instagram: "https://www.instagram.com/gltech3d/",
+};
+
+/** Usado por todo modelo que ainda não tem foto própria da oficina. */
+const PHOTO_PENDING_IMAGE = "/images/placeholder-model.svg";
 
 export const products: Product[] = [
   {
@@ -42,15 +69,13 @@ export const products: Product[] = [
       "/images/Luminarias/Lua Cheia/luminarialuacheia2.png",
     ],
     isTop: true,
+    bestsellerRank: 1,
+    heroCopy:
+      "A nossa peça campeã de vendas. Cada unidade é fabricada sob demanda utilizando tecnologia de manufatura aditiva de alta definição, reproduzindo com precisão o relevo de crateras e mares lunares. Perfeita para iluminação decorativa e presentes sofisticados.",
     material: "PLA Premium",
     dimensions: "15cm x 15cm",
     colors: ["Branco Frio", "Amarelo Quente"],
-    links: {
-      shopee: "https://shopee.com.br/gltech3d",
-      mercadoLivre: "https://mercadolivre.com.br",
-      whatsapp: "https://wa.me/5531999284834",
-      instagram: "https://www.instagram.com/gltech3d/",
-    },
+    links: STORE_LINKS,
   },
   {
     id: "2",
@@ -125,15 +150,11 @@ export const products: Product[] = [
     image: "/images/Action Figure/Charizard Articulavel/Charizard1.png",
     images: ["/images/Action Figure/Charizard Articulavel/Charizard1.png"],
     isTop: true,
+    bestsellerRank: 2,
     material: "PLA Silk",
     dimensions: "45cm Comprimento",
     colors: ["Multicolorido RGB"],
-    links: {
-      shopee: "https://shopee.com.br/gltech3d",
-      mercadoLivre: "https://mercadolivre.com.br",
-      whatsapp: "https://wa.me/5531999284834",
-      instagram: "https://www.instagram.com/gltech3d/",
-    },
+    links: STORE_LINKS,
   },
   {
     id: "6",
@@ -245,14 +266,149 @@ export const products: Product[] = [
       "/images/Bases Carregadoras/Base Carregadora Relogio Apple Watch/BaseCApple3.png",
     ],
     isTop: true,
+    bestsellerRank: 3,
     material: "PLA Premium",
     dimensions: "12,8cm x 12,8cm x 4,2cm",
     colors: ["Branco", "Preto"],
-    links: {
-      shopee: "https://shopee.com.br/gltech3d",
-      mercadoLivre: "https://mercadolivre.com.br",
-      whatsapp: "https://wa.me/5531999284834",
-      instagram: "https://www.instagram.com/gltech3d/",
-    },
+    links: STORE_LINKS,
+  },
+
+  // ── Modelos cadastrados aguardando sessão de fotos da oficina ─────────────
+  // Preço e dimensões são estimativas de rascunho — revisar antes de publicar.
+  {
+    id: "11",
+    name: "Tralalero Tralalá - Tubarão Articulado",
+    description:
+      "Tubarão articulado de tênis, o meme que virou febre. Juntas móveis impressas montadas, sai da mesa já articulado.",
+    price: 39.9,
+    category: "Brinquedos",
+    image: PHOTO_PENDING_IMAGE,
+    images: [],
+    isTop: false,
+    pendingPhoto: true,
+    material: "PLA Premium",
+    dimensions: "Sob consulta",
+    colors: ["Cinza", "Azul", "Colorido"],
+    links: STORE_LINKS,
+  },
+  {
+    id: "12",
+    name: "Tung Tung Tung Sahur - Boneco Articulado",
+    description:
+      "Boneco articulado do Tung Tung Tung Sahur com braços e pernas móveis, acompanha o bastão. Peça de coleção.",
+    price: 34.9,
+    category: "Brinquedos",
+    image: PHOTO_PENDING_IMAGE,
+    images: [],
+    isTop: false,
+    pendingPhoto: true,
+    material: "PLA Premium",
+    dimensions: "Sob consulta",
+    colors: ["Madeira", "Marrom", "Colorido"],
+    links: STORE_LINKS,
+  },
+  {
+    id: "13",
+    name: "Porta Canetas Monster - Organizador de Mesa",
+    description:
+      "Organizador de mesa com recorte vazado e acabamento texturizado. Presença forte em setup gamer ou escritório.",
+    price: 39.9,
+    category: "Utensílios",
+    image: PHOTO_PENDING_IMAGE,
+    images: [],
+    isTop: false,
+    pendingPhoto: true,
+    material: "PLA Premium",
+    dimensions: "Sob consulta",
+    colors: ["Preto Fosco", "Branco", "Verde"],
+    links: STORE_LINKS,
+  },
+  {
+    id: "14",
+    name: "Suporte de Celular Banguela",
+    description:
+      "Suporte de celular do Banguela em pose de dragão, com olhos que brilham no escuro. Segura o aparelho na horizontal e na vertical.",
+    price: 49.9,
+    category: "Utensílios",
+    image: PHOTO_PENDING_IMAGE,
+    images: [],
+    isTop: false,
+    pendingPhoto: true,
+    material: "PLA Premium",
+    dimensions: "Sob consulta",
+    colors: ["Preto", "Glow in the Dark"],
+    links: STORE_LINKS,
+  },
+  {
+    id: "15",
+    name: "Meccha Chameleon - Kit de Poses",
+    description:
+      "Coleção de bonecos minimalistas em poses variadas. Vende bem em conjunto para compor prateleira ou estante.",
+    price: 19.9,
+    priceRange: "19,90 - 89,90",
+    category: "Decoração",
+    image: PHOTO_PENDING_IMAGE,
+    images: [],
+    isTop: false,
+    pendingPhoto: true,
+    material: "PLA Premium",
+    dimensions: "Sob consulta",
+    colors: ["Branco", "Preto", "Colorido"],
+    links: STORE_LINKS,
+  },
+  {
+    id: "16",
+    name: "Letra Decorada Personalizada",
+    description:
+      "Letra 3D decorada com o nome da criança, tema à escolha. Peça central de quarto infantil, chá de bebê e festa.",
+    price: 54.9,
+    category: "Presentes",
+    image: PHOTO_PENDING_IMAGE,
+    images: [],
+    isTop: false,
+    pendingPhoto: true,
+    material: "PLA Premium",
+    dimensions: "Sob consulta",
+    colors: ["Personalizado", "Colorido"],
+    links: STORE_LINKS,
+  },
+  {
+    id: "17",
+    name: "Porta Cartões de Visita - Consultório Odontológico",
+    description:
+      "Organizador de bancada com porta cartões, dente escultural e suportes para instrumentos. Feito para recepção de consultório.",
+    price: 64.9,
+    category: "Utensílios",
+    image: PHOTO_PENDING_IMAGE,
+    images: [],
+    isTop: false,
+    pendingPhoto: true,
+    material: "PLA Premium",
+    dimensions: "Sob consulta",
+    colors: ["Branco", "Azul"],
+    links: STORE_LINKS,
+  },
+  {
+    id: "18",
+    name: "Carimbo e Cortador de Biscoito Toy Story",
+    description:
+      "Kit de cortadores com carimbo em relevo, tema Toy Story. Massa sai marcada e cortada de uma vez. Personalizável com nome.",
+    price: 12.9,
+    priceRange: "12,90 - 74,90",
+    category: "Utensílios",
+    image: PHOTO_PENDING_IMAGE,
+    images: [],
+    isTop: false,
+    pendingPhoto: true,
+    material: "PLA Premium",
+    dimensions: "Sob consulta",
+    colors: ["Laranja", "Branco", "Colorido"],
+    links: STORE_LINKS,
   },
 ];
+
+/** Os 3 mais vendidos, ordenados. Fonte única da seção "Mais Vendidos". */
+export const bestsellers: Product[] = products
+  .filter((p): p is Product & { bestsellerRank: BestsellerRank } => p.bestsellerRank !== undefined)
+  .sort((a, b) => a.bestsellerRank - b.bestsellerRank)
+  .slice(0, 3);

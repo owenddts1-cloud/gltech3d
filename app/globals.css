@@ -10,9 +10,9 @@
 
 :root {
   /* Surfaces (light) */
-  --color-bg: #faf9f6;
+  --color-bg: #f0ede6;
   --color-surface: #ffffff;
-  --color-surface-elevated: #f5f3ee;
+  --color-surface-elevated: #e3dfd5;
   --color-overlay: rgba(28, 26, 22, 0.42);
 
   /* Text (light) */
@@ -21,11 +21,11 @@
   --color-text-subtle: #7d786c;
 
   /* Borders (light) */
-  --color-border: #ccc7b9;
-  --color-border-strong: #b2ad9e;
-  --color-border-glass: rgba(204, 199, 185, 0.75);
-  --color-border-grid: rgba(204, 199, 185, 0.6);
-  --color-surface-glass: rgba(255, 255, 255, 0.8);
+  --color-border: #b5af9f;
+  --color-border-strong: #9e9786;
+  --color-border-glass: rgba(181, 175, 159, 0.75);
+  --color-border-grid: rgba(181, 175, 159, 0.6);
+  --color-surface-glass: rgba(255, 255, 255, 0.85);
 
   /* Accent — Sage (11 stops) */
   --color-accent-50:  #f3f6f1;
@@ -700,6 +700,7 @@
   background: linear-gradient(to right, hsla(142, 70%, 45%, 0.4), hsla(142, 70%, 45%, 0.1));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
   animation: glow-pulse-green 3s infinite alternate;
@@ -717,6 +718,7 @@
   background: linear-gradient(to right, hsla(217, 91%, 60%, 0.5), hsla(217, 91%, 60%, 0.1));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
   animation: glow-pulse-blue 2s infinite linear;
@@ -734,6 +736,7 @@
   background: linear-gradient(to right, hsla(0, 100%, 50%, 0.6), hsla(0, 100%, 50%, 0.2));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
   animation: glow-pulse-red 1.5s infinite alternate;

@@ -1,20 +1,29 @@
-import { fetchDashboardOverview, type DashboardOverview as TOverview } from "@/app/actions/dashboard/overview";
-import { DashboardOverview } from "./_components/DashboardOverview";
+import { fetchDashboardData, type DashboardData } from "@/app/actions/dashboard/analytics";
+import DashboardMain from "./_components/DashboardMain";
 
 export const metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
-const EMPTY: TOverview = {
-  kpis: { faturamentoMesCents: 0, faturamentoPrevCents: 0, osAtivas: 0, filamentoMesGramas: 0, lowStock: 0, clientes: 0, lucroEstimadoCents: 0 },
-  osByStatus: { orcamento: 0, aprovado: 0, em_producao: 0, concluido: 0 },
-  revenueSeries: [],
-  spending: { filament: 0, energy: 0, depreciation: 0 },
-  feed: [],
-  activeOrders: [],
-  performance: { successRate: 0, goals: [] },
+/**
+ * Estado vazio: org nova (ou migration não aplicada) abre a tela em branco com
+ * os filtros funcionando, em vez de estourar.
+ */
+const EMPTY: DashboardData = {
+  period: "mensal",
+  kpis: {
+    faturamentoCents: { value: 0, changePct: null },
+    pedidosConcluidos: { value: 0, changePct: null },
+    osAtivas: { value: 0, changePct: null },
+    lucroLiquidoCents: { value: 0, changePct: null },
+  },
+  salesSeries: [],
+  osSeries: [],
+  salesRows: [],
+  osRows: [],
+  activities: [],
 };
 
 export default async function DashboardPage() {
-  const r = await fetchDashboardOverview();
-  return <DashboardOverview data={r.ok ? r.data : EMPTY} />;
+  const r = await fetchDashboardData("mensal");
+  return <DashboardMain initial={r.ok ? r.data : EMPTY} />;
 }

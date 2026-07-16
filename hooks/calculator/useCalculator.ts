@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+
+/** Where "Salvar configurações" persists the user's own defaults. */
+const SAVED_INPUTS_KEY = "gltech3d-calculator-inputs";
 
 // ─── Input Types ────────────────────────────────────────────────
 export interface CalculatorInputs {
@@ -107,17 +110,17 @@ export const PRESETS: Preset[] = [
 // ─── Default Input Values ───────────────────────────────────────
 export const DEFAULT_INPUTS: CalculatorInputs = {
   pesoPeca: 45,
-  precoFilamento: 120,
+  precoFilamento: 110,  // PLA Generic
   tempoImpressao: 3,
   potenciaMedia: 200,
   tarifaEnergia: 0.85,
   valorMaquina: 3500,
   vidaUtil: 5000,
-  horaTrabalho: 25,
+  horaTrabalho: 1,
   horasManuais: 0.25,
   quantidade: 1,
   margemLucro: 100,
-  riscoFalha: 5,
+  riscoFalha: 15,
 };
 
 // ─── Calculator Engine ─────────────────────────────────────────
@@ -210,6 +213,28 @@ export function useCalculator(initialInputs?: Partial<CalculatorInputs>) {
   });
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
+  // Loaded after mount, not in the useState initializer: reading localStorage during render
+  // would make the server HTML (DEFAULT_INPUTS) disagree with the client's first paint.
+  // Only known numeric keys are taken, so stale or hand-edited storage can't inject junk.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SAVED_INPUTS_KEY);
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      const saved: Partial<CalculatorInputs> = {};
+      for (const key of Object.keys(DEFAULT_INPUTS) as (keyof CalculatorInputs)[]) {
+        const v = (parsed as Record<string, unknown>)[key];
+        if (typeof v === "number" && Number.isFinite(v)) saved[key] = v;
+      }
+      if (Object.keys(saved).length > 0) {
+        setInputs((prev) => ({ ...prev, ...saved }));
+      }
+    } catch {
+      // Corrupt/unavailable storage must never break the calculator — fall back to defaults.
+    }
+  }, []);
+
   const outputs = useMemo(() => calculate(inputs), [inputs]);
 
   const updateInput = useCallback(
@@ -225,9 +250,25 @@ export function useCalculator(initialInputs?: Partial<CalculatorInputs>) {
     setActivePreset(preset.id);
   }, []);
 
+  /** Persists the current inputs as this browser's defaults. Returns false if storage refused. */
+  const saveDefaults = useCallback((): boolean => {
+    try {
+      window.localStorage.setItem(SAVED_INPUTS_KEY, JSON.stringify(inputs));
+      return true;
+    } catch {
+      return false; // private mode / quota exceeded
+    }
+  }, [inputs]);
+
+  /** Back to the factory values, discarding anything saved. */
   const resetAll = useCallback(() => {
     setInputs(DEFAULT_INPUTS);
     setActivePreset(null);
+    try {
+      window.localStorage.removeItem(SAVED_INPUTS_KEY);
+    } catch {
+      // Nothing to clean up if storage is unavailable.
+    }
   }, []);
 
   return {
@@ -238,5 +279,6 @@ export function useCalculator(initialInputs?: Partial<CalculatorInputs>) {
     activePreset,
     applyPreset,
     resetAll,
+    saveDefaults,
   };
 }

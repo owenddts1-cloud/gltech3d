@@ -43,6 +43,13 @@ const schema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: requiredAlways("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
   SUPABASE_SERVICE_ROLE_KEY: requiredAlways("SUPABASE_SERVICE_ROLE_KEY"),
 
+  /**
+   * Org dona da landing pública (app/(marketing)). Slug, não UUID: legível e
+   * estável entre bancos. A landing é servida no servidor com admin client, e
+   * este é o "fonte confiável" que resolve o organization_id — nunca o body.
+   */
+  LANDING_ORG_SLUG: z.string().min(1).default("gltech3d"),
+
   // Cron / interno
   INTERNAL_SECRET: required("INTERNAL_SECRET"),
   /** Optional dedicated secret for cron endpoints (S-06.07 onwards). */

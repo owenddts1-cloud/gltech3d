@@ -49,6 +49,24 @@ const config: Config = {
           950: "var(--color-accent-950)",
         },
 
+        // Marca GLTech3D — landing pública (.marketing-root).
+        // Literais, não CSS vars: a landing não troca de tema como o CRM.
+        // Contraste medido sobre o creme #F9F7F2:
+        //   bronze 3.32:1 → só ícone e texto grande (AA large / UI = 3:1)
+        //   bronze-deep 4.42:1 → reprova AA em texto normal, usar só em >=18px
+        //   bronze-ink 5.74:1 → único aprovado para os labels de 9-11px
+        brand: {
+          bronze: "#A6815C",
+          "bronze-deep": "#8E6D4D",
+          "bronze-ink": "#7A5C3E",
+          espresso: "#2B2622",
+          ink: "#1E1B18",
+          taupe: "#6B5E55",
+          bone: "#F9F7F2",
+          sand: "#D5CBBF",
+          stone: "#C8BEB2",
+        },
+
         // Neutrals — greige
         neutral: {
           50: "var(--color-neutral-50)",
