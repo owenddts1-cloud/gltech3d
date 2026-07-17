@@ -3,7 +3,6 @@
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
-import { revalidatePath } from "next/cache";
 
 export interface FinancialRecord {
   id: string;
@@ -116,7 +115,10 @@ export async function saveFinancialRecords(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath("/app/control");
+  // Sem revalidatePath: o grid é gerido no cliente (mantém `records`/`dbRecords` em
+  // sincronia e faz o swap dos ids temporários). Revalidar aqui re-alimentaria
+  // `initialRecords`, o que reinicia o estado local e descartaria edições ainda não
+  // salvas de outras linhas — origem do bug de "sumir colunas" ao excluir/salvar.
   return { ok: true, idMap };
 }
 
@@ -136,6 +138,7 @@ export async function deleteFinancialRecord(id: string): Promise<{ ok: boolean; 
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath("/app/control");
+  // Sem revalidatePath: ver nota em saveFinancialRecords. O cliente já remove a linha
+  // do estado local; revalidar clobbaria edições pendentes das demais linhas.
   return { ok: true };
 }

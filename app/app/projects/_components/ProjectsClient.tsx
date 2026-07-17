@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,8 @@ import { Cube, Trash, Plus, Sparkle, Calculator, Clock, Receipt } from "@/lib/ui
 import { toast } from "sonner";
 import {
   createProject, deleteProject, createProjectNote, deleteProjectNote,
-  type ProjectsData, type ProjectView,
+  updateProjectNote,
+  type ProjectsData, type ProjectView, type ProjectNoteView,
 } from "@/app/actions/projects/actions";
 import type { ProjectNoteColor } from "@/lib/schemas/projects";
 
@@ -32,7 +33,23 @@ export function ProjectsClient({ data }: { data: ProjectsData }) {
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
 
   const projects = data.projects;
-  const notes = data.notes;
+  // Notas em estado local para o drag no plano ser otimista (sem esperar o round-trip).
+  const [notes, setNotes] = useState<ProjectNoteView[]>(data.notes);
+  useEffect(() => { setNotes(data.notes); }, [data.notes]);
+
+  // Quadro livre (malha 3D estilo AutoCAD): zoom + pan + drag por pointer events.
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [dragNoteId, setDragNoteId] = useState<string | null>(null);
+  // Refs de gesto (não re-renderizam a cada movimento do ponteiro).
+  const noteDrag = useRef<{ id: string; startX: number; startY: number; noteX: number; noteY: number; lastX: number; lastY: number } | null>(null);
+  const panDrag = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
+
+  // Posição efetiva de uma nota (cascata perto da origem se ainda não posicionada).
+  const posOf = useCallback((n: ProjectNoteView, i: number) => ({
+    x: n.posX != null ? n.posX : 40 + (i % 6) * 34,
+    y: n.posY != null ? n.posY : 40 + Math.floor(i / 6) * 30 + (i % 6) * 8,
+  }), []);
 
   // Live simulator
   const [simWeight, setSimWeight] = useState(250);
@@ -92,6 +109,48 @@ export function ProjectsClient({ data }: { data: ProjectsData }) {
       router.refresh();
     });
   }
+
+  // ── Quadro livre: arrastar nota (pointer), persistir posição no pointerup ──
+  function onNotePointerDown(e: React.PointerEvent, note: ProjectNoteView, index: number) {
+    e.stopPropagation(); // não inicia pan
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    const p = posOf(note, index);
+    noteDrag.current = { id: note.id, startX: e.clientX, startY: e.clientY, noteX: p.x, noteY: p.y, lastX: p.x, lastY: p.y };
+    setDragNoteId(note.id);
+  }
+  function onNotePointerMove(e: React.PointerEvent) {
+    const d = noteDrag.current;
+    if (!d) return;
+    const nx = d.noteX + (e.clientX - d.startX) / zoom;
+    const ny = d.noteY + (e.clientY - d.startY) / zoom;
+    d.lastX = nx; d.lastY = ny;
+    setNotes((prev) => prev.map((n) => (n.id === d.id ? { ...n, posX: nx, posY: ny } : n)));
+  }
+  function onNotePointerUp() {
+    const d = noteDrag.current;
+    if (!d) return;
+    noteDrag.current = null;
+    setDragNoteId(null);
+    const posX = Math.round(d.lastX);
+    const posY = Math.round(d.lastY);
+    startTransition(async () => {
+      const res = await updateProjectNote(d.id, { posX, posY });
+      if (!res.ok) { toast.error(res.error || "Erro ao mover"); router.refresh(); }
+    });
+  }
+
+  // ── Pan do fundo (arrastar o plano) ──
+  function onBoardPointerDown(e: React.PointerEvent) {
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    panDrag.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y };
+  }
+  function onBoardPointerMove(e: React.PointerEvent) {
+    const d = panDrag.current;
+    if (!d) return;
+    setPan({ x: d.panX + (e.clientX - d.startX), y: d.panY + (e.clientY - d.startY) });
+  }
+  function onBoardPointerUp() { panDrag.current = null; }
+  function resetView() { setZoom(1); setPan({ x: 0, y: 0 }); }
   function handleDeleteProject(id: string) {
     startTransition(async () => {
       const res = await deleteProject(id);
@@ -320,37 +379,78 @@ export function ProjectsClient({ data }: { data: ProjectsData }) {
             </Card>
           </div>
 
-          <div className="relative p-8 rounded-2xl border border-border/80 bg-muted/20 min-h-[350px]">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {notes.map((p) => {
-                const cls =
-                  p.color === "pink" ? "bg-rose-100/90 text-rose-950 border-rose-300/60 dark:bg-rose-950/20 dark:text-rose-200 dark:border-rose-900/30" :
-                  p.color === "blue" ? "bg-sky-100/90 text-sky-950 border-sky-300/60 dark:bg-sky-950/20 dark:text-sky-200 dark:border-sky-900/30" :
-                  p.color === "green" ? "bg-emerald-100/90 text-emerald-950 border-emerald-300/60 dark:bg-emerald-950/20 dark:text-emerald-200 dark:border-emerald-900/30" :
-                  "bg-amber-100/90 text-amber-950 border-amber-300/60 dark:bg-amber-950/20 dark:text-amber-200 dark:border-amber-900/30";
-                const rot = (p.title.length % 5) - 2;
-                return (
-                  <div key={p.id} className={`p-5 rounded-xl border shadow-sm relative overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:rotate-0 flex flex-col ${cls}`} style={{ transform: `rotate(${rot}deg)` }}>
-                    <div className="absolute top-2.5 left-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-slate-400/50 shadow-inner border border-white/20" />
-                    <div className="flex justify-between items-start gap-2 pt-2">
-                      <h3 className="font-bold text-xs tracking-tight">{p.title}</h3>
-                      <button onClick={() => handleDeleteNote(p.id)} className="opacity-40 hover:opacity-100 transition-opacity p-0.5" aria-label="Deletar nota"><Trash size={12} /></button>
-                    </div>
-                    <p className="text-[11px] mt-3 leading-relaxed whitespace-pre-wrap font-medium flex-1">{p.content}</p>
-                    <div className="mt-4 pt-2 border-t border-current/10 flex justify-between items-center text-[9px] opacity-65 font-semibold">
-                      <span>Quadro de Ideias</span>
-                      <span className="font-mono">{new Date(p.createdAt).toLocaleDateString("pt-BR")}</span>
-                    </div>
-                  </div>
-                );
-              })}
-              {notes.length === 0 && (
-                <div className="col-span-full py-12 text-center">
-                  <p className="text-xs text-muted-foreground">O quadro está vazio. Adicione uma nota acima.</p>
-                </div>
-              )}
+          {/* Quadro branco LIVRE — notas soltas numa malha 3D estilo AutoCAD; arraste, pan e zoom. */}
+          <Card className="p-4 rounded-xl border border-border bg-surface">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] text-muted-foreground">Arraste as notas livremente no plano. Arraste o fundo para mover a visão.</span>
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
+                <button onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.1).toFixed(2)))} className="h-7 w-7 rounded-md text-sm font-bold text-muted-foreground hover:bg-surface hover:text-foreground" title="Diminuir zoom">−</button>
+                <span className="w-11 text-center text-[11px] font-mono font-semibold tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
+                <button onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)))} className="h-7 w-7 rounded-md text-sm font-bold text-muted-foreground hover:bg-surface hover:text-foreground" title="Aumentar zoom">+</button>
+                <button onClick={resetView} className="ml-0.5 h-7 rounded-md px-2 text-[11px] font-semibold text-muted-foreground hover:bg-surface hover:text-foreground" title="Centralizar visão">Reset</button>
+              </div>
             </div>
-          </div>
+
+            {/* Viewport (arrastar o fundo = pan) */}
+            <div
+              className="relative h-[560px] w-full overflow-hidden rounded-xl border border-border/60 bg-[#0b1120]"
+              onPointerDown={onBoardPointerDown}
+              onPointerMove={onBoardPointerMove}
+              onPointerUp={onBoardPointerUp}
+              onPointerLeave={onBoardPointerUp}
+              style={{ cursor: "grab", touchAction: "none" }}
+            >
+              {/* Malha 3D em perspectiva (chão em fuga) — decorativa, sem capturar o ponteiro */}
+              <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden style={{ perspective: "760px", perspectiveOrigin: "50% 0%" }}>
+                <div
+                  className="absolute left-1/2 top-[38%] h-[220%] w-[320%] -translate-x-1/2"
+                  style={{
+                    transform: "rotateX(64deg)",
+                    transformOrigin: "50% 0%",
+                    backgroundImage:
+                      "linear-gradient(to right, rgba(56,189,248,0.16) 1px, transparent 1px), linear-gradient(to bottom, rgba(56,189,248,0.16) 1px, transparent 1px)",
+                    backgroundSize: "44px 44px",
+                    maskImage: "linear-gradient(to bottom, transparent 0%, black 20%, black 62%, transparent 92%)",
+                    WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 20%, black 62%, transparent 92%)",
+                  }}
+                />
+                {/* brilho de horizonte + eixo central p/ orientação */}
+                <div className="absolute inset-x-0 top-[36%] h-24 bg-gradient-to-b from-sky-500/10 to-transparent" />
+              </div>
+
+              {/* Mundo: pan + zoom; notas em posição absoluta no plano */}
+              <div className="absolute left-0 top-0 origin-top-left" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
+                {notes.map((p, i) => {
+                  const pos = posOf(p, i);
+                  const cls =
+                    p.color === "pink" ? "bg-rose-100/95 text-rose-950 border-rose-300/60 dark:bg-rose-950/40 dark:text-rose-100 dark:border-rose-900/50" :
+                    p.color === "blue" ? "bg-sky-100/95 text-sky-950 border-sky-300/60 dark:bg-sky-950/40 dark:text-sky-100 dark:border-sky-900/50" :
+                    p.color === "green" ? "bg-emerald-100/95 text-emerald-950 border-emerald-300/60 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-900/50" :
+                    "bg-amber-100/95 text-amber-950 border-amber-300/60 dark:bg-amber-950/40 dark:text-amber-100 dark:border-amber-900/50";
+                  return (
+                    <div
+                      key={p.id}
+                      onPointerDown={(e) => onNotePointerDown(e, p, i)}
+                      onPointerMove={onNotePointerMove}
+                      onPointerUp={onNotePointerUp}
+                      className={`group absolute w-52 select-none cursor-grab rounded-lg border p-3 shadow-lg transition-shadow hover:shadow-xl active:cursor-grabbing ${cls} ${dragNoteId === p.id ? "z-10 ring-2 ring-accent" : ""}`}
+                      style={{ left: pos.x, top: pos.y, touchAction: "none" }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-xs font-bold tracking-tight">{p.title}</h3>
+                        <button onPointerDown={(e) => e.stopPropagation()} onClick={() => handleDeleteNote(p.id)} className="opacity-30 group-hover:opacity-100 transition-opacity p-0.5" aria-label="Deletar nota"><Trash size={11} /></button>
+                      </div>
+                      <p className="mt-1.5 whitespace-pre-wrap text-[11px] font-medium leading-relaxed">{p.content}</p>
+                      <div className="mt-2 pt-1.5 border-t border-current/10 text-right text-[9px] font-mono opacity-60">{new Date(p.createdAt).toLocaleDateString("pt-BR")}</div>
+                    </div>
+                  );
+                })}
+                {notes.length === 0 && (
+                  <div className="absolute left-10 top-10 text-xs text-sky-200/70">O quadro está vazio. Crie uma nota acima — ela aparece aqui para você arrastar.</div>
+                )}
+              </div>
+            </div>
+          </Card>
         </div>
       )}
 

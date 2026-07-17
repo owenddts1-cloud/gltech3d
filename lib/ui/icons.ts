@@ -78,6 +78,7 @@ export {
   // super app 3D — novas abas
   Printer,
   Package,
+  Drop,
   Cube,
   CalendarBlank,
   ShoppingCart,

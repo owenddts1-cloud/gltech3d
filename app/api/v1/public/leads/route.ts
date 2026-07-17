@@ -126,15 +126,45 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .select("id")
     .single();
 
-  if (insErr || !contact) {
-    return fail("internal_error", insErr?.message ?? "falha ao salvar", 500, { requestId });
+  // Contato já existe (uniq_contacts_org_email). Um lead reenviando o mesmo
+  // e-mail NÃO é erro — é o caso comum de quem preenche a newsletter e depois o
+  // contato. Doutrina de idempotência do CLAUDE.md: capturar 23505 no INSERT.
+  // Reusamos a linha existente e seguimos com notificação/audit.
+  let contactId: string | null = (contact?.id as string | undefined) ?? null;
+  if (insErr) {
+    if (insErr.code === "23505") {
+      const { data: existing } = await admin
+        .from("contacts")
+        .select("id")
+        .eq("organization_id", orgId)
+        .eq("email", input.email)
+        .maybeSingle();
+      contactId = (existing?.id as string | undefined) ?? null;
+      // Enriquece com telefone/nome que possam ter vindo agora e faltavam antes.
+      if (contactId) {
+        await admin
+          .from("contacts")
+          .update({
+            name: input.name ?? undefined,
+            phone_number: phoneE164 ?? undefined,
+          })
+          .eq("organization_id", orgId)
+          .eq("id", contactId);
+      }
+    }
+    if (!contactId) {
+      return fail("internal_error", insErr.message ?? "falha ao salvar", 500, { requestId });
+    }
+  }
+  if (!contactId) {
+    return fail("internal_error", "falha ao salvar", 500, { requestId });
   }
 
   await audit({
     action: "lead.captured",
     organizationId: orgId,
     resourceType: "contact",
-    resourceId: contact.id as string,
+    resourceId: contactId,
     requestId,
     ip,
     userAgent: req.headers.get("user-agent"),

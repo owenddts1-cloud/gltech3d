@@ -35,7 +35,12 @@ function getClient(): Resend | null {
 }
 
 function fromAddress(): string {
-  return process.env.RESEND_FROM_EMAIL || "GLTECH CRM <noreply@deskcomm.app>";
+  // Fallback = remetente compartilhado do Resend, que já vem verificado e não
+  // exige domínio próprio. Em modo de teste (sem domínio verificado) ele só
+  // entrega para o e-mail dono da conta Resend — o que basta para as
+  // notificações de lead chegarem à diretoria. Para enviar aos leads também,
+  // verifique um domínio no Resend e defina RESEND_FROM_EMAIL com ele.
+  return process.env.RESEND_FROM_EMAIL || "GLTech3D <onboarding@resend.dev>";
 }
 
 export async function sendEmail(args: SendArgs): Promise<SendResult> {

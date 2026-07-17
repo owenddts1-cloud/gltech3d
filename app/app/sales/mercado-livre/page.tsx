@@ -1,29 +1,18 @@
-import { ModulePage } from "@/components/shell/module/ModulePage";
-import { Storefront, ChartLineUp, Package, Receipt, ShoppingCart, ChartBar } from "@/lib/ui/icons";
+import { fetchSales } from "@/app/actions/sales/actions";
+import SalesClient from "../_components/SalesClient";
 
 export const metadata = { title: "Mercado Livre" };
+export const dynamic = "force-dynamic";
 
-export default function MercadoLivrePage() {
+export default async function Page() {
+  const r = await fetchSales("Mercado Livre");
   return (
-    <ModulePage
-      icon={Storefront}
+    <SalesClient
+      platform="Mercado Livre"
       title="Mercado Livre"
-      subtitle="Suas vendas no Mercado Livre: pedidos, reputação, saldo e anúncios no padrão do marketplace."
-      primaryLabel="Conectar Mercado Livre"
-      kpis={[
-        { label: "Vendas (mês)", hint: "No Mercado Livre" },
-        { label: "A receber", hint: "Retido pela plataforma" },
-        { label: "Anúncios ativos", hint: "Publicados" },
-        { label: "Reputação", hint: "Termômetro" },
-      ]}
-      features={[
-        { icon: ShoppingCart, title: "Pedidos → OS", desc: "Pedidos do Mercado Livre entram como ordens de serviço." },
-        { icon: Package, title: "Anúncios padronizados", desc: "Ficha técnica e atributos no formato exigido pelo marketplace." },
-        { icon: Receipt, title: "Tarifas e saldo", desc: "Comissões, Mercado Envios e valores a liberar." },
-        { icon: ChartLineUp, title: "Desempenho", desc: "Vendas, visitas e conversão dos seus anúncios." },
-        { icon: ChartBar, title: "Comparativo", desc: "Mercado Livre vs. os demais canais de venda." },
-        { icon: Storefront, title: "Integração via API", desc: "Conexão OAuth para sincronizar pedidos, perguntas e estoque." },
-      ]}
+      subtitle="Pedidos e faturamento no Mercado Livre."
+      initialSales={r.ok ? r.sales : []}
+      byPlatform={[]}
     />
   );
 }

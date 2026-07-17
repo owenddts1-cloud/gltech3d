@@ -1,18 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { DynamicChart } from '@/components/charts/DynamicChart';
 import {
   TrendingUp,
   TrendingDown,
@@ -44,18 +33,6 @@ const dateBR = (iso: string): string =>
     day: '2-digit',
     month: 'short',
   });
-
-/**
- * Cores dos gráficos vindas dos tokens do tema, não de hex fixo — é o que faz o
- * gráfico acompanhar o modo claro/escuro em vez de sumir no fundo.
- */
-const CHART = {
-  accent: 'var(--color-accent-500)',
-  accentSoft: 'var(--color-accent-300)',
-  muted: 'var(--color-neutral-400)',
-  grid: 'var(--color-border)',
-  text: 'var(--color-text-muted)',
-};
 
 function ChangeBadge({ pct }: { pct: number | null }) {
   if (pct === null) {
@@ -206,9 +183,10 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
 
   const osColumns: Column<OsRow>[] = useMemo(
     () => [
-      { key: 'date', header: 'Criada em', value: (r) => r.createdAt, cell: (r) => dateBR(r.createdAt) },
-      { key: 'title', header: 'Ordem', value: (r) => r.title },
+      { key: 'date', header: 'Data', value: (r) => r.saleDate, cell: (r) => dateBR(r.saleDate) },
+      { key: 'title', header: 'Nome', value: (r) => r.title },
       { key: 'contact', header: 'Cliente', value: (r) => r.contactName },
+      { key: 'platform', header: 'Plataforma', value: (r) => r.platform ?? '—' },
       {
         key: 'status',
         header: 'Status',
@@ -320,124 +298,41 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
         />
       </div>
 
-      {/* Gráfico 1 — vendas e faturamento */}
-      <Panel
-        title="Vendas e faturamento"
-        subtitle={`Entradas e saídas ${periodNote}`}
-        action={
-          <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: CHART.accent }} />
-              Faturamento
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: CHART.muted }} />
-              Despesa
-            </span>
-          </div>
-        }
-      >
-        <div className="h-[280px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data.salesSeries} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gradFat" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={CHART.accent} stopOpacity={0.28} />
-                  <stop offset="100%" stopColor={CHART.accent} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: CHART.text }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: CHART.text }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
-              />
-              <Tooltip
-                formatter={(v, name) => [
-                  brlPlain(typeof v === 'number' ? v : Number(v) || 0),
-                  name === 'faturamento' ? 'Faturamento' : 'Despesa',
-                ]}
-                contentStyle={{
-                  background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 12,
-                  fontSize: 12,
-                  color: 'var(--color-text)',
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="faturamento"
-                stroke={CHART.accent}
-                strokeWidth={2}
-                fill="url(#gradFat)"
-              />
-              <Area
-                type="monotone"
-                dataKey="despesa"
-                stroke={CHART.muted}
-                strokeWidth={1.5}
-                strokeDasharray="4 4"
-                fill="none"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+      {/* Gráfico 1 — vendas e faturamento (dinâmico: troca de tipo + animação) */}
+      <Panel title="Vendas e faturamento" subtitle={`Entradas e saídas ${periodNote}`}>
+        <DynamicChart
+          data={data.salesSeries}
+          series={[
+            { key: 'faturamento', name: 'Faturamento' },
+            { key: 'despesa', name: 'Despesa' },
+          ]}
+          type="area"
+          height={280}
+          valueFormat={(v) => brlPlain(v)}
+        />
       </Panel>
 
       {/* Gráfico 2 — fluxo de O.S., empilhado abaixo do primeiro */}
-      <Panel
-        title="Fluxo de ordens de serviço"
-        subtitle={`Criadas contra concluídas ${periodNote}`}
-      >
-        <div className="h-[280px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.osSeries} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: CHART.text }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: CHART.text }}
-                axisLine={false}
-                tickLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip
-                cursor={{ fill: 'var(--color-surface-elevated)' }}
-                contentStyle={{
-                  background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 12,
-                  fontSize: 12,
-                  color: 'var(--color-text)',
-                }}
-              />
-              <Legend
-                wrapperStyle={{ fontSize: 11, color: CHART.text }}
-                formatter={(v) => (v === 'criadas' ? 'Criadas' : 'Concluídas')}
-              />
-              <Bar dataKey="criadas" fill={CHART.accentSoft} radius={[4, 4, 0, 0]} maxBarSize={28} />
-              <Bar dataKey="concluidas" fill={CHART.accent} radius={[4, 4, 0, 0]} maxBarSize={28} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      <Panel title="Fluxo de ordens de serviço" subtitle={`Criadas contra concluídas ${periodNote}`}>
+        <DynamicChart
+          data={data.osSeries}
+          series={[
+            { key: 'criadas', name: 'Criadas' },
+            { key: 'concluidas', name: 'Concluídas' },
+          ]}
+          type="bar"
+          height={280}
+          showBarLabels
+          valueFormat={(v) => String(Math.round(v))}
+        />
       </Panel>
 
       {/* Tabela alternável, com filtro por coluna */}
       <Panel
-        title={tableKind === 'vendas' ? 'Vendas lançadas' : 'Ordens de serviço'}
-        subtitle="Cada coluna tem filtro e ordenação própria"
+        title={tableKind === 'vendas' ? 'Lançamentos Recentes' : 'Ordens de serviço'}
+        subtitle={tableKind === 'vendas'
+          ? 'Receitas e despesas lançadas — cada coluna tem filtro e ordenação própria'
+          : 'Geradas das vendas (nome, data, valor, cliente, plataforma)'}
         action={
           <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
             {(['vendas', 'os'] as const).map((k) => (
@@ -453,7 +348,7 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                {k === 'vendas' ? 'Vendas' : 'O.S.'}
+                {k === 'vendas' ? 'Lançamentos' : 'O.S.'}
               </button>
             ))}
           </div>

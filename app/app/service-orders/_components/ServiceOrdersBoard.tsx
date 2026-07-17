@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { toast } from "sonner";
 import {
@@ -63,6 +63,24 @@ export function ServiceOrdersBoard({ initialOrders, contacts }: Props) {
   const [, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  // Prefill vindo do simulador de Projetos ("Copiar e Gerar OS"). Antes o
+  // ProjectsClient gravava esta chave e nada a lia — o dado era descartado.
+  const [prefill, setPrefill] = useState<{ title?: string; notes?: string; total?: number } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const raw = localStorage.getItem("gltech_prefill_os");
+    if (!raw) return;
+    localStorage.removeItem("gltech_prefill_os"); // consome uma vez só
+    try {
+      const parsed = JSON.parse(raw) as { title?: string; notes?: string; total?: number };
+      setPrefill(parsed);
+      setDialogOpen(true);
+    } catch {
+      // payload corrompido: ignora em silêncio, não trava a tela
+    }
+  }, []);
 
   // Filter orders by search term (searches titles & contact names)
   const filteredOrders = useMemo(() => {
@@ -164,8 +182,12 @@ export function ServiceOrdersBoard({ initialOrders, contacts }: Props) {
             </div>
             <NewOsDialog
               open={dialogOpen}
-              onOpenChange={setDialogOpen}
+              onOpenChange={(v) => {
+                setDialogOpen(v);
+                if (!v) setPrefill(null); // fechou: não reaproveita o prefill
+              }}
               contacts={contacts}
+              prefill={prefill}
               onCreated={(o) => setOrders((prev) => [o, ...prev])}
             />
           </div>
@@ -382,11 +404,12 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
 }
 
 function NewOsDialog({
-  open, onOpenChange, contacts, onCreated,
+  open, onOpenChange, contacts, prefill, onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   contacts: Array<{ id: string; name: string | null }>;
+  prefill?: { title?: string; notes?: string; total?: number } | null;
   onCreated: (o: ServiceOrderView) => void;
 }) {
   const [title, setTitle] = useState("");
@@ -398,6 +421,15 @@ function NewOsDialog({
   const [priority, setPriority] = useState<SoPriority>("media");
   const [material, setMaterial] = useState("");
   const [pending, startTransition] = useTransition();
+
+  // Aplica o prefill do simulador de Projetos quando o dialog abre com ele.
+  useEffect(() => {
+    if (open && prefill) {
+      setTitle(prefill.title ?? "");
+      setNotes(prefill.notes ?? "");
+      setTotal(prefill.total != null ? String(prefill.total) : "");
+    }
+  }, [open, prefill]);
 
   function reset() {
     setTitle(""); setContactId(""); setTotal(""); setQty("1"); setSla(""); setNotes("");

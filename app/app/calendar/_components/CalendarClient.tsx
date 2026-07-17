@@ -14,7 +14,8 @@ import {
   Clock,
   Cpu,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  ShoppingCart
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import {
+  createCalendarEvent,
+  deleteCalendarEvent,
+  type CalendarEventRow,
+  type CalendarSaleRow,
+} from "@/app/actions/calendar/actions";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -56,7 +63,7 @@ interface CalendarEvent {
   title: string;
   description?: string;
   date: string; // YYYY-MM-DD
-  type: "os" | "maintenance" | "meeting" | "delivery" | "custom";
+  type: "os" | "maintenance" | "meeting" | "delivery" | "custom" | "sale";
   printerName?: string;
   contactName?: string;
   isCustom?: boolean;
@@ -64,6 +71,8 @@ interface CalendarEvent {
 
 interface Props {
   initialOrders: ServiceOrder[];
+  initialEvents: CalendarEventRow[];
+  initialSales?: CalendarSaleRow[];
 }
 
 function SpotlightCard({ children, className, ...props }: { children: React.ReactNode, className?: string } & React.HTMLAttributes<HTMLDivElement>) {
@@ -84,7 +93,7 @@ function SpotlightCard({ children, className, ...props }: { children: React.Reac
       onMouseEnter={() => setIsFocused(true)}
       onMouseLeave={() => setIsFocused(false)}
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-950/40 p-5 shadow-lg backdrop-blur-md transition-all duration-300",
+        "relative overflow-hidden rounded-2xl border border-border bg-surface-elevated p-5 shadow-lg backdrop-blur-md transition-all duration-300",
         className
       )}
       {...props}
@@ -101,7 +110,7 @@ function SpotlightCard({ children, className, ...props }: { children: React.Reac
   );
 }
 
-export function CalendarClient({ initialOrders }: Props) {
+export function CalendarClient({ initialOrders, initialEvents, initialSales = [] }: Props) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -115,6 +124,7 @@ export function CalendarClient({ initialOrders }: Props) {
     meeting: true,
     delivery: true,
     custom: true,
+    sale: true,
   });
 
   // Modal forms state
@@ -142,65 +152,33 @@ export function CalendarClient({ initialOrders }: Props) {
         };
       });
 
-    // 2. Pre-populate some realistic printer maintenance events if localStorage is empty
-    const savedCustom = localStorage.getItem("gltech_calendar_events");
-    let customEvents: CalendarEvent[] = [];
+    // 2. Eventos personalizados vêm do banco (migration 0044), não mais do
+    //    localStorage. `initialEvents` é carregado no server component.
+    const customEvents: CalendarEvent[] = initialEvents.map((e) => ({
+      id: e.id,
+      title: e.title,
+      description: e.description ?? undefined,
+      date: e.date,
+      type: e.type,
+      printerName: e.printerName ?? undefined,
+      contactName: e.contactName ?? undefined,
+      isCustom: true,
+    }));
 
-    if (savedCustom) {
-      customEvents = JSON.parse(savedCustom);
-    } else {
-      // Seed initial dummy events
-      const todayStr = format(new Date(), "yyyy-MM-dd");
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = format(tomorrow, "yyyy-MM-dd");
+    // 3. Datas de venda derivadas de marketplace_orders (não duplicadas no banco).
+    const saleEvents: CalendarEvent[] = initialSales
+      .filter((s) => s.date)
+      .map((s) => ({
+        id: `sale-${s.id}`,
+        title: `Venda: ${s.customerName || s.platform || "Cliente"}`,
+        description: `${s.platform || "Venda"} · R$ ${(s.totalCents / 100).toFixed(2)}`,
+        date: s.date,
+        type: "sale",
+        contactName: s.customerName || undefined,
+      }));
 
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 2);
-      const yesterdayStr = format(yesterday, "yyyy-MM-dd");
-
-      customEvents = [
-        {
-          id: "maint-1",
-          title: "Lubrificação de Eixos - Ender 3 S1",
-          description: "Limpar eixos lineares e aplicar graxa branca de lítio.",
-          date: todayStr,
-          type: "maintenance",
-          printerName: "Ender 3 S1 #01",
-          isCustom: true,
-        },
-        {
-          id: "maint-2",
-          title: "Troca de Bico (Nozzle) - Bambu Lab X1C",
-          description: "Substituir bico 0.4 de latão por bico de aço endurecido 0.6 para filamentos carregados (fibra de carbono).",
-          date: tomorrowStr,
-          type: "maintenance",
-          printerName: "Bambu Lab X1C #02",
-          isCustom: true,
-        },
-        {
-          id: "meet-1",
-          title: "Apresentação de Protótipo - AeroDesign",
-          description: "Reunião presencial com a equipe de engenharia para avaliar estabilizadores traseiros impressos em PLA-CF.",
-          date: tomorrowStr,
-          type: "meeting",
-          contactName: "Gabriel Siqueira",
-          isCustom: true,
-        },
-        {
-          id: "del-1",
-          title: "Chegada de Lote de Filamento - eSun",
-          description: "Entrega de 10 kg de filamento PETG (Cores Preto e Cinza) comprados na Shopee.",
-          date: yesterdayStr,
-          type: "delivery",
-          isCustom: true,
-        }
-      ];
-      localStorage.setItem("gltech_calendar_events", JSON.stringify(customEvents));
-    }
-
-    setEvents([...osEvents, ...customEvents]);
-  }, [initialOrders]);
+    setEvents([...osEvents, ...customEvents, ...saleEvents]);
+  }, [initialOrders, initialEvents, initialSales]);
 
   // Calendar dates generation
   const monthStart = startOfMonth(currentDate);
@@ -235,6 +213,7 @@ export function CalendarClient({ initialOrders }: Props) {
       maintenance: activeMonthEvents.filter((e) => e.type === "maintenance").length,
       meetings: activeMonthEvents.filter((e) => e.type === "meeting").length,
       deliveries: activeMonthEvents.filter((e) => e.type === "delivery").length,
+      sales: activeMonthEvents.filter((e) => e.type === "sale").length,
     };
   }, [events, currentDate]);
 
@@ -256,44 +235,55 @@ export function CalendarClient({ initialOrders }: Props) {
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
 
   // Add event handler
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!newTitle.trim() || !selectedDay) return;
 
     const formattedDate = format(selectedDay, "yyyy-MM-dd");
-    const newEvent: CalendarEvent = {
-      id: `custom-${Math.random().toString(36).substring(2, 9)}`,
+    const res = await createCalendarEvent({
       title: newTitle,
       description: newDesc,
       date: formattedDate,
       type: newType,
-      printerName: newType === "maintenance" ? newPrinter : undefined,
-      contactName: newType === "meeting" ? newContact : undefined,
-      isCustom: true,
-    };
+      printerName: newType === "maintenance" ? newPrinter : "",
+      contactName: newType === "meeting" ? newContact : "",
+    });
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
 
-    const savedCustom = localStorage.getItem("gltech_calendar_events");
-    const customEvents = savedCustom ? JSON.parse(savedCustom) : [];
-    const updated = [...customEvents, newEvent];
-
-    localStorage.setItem("gltech_calendar_events", JSON.stringify(updated));
-    setEvents((prev) => [...prev, newEvent]);
-
+    // Usa o id real que o banco devolveu (não um Math.random efêmero).
+    setEvents((prev) => [
+      ...prev,
+      {
+        id: res.event.id,
+        title: res.event.title,
+        description: res.event.description ?? undefined,
+        date: res.event.date,
+        type: res.event.type,
+        printerName: res.event.printerName ?? undefined,
+        contactName: res.event.contactName ?? undefined,
+        isCustom: true,
+      },
+    ]);
     toast.success("Evento agendado com sucesso!");
     setIsAddOpen(false);
     resetForm();
   };
 
-  // Delete event handler
-  const handleDeleteEvent = (id: string) => {
-    const savedCustom = localStorage.getItem("gltech_calendar_events");
-    const customEvents = savedCustom ? JSON.parse(savedCustom) : [];
-    const updated = customEvents.filter((e: CalendarEvent) => e.id !== id);
-
-    localStorage.setItem("gltech_calendar_events", JSON.stringify(updated));
+  // Delete event handler — otimista, com rollback se o servidor recusar.
+  const handleDeleteEvent = async (id: string) => {
+    const snapshot = events;
     setEvents((prev) => prev.filter((e) => e.id !== id));
-
-    toast.success("Evento removido.");
     setSelectedEvent(null);
+
+    const res = await deleteCalendarEvent(id);
+    if (!res.ok) {
+      setEvents(snapshot); // desfaz
+      toast.error(res.error);
+      return;
+    }
+    toast.success("Evento removido.");
   };
 
   const resetForm = () => {
@@ -318,8 +308,10 @@ export function CalendarClient({ initialOrders }: Props) {
         return "bg-purple-500/10 text-purple-400 border-purple-500/20";
       case "delivery":
         return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+      case "sale":
+        return "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
       default:
-        return "bg-zinc-500/10 text-zinc-400 border-zinc-500/20";
+        return "bg-muted text-muted-foreground border-border";
     }
   };
 
@@ -333,6 +325,8 @@ export function CalendarClient({ initialOrders }: Props) {
         return <Users size={12} />;
       case "delivery":
         return <Package size={12} />;
+      case "sale":
+        return <ShoppingCart size={12} />;
       default:
         return <CalendarIcon size={12} />;
     }
@@ -370,17 +364,17 @@ export function CalendarClient({ initialOrders }: Props) {
   return (
     <div className="space-y-6 p-6 mx-auto max-w-7xl">
       {/* ─── Premium Header ─── */}
-      <header className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6 backdrop-blur-md">
+      <header className="relative overflow-hidden rounded-2xl border border-border bg-surface-elevated p-6 backdrop-blur-md">
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500 border border-orange-500/20 shadow-inner">
               <CalendarIcon size={26} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
                 Cronograma da Fábrica
               </h1>
-              <p className="mt-0.5 text-sm text-zinc-400 font-medium">
+              <p className="mt-0.5 text-sm text-muted-foreground font-medium">
                 Monitore e agende prazos de OS, preventivas de hardware e reuniões de engenharia.
               </p>
             </div>
@@ -388,14 +382,14 @@ export function CalendarClient({ initialOrders }: Props) {
 
           <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
             {/* View Mode Toggle Switch */}
-            <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800/80">
+            <div className="flex bg-background p-1 rounded-xl border border-border">
               {(["grid", "agenda"] as const).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
                   className={cn(
                     "relative px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors capitalize",
-                    viewMode === mode ? "text-zinc-100 font-bold" : "text-zinc-400 hover:text-zinc-200"
+                    viewMode === mode ? "text-foreground font-bold" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {viewMode === mode && (
@@ -415,18 +409,18 @@ export function CalendarClient({ initialOrders }: Props) {
                 variant="outline"
                 size="icon"
                 onClick={prevMonth}
-                className="h-9 w-9 rounded-lg border border-zinc-850 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300"
+                className="h-9 w-9 rounded-lg border border-border bg-surface hover:bg-muted text-muted-foreground"
               >
                 <ChevronLeft size={16} />
               </Button>
-              <span className="text-sm font-bold min-w-[120px] text-center capitalize text-zinc-200">
+              <span className="text-sm font-bold min-w-[120px] text-center capitalize text-foreground">
                 {format(currentDate, "MMMM yyyy", { locale: ptBR })}
               </span>
               <Button
                 variant="outline"
                 size="icon"
                 onClick={nextMonth}
-                className="h-9 w-9 rounded-lg border border-zinc-850 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300"
+                className="h-9 w-9 rounded-lg border border-border bg-surface hover:bg-muted text-muted-foreground"
               >
                 <ChevronRight size={16} />
               </Button>
@@ -440,8 +434,8 @@ export function CalendarClient({ initialOrders }: Props) {
         {/* Left Side: Controls & Analytics */}
         <div className="space-y-6">
           {/* Quick Filters */}
-          <SpotlightCard className="p-4 rounded-2xl border border-zinc-800/60 bg-zinc-950/40">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-4">Categorias de Eventos</h3>
+          <SpotlightCard className="p-4 rounded-2xl border border-border bg-surface-elevated">
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Categorias de Eventos</h3>
             <div className="space-y-2">
               <button
                 onClick={() => toggleFilter("os")}
@@ -449,13 +443,13 @@ export function CalendarClient({ initialOrders }: Props) {
                   "flex w-full items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all hover:scale-[1.02]",
                   activeFilters.os
                     ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
-                    : "bg-zinc-950/30 border-zinc-900 text-zinc-500"
+                    : "bg-surface-elevated border-border text-muted-foreground"
                 )}
               >
                 <span className="flex items-center gap-2">
                   <ClipboardList size={14} /> Prazos de OS (SLA)
                 </span>
-                <span className="text-[10px] bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-400 font-mono font-bold">{stats.os}</span>
+                <span className="text-[10px] bg-surface px-2 py-0.5 rounded-full border border-border text-muted-foreground font-mono font-bold">{stats.os}</span>
               </button>
 
               <button
@@ -464,13 +458,13 @@ export function CalendarClient({ initialOrders }: Props) {
                   "flex w-full items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all hover:scale-[1.02]",
                   activeFilters.maintenance
                     ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                    : "bg-zinc-950/30 border-zinc-900 text-zinc-500"
+                    : "bg-surface-elevated border-border text-muted-foreground"
                 )}
               >
                 <span className="flex items-center gap-2">
                   <Wrench size={14} /> Manutenção Preventiva
                 </span>
-                <span className="text-[10px] bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-400 font-mono font-bold">{stats.maintenance}</span>
+                <span className="text-[10px] bg-surface px-2 py-0.5 rounded-full border border-border text-muted-foreground font-mono font-bold">{stats.maintenance}</span>
               </button>
 
               <button
@@ -479,13 +473,13 @@ export function CalendarClient({ initialOrders }: Props) {
                   "flex w-full items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all hover:scale-[1.02]",
                   activeFilters.meeting
                     ? "bg-purple-500/10 border-purple-500/30 text-purple-400"
-                    : "bg-zinc-950/30 border-zinc-900 text-zinc-500"
+                    : "bg-surface-elevated border-border text-muted-foreground"
                 )}
               >
                 <span className="flex items-center gap-2">
                   <Users size={14} /> Reuniões & Clientes
                 </span>
-                <span className="text-[10px] bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-400 font-mono font-bold">{stats.meetings}</span>
+                <span className="text-[10px] bg-surface px-2 py-0.5 rounded-full border border-border text-muted-foreground font-mono font-bold">{stats.meetings}</span>
               </button>
 
               <button
@@ -494,13 +488,28 @@ export function CalendarClient({ initialOrders }: Props) {
                   "flex w-full items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all hover:scale-[1.02]",
                   activeFilters.delivery
                     ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-zinc-950/30 border-zinc-900 text-zinc-500"
+                    : "bg-surface-elevated border-border text-muted-foreground"
                 )}
               >
                 <span className="flex items-center gap-2">
                   <Package size={14} /> Entregas de Insumos
                 </span>
-                <span className="text-[10px] bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800 text-zinc-400 font-mono font-bold">{stats.deliveries}</span>
+                <span className="text-[10px] bg-surface px-2 py-0.5 rounded-full border border-border text-muted-foreground font-mono font-bold">{stats.deliveries}</span>
+              </button>
+
+              <button
+                onClick={() => toggleFilter("sale")}
+                className={cn(
+                  "flex w-full items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all hover:scale-[1.02]",
+                  activeFilters.sale
+                    ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
+                    : "bg-surface-elevated border-border text-muted-foreground"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <ShoppingCart size={14} /> Vendas
+                </span>
+                <span className="text-[10px] bg-surface px-2 py-0.5 rounded-full border border-border text-muted-foreground font-mono font-bold">{stats.sales}</span>
               </button>
 
               <button
@@ -508,8 +517,8 @@ export function CalendarClient({ initialOrders }: Props) {
                 className={cn(
                   "flex w-full items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all hover:scale-[1.02]",
                   activeFilters.custom
-                    ? "bg-zinc-500/10 border-zinc-500/30 text-zinc-300"
-                    : "bg-zinc-950/30 border-zinc-900 text-zinc-500"
+                    ? "bg-muted border-border-strong text-muted-foreground"
+                    : "bg-surface-elevated border-border text-muted-foreground"
                 )}
               >
                 <span className="flex items-center gap-2">
@@ -520,14 +529,14 @@ export function CalendarClient({ initialOrders }: Props) {
           </SpotlightCard>
 
           {/* Farm Workload Estimator */}
-          <SpotlightCard className="p-4 rounded-2xl border border-zinc-800/60 bg-zinc-950/40">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Carga da Fábrica (Mês)</h3>
+          <SpotlightCard className="p-4 rounded-2xl border border-border bg-surface-elevated">
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Carga da Fábrica (Mês)</h3>
             <div className="space-y-2">
               <div className="flex justify-between items-baseline text-xs">
-                <span className="text-zinc-400">Utilização Estimada</span>
-                <span className="font-bold text-zinc-150 tabular-nums">{factoryWorkload}%</span>
+                <span className="text-muted-foreground">Utilização Estimada</span>
+                <span className="font-bold text-foreground tabular-nums">{factoryWorkload}%</span>
               </div>
-              <div className="h-2 w-full rounded-full bg-zinc-900 overflow-hidden border border-zinc-800/50">
+              <div className="h-2 w-full rounded-full bg-surface overflow-hidden border border-border">
                 <div
                   className={cn(
                     "h-full rounded-full transition-all duration-500",
@@ -541,17 +550,17 @@ export function CalendarClient({ initialOrders }: Props) {
                 />
               </div>
             </div>
-            <p className="text-[10px] text-zinc-500 leading-relaxed mt-2.5">
+            <p className="text-[10px] text-muted-foreground leading-relaxed mt-2.5">
               Estimativa computada com base nas manutenções agendadas e prazos ativos de ordens de serviço.
             </p>
           </SpotlightCard>
 
           {/* Quick instructions */}
-          <Card className="p-4 rounded-2xl border border-zinc-800/50 bg-zinc-900/10 space-y-2">
-            <h3 className="text-[10px] font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+          <Card className="p-4 rounded-2xl border border-border bg-muted space-y-2">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <CheckCircle2 size={12} className="text-emerald-500" /> Agendamento Rápido
             </h3>
-            <p className="text-[11px] text-zinc-400 leading-relaxed">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
               Clique em qualquer dia do grid do calendário para agendar uma manutenção, reunião ou entrega de filamentos de forma simples.
             </p>
           </Card>
@@ -568,9 +577,9 @@ export function CalendarClient({ initialOrders }: Props) {
                 exit={{ opacity: 0, y: -15 }}
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
               >
-                <Card className="rounded-2xl border border-zinc-800 overflow-hidden bg-zinc-950/40 backdrop-blur-md shadow-xl">
+                <Card className="rounded-2xl border border-border overflow-hidden bg-surface-elevated backdrop-blur-md shadow-xl">
                   {/* Days of week header */}
-                  <div className="grid grid-cols-7 border-b border-zinc-800 bg-zinc-900/30 text-center text-xs font-semibold text-zinc-400 py-3">
+                  <div className="grid grid-cols-7 border-b border-border bg-muted text-center text-xs font-semibold text-muted-foreground py-3">
                     <span>Dom</span>
                     <span>Seg</span>
                     <span>Ter</span>
@@ -581,7 +590,7 @@ export function CalendarClient({ initialOrders }: Props) {
                   </div>
 
                   {/* Grid days */}
-                  <div className="grid grid-cols-7 grid-flow-row auto-rows-[115px] divide-x divide-y divide-zinc-850">
+                  <div className="grid grid-cols-7 grid-flow-row auto-rows-[115px] divide-x divide-y divide-border">
                     {calendarDays.map((day, idx) => {
                       const dayStr = format(day, "yyyy-MM-dd");
                       const dayEvents = filteredEvents.filter((e) => e.date === dayStr);
@@ -596,8 +605,8 @@ export function CalendarClient({ initialOrders }: Props) {
                             setIsAddOpen(true);
                           }}
                           className={cn(
-                            "relative p-2.5 flex flex-col justify-between hover:bg-zinc-900/30 transition-colors cursor-pointer overflow-hidden group",
-                            isCurrentMonth ? "text-zinc-200 bg-zinc-950/10" : "text-zinc-500 bg-zinc-900/5 opacity-40",
+                            "relative p-2.5 flex flex-col justify-between hover:bg-muted transition-colors cursor-pointer overflow-hidden group",
+                            isCurrentMonth ? "text-foreground bg-muted" : "text-muted-foreground bg-muted opacity-40",
                             isToday(day) ? "ring-1 ring-orange-500/50 z-10" : ""
                           )}
                         >
@@ -621,7 +630,7 @@ export function CalendarClient({ initialOrders }: Props) {
                             <span
                               className={cn(
                                 "text-xs font-bold font-mono rounded-md h-6.5 w-6.5 flex items-center justify-center border border-transparent transition-all",
-                                isToday(day) ? "bg-orange-600 text-white font-extrabold shadow-md border-orange-500" : "text-zinc-300 group-hover:border-zinc-800"
+                                isToday(day) ? "bg-orange-600 text-white font-extrabold shadow-md border-orange-500" : "text-muted-foreground group-hover:border-border"
                               )}
                             >
                               {format(day, "d")}
@@ -651,7 +660,7 @@ export function CalendarClient({ initialOrders }: Props) {
                               </div>
                             ))}
                             {dayEvents.length > 3 && (
-                              <div className="text-[8px] font-bold text-zinc-500 text-center py-0.5 bg-zinc-900/50 rounded-md border border-zinc-800">
+                              <div className="text-[8px] font-bold text-muted-foreground text-center py-0.5 bg-surface rounded-md border border-border">
                                 +{dayEvents.length - 3} itens
                               </div>
                             )}
@@ -673,11 +682,11 @@ export function CalendarClient({ initialOrders }: Props) {
               >
                 {agendaGroups.length > 0 ? (
                   agendaGroups.map((group) => (
-                    <Card key={group.dateStr} className="p-4 border-zinc-800/80 bg-zinc-950/40 backdrop-blur-md rounded-2xl flex flex-col md:flex-row gap-4 items-start shadow-md">
+                    <Card key={group.dateStr} className="p-4 border-border bg-surface-elevated backdrop-blur-md rounded-2xl flex flex-col md:flex-row gap-4 items-start shadow-md">
                       {/* Left: Date header */}
-                      <div className="md:w-32 flex md:flex-col items-baseline md:items-center justify-between md:justify-center border-b md:border-b-0 md:border-r border-zinc-800 pb-2 md:pb-0 md:pr-4 shrink-0 w-full">
-                        <span className="text-2xl font-black font-mono text-zinc-100">{format(group.date, "dd")}</span>
-                        <span className="text-xs text-zinc-400 capitalize font-medium">{format(group.date, "EEEE", { locale: ptBR })}</span>
+                      <div className="md:w-32 flex md:flex-col items-baseline md:items-center justify-between md:justify-center border-b md:border-b-0 md:border-r border-border pb-2 md:pb-0 md:pr-4 shrink-0 w-full">
+                        <span className="text-2xl font-black font-mono text-foreground">{format(group.date, "dd")}</span>
+                        <span className="text-xs text-muted-foreground capitalize font-medium">{format(group.date, "EEEE", { locale: ptBR })}</span>
                       </div>
 
                       {/* Right: Events stack */}
@@ -687,22 +696,22 @@ export function CalendarClient({ initialOrders }: Props) {
                             key={evt.id}
                             onClick={() => setSelectedEvent(evt)}
                             className={cn(
-                              "p-3 rounded-xl border flex items-center justify-between hover:bg-zinc-900/20 transition-all cursor-pointer",
+                              "p-3 rounded-xl border flex items-center justify-between hover:bg-muted transition-all cursor-pointer",
                               getEventBadgeClass(evt.type)
                             )}
                           >
                             <div className="flex items-center gap-3">
-                              <div className="p-2 rounded-lg bg-zinc-900/50 border border-zinc-800/80">
+                              <div className="p-2 rounded-lg bg-surface border border-border">
                                 {getEventIcon(evt.type)}
                               </div>
                               <div>
-                                <h4 className="text-xs font-bold text-zinc-150">{evt.title}</h4>
-                                {evt.description && <p className="text-[10px] text-zinc-450 mt-0.5 truncate max-w-[300px]">{evt.description}</p>}
+                                <h4 className="text-xs font-bold text-foreground">{evt.title}</h4>
+                                {evt.description && <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[300px]">{evt.description}</p>}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              {evt.printerName && <Badge variant="outline" className="text-[9px] border-zinc-800 text-amber-500 font-semibold bg-zinc-950">{evt.printerName}</Badge>}
-                              {evt.contactName && <Badge variant="outline" className="text-[9px] border-zinc-800 text-purple-500 font-semibold bg-zinc-950">{evt.contactName}</Badge>}
+                              {evt.printerName && <Badge variant="outline" className="text-[9px] border-border text-amber-500 font-semibold bg-background">{evt.printerName}</Badge>}
+                              {evt.contactName && <Badge variant="outline" className="text-[9px] border-border text-purple-500 font-semibold bg-background">{evt.contactName}</Badge>}
                             </div>
                           </div>
                         ))}
@@ -710,10 +719,10 @@ export function CalendarClient({ initialOrders }: Props) {
                     </Card>
                   ))
                 ) : (
-                  <Card className="p-12 text-center border-zinc-800 bg-zinc-950/40 rounded-2xl flex flex-col items-center justify-center">
-                    <AlertTriangle className="h-10 w-10 text-zinc-550 mb-2" />
-                    <p className="text-xs text-zinc-400">Nenhum evento agendado para o mês ativo.</p>
-                    <p className="text-[10px] text-zinc-500 mt-1">Clique em qualquer dia do grid mensal para criar um novo registro.</p>
+                  <Card className="p-12 text-center border-border bg-surface-elevated rounded-2xl flex flex-col items-center justify-center">
+                    <AlertTriangle className="h-10 w-10 text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">Nenhum evento agendado para o mês ativo.</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Clique em qualquer dia do grid mensal para criar um novo registro.</p>
                   </Card>
                 )}
               </motion.div>
@@ -724,7 +733,7 @@ export function CalendarClient({ initialOrders }: Props) {
 
       {/* ─── Detail Dialog ─── */}
       <Dialog open={selectedEvent !== null} onOpenChange={() => setSelectedEvent(null)}>
-        <DialogContent className="max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 text-zinc-100">
+        <DialogContent className="max-w-md rounded-2xl border border-border bg-background text-foreground">
           {selectedEvent && (
             <>
               <DialogHeader>
@@ -732,35 +741,35 @@ export function CalendarClient({ initialOrders }: Props) {
                   <Badge variant="outline" className={`capitalize font-bold text-[10px] py-0.5 px-2.5 ${getEventBadgeClass(selectedEvent.type)}`}>
                     {selectedEvent.type === "os" ? "Ordem de Serviço" : selectedEvent.type}
                   </Badge>
-                  <span className="text-[10px] text-zinc-400 flex items-center gap-1 font-mono font-bold">
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono font-bold">
                     <Clock size={12} />
                     {format(parseISO(selectedEvent.date + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}
                   </span>
                 </div>
-                <DialogTitle className="text-lg font-bold text-zinc-100 mt-2">{selectedEvent.title}</DialogTitle>
+                <DialogTitle className="text-lg font-bold text-foreground mt-2">{selectedEvent.title}</DialogTitle>
               </DialogHeader>
 
               <div className="space-y-4 py-3 text-xs">
                 {selectedEvent.description && (
-                  <div className="rounded-xl bg-zinc-900/50 border border-zinc-800/80 p-3">
-                    <p className="text-[9px] text-zinc-450 uppercase font-black tracking-wider mb-1">Descrição</p>
-                    <p className="text-zinc-350 leading-relaxed text-xs">{selectedEvent.description}</p>
+                  <div className="rounded-xl bg-surface border border-border p-3">
+                    <p className="text-[9px] text-muted-foreground uppercase font-black tracking-wider mb-1">Descrição</p>
+                    <p className="text-muted-foreground leading-relaxed text-xs">{selectedEvent.description}</p>
                   </div>
                 )}
 
                 {selectedEvent.printerName && (
                   <div className="flex items-center gap-2 text-xs">
                     <Cpu className="text-amber-500" size={14} />
-                    <span className="text-zinc-400">Máquina relacionada:</span>
-                    <strong className="text-zinc-200">{selectedEvent.printerName}</strong>
+                    <span className="text-muted-foreground">Máquina relacionada:</span>
+                    <strong className="text-foreground">{selectedEvent.printerName}</strong>
                   </div>
                 )}
 
                 {selectedEvent.contactName && (
                   <div className="flex items-center gap-2 text-xs">
                     <Users className="text-purple-500" size={14} />
-                    <span className="text-zinc-400">Cliente envolvido:</span>
-                    <strong className="text-zinc-200">{selectedEvent.contactName}</strong>
+                    <span className="text-muted-foreground">Cliente envolvido:</span>
+                    <strong className="text-foreground">{selectedEvent.contactName}</strong>
                   </div>
                 )}
               </div>
@@ -777,9 +786,9 @@ export function CalendarClient({ initialOrders }: Props) {
                     Remover Evento
                   </Button>
                 ) : (
-                  <span className="text-[10px] text-zinc-500 italic">Este evento está sincronizado com a base de dados.</span>
+                  <span className="text-[10px] text-muted-foreground italic">Este evento está sincronizado com a base de dados.</span>
                 )}
-                <Button variant="outline" size="sm" className="rounded-xl text-xs border-zinc-800 hover:bg-zinc-900" onClick={() => setSelectedEvent(null)}>
+                <Button variant="outline" size="sm" className="rounded-xl text-xs border-border hover:bg-muted" onClick={() => setSelectedEvent(null)}>
                   Fechar
                 </Button>
               </DialogFooter>
@@ -790,11 +799,11 @@ export function CalendarClient({ initialOrders }: Props) {
 
       {/* ─── Add Custom Event Dialog ─── */}
       <Dialog open={isAddOpen} onOpenChange={(open) => { setIsAddOpen(open); if(!open) resetForm(); }}>
-        <DialogContent className="max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 text-zinc-100 text-xs">
+        <DialogContent className="max-w-md rounded-2xl border border-border bg-background text-foreground text-xs">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-zinc-100">Agendar Novo Evento</DialogTitle>
+            <DialogTitle className="text-base font-bold text-foreground">Agendar Novo Evento</DialogTitle>
             {selectedDay && (
-              <span className="text-xs text-zinc-450 font-medium">
+              <span className="text-xs text-muted-foreground font-medium">
                 Data selecionada: {format(selectedDay, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </span>
             )}
@@ -808,21 +817,21 @@ export function CalendarClient({ initialOrders }: Props) {
                 placeholder="Ex: Revisão preventiva Ender 3 S1"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="h-9 rounded-xl bg-zinc-900 border-zinc-800 text-zinc-200"
+                className="h-9 rounded-xl bg-surface border-border text-foreground"
               />
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="event-type">Tipo de Evento</Label>
               <Select value={newType} onValueChange={(val: "maintenance" | "meeting" | "delivery" | "custom") => setNewType(val)}>
-                <SelectTrigger id="event-type" className="h-9 rounded-xl bg-zinc-900 border-zinc-800 text-zinc-200">
+                <SelectTrigger id="event-type" className="h-9 rounded-xl bg-surface border-border text-foreground">
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-950 border-zinc-805 text-zinc-100">
-                  <SelectItem value="maintenance" className="focus:bg-zinc-900 focus:text-zinc-100">Manutenção Preventiva</SelectItem>
-                  <SelectItem value="meeting" className="focus:bg-zinc-900 focus:text-zinc-100">Reunião / Cliente</SelectItem>
-                  <SelectItem value="delivery" className="focus:bg-zinc-900 focus:text-zinc-100">Entrega de Insumos</SelectItem>
-                  <SelectItem value="custom" className="focus:bg-zinc-900 focus:text-zinc-100">Tarefa Customizada</SelectItem>
+                <SelectContent className="bg-background border-border text-foreground">
+                  <SelectItem value="maintenance" className="focus:bg-surface focus:text-foreground">Manutenção Preventiva</SelectItem>
+                  <SelectItem value="meeting" className="focus:bg-surface focus:text-foreground">Reunião / Cliente</SelectItem>
+                  <SelectItem value="delivery" className="focus:bg-surface focus:text-foreground">Entrega de Insumos</SelectItem>
+                  <SelectItem value="custom" className="focus:bg-surface focus:text-foreground">Tarefa Customizada</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -835,7 +844,7 @@ export function CalendarClient({ initialOrders }: Props) {
                   placeholder="Ex: Ender 3 S1 #01"
                   value={newPrinter}
                   onChange={(e) => setNewPrinter(e.target.value)}
-                  className="h-9 rounded-xl bg-zinc-900 border-zinc-800 text-zinc-200"
+                  className="h-9 rounded-xl bg-surface border-border text-foreground"
                 />
               </div>
             )}
@@ -848,7 +857,7 @@ export function CalendarClient({ initialOrders }: Props) {
                   placeholder="Ex: Gabriel Siqueira"
                   value={newContact}
                   onChange={(e) => setNewContact(e.target.value)}
-                  className="h-9 rounded-xl bg-zinc-900 border-zinc-800 text-zinc-200"
+                  className="h-9 rounded-xl bg-surface border-border text-foreground"
                 />
               </div>
             )}
@@ -861,7 +870,7 @@ export function CalendarClient({ initialOrders }: Props) {
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
                 rows={3}
-                className="rounded-xl bg-zinc-900 border-zinc-800 text-zinc-200"
+                className="rounded-xl bg-surface border-border text-foreground"
               />
             </div>
           </div>
@@ -870,7 +879,7 @@ export function CalendarClient({ initialOrders }: Props) {
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl text-xs border-zinc-800 hover:bg-zinc-900"
+              className="rounded-xl text-xs border-border hover:bg-muted"
               onClick={() => {
                 setIsAddOpen(false);
                 resetForm();

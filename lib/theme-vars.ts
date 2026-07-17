@@ -31,7 +31,9 @@ export function paletteVars(id: PaletteId, mode: ResolvedMode): Record<string, s
     "--color-surface-elevated": s.surfaceElevated,
     "--color-text": s.text,
     "--color-text-muted": s.textMuted,
-    "--color-text-subtle": mode === "light" ? n[400] : n[300],
+    // n[500] (não n[400]) no light: n[400] dava ~2.3:1 sobre branco (ilegível).
+    // n[500] sobe para ~4.6:1 mantendo a hierarquia (mais claro que o muted).
+    "--color-text-subtle": mode === "light" ? n[500] : n[300],
     "--color-border": s.border,
     "--color-border-strong": mode === "light" ? n[300] : n[600],
     "--color-accent": mode === "light" ? a[600] : a[500],

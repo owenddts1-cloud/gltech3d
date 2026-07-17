@@ -4876,3 +4876,359 @@ drop trigger if exists trg_service_orders_concluded_at on public.service_orders;
 create trigger trg_service_orders_concluded_at
   before insert or update of status on public.service_orders
   for each row execute function public.fn_service_orders_stamp_concluded();
+
+-- ---- calendar_events: eventos do calendario saindo do localStorage (migration 0044) ----
+create table if not exists public.calendar_events (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  title text not null,
+  description text,
+  event_date date not null,
+  type text not null default 'custom'
+    check (type in ('maintenance', 'meeting', 'delivery', 'custom')),
+  printer_name text,
+  contact_name text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists calendar_events_org_date_idx
+  on public.calendar_events (organization_id, event_date);
+
+alter table public.calendar_events enable row level security;
+drop policy if exists tenant_isolation_calendar_events_all on public.calendar_events;
+create policy tenant_isolation_calendar_events_all on public.calendar_events
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.calendar_events from anon;
+
+drop trigger if exists trg_calendar_events_audit on public.calendar_events;
+create trigger trg_calendar_events_audit
+  after insert or update or delete on public.calendar_events
+  for each row execute function public.fn_audit_log_row();
+
+-- ---- models_3d: repositorio de STL (tabela + bucket privado) (migration 0045) ----
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name text not null,
+  file_path text not null,                 -- <org_id>/<uuid>-<nome>.stl no bucket
+  size_kb integer not null default 0,
+  triangles integer not null default 0,
+  volume_cm3 numeric not null default 0,
+  bounding_box jsonb not null default '{}'::jsonb,  -- { min:[x,y,z], max:[x,y,z] }
+  thumbnail_url text,                      -- data URL webp gerada no cliente
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists models_3d_org_idx on public.models_3d (organization_id, created_at desc);
+
+alter table public.models_3d enable row level security;
+drop policy if exists tenant_isolation_models_3d_all on public.models_3d;
+create policy tenant_isolation_models_3d_all on public.models_3d
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.models_3d from anon;
+
+drop trigger if exists trg_models_3d_audit on public.models_3d;
+create trigger trg_models_3d_audit
+  after insert or update or delete on public.models_3d
+  for each row execute function public.fn_audit_log_row();
+
+-- =============================================================================
+-- Bucket privado `models-3d` — arquivos STL, isolados por org no prefixo do path
+-- (mesmo padrão de ai-policy 0014 / landing-media 0042).
+-- =============================================================================
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'models-3d',
+  'models-3d',
+  false,                                   -- privado: geometria é dado da org
+  104857600,                               -- 100 MB: STL de peça grande cabe
+  null                                     -- STL não tem MIME confiável; valida-se por extensão no server
+)
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "tenant_read_models_3d" on storage.objects;
+create policy "tenant_read_models_3d" on storage.objects for select
+  using (
+    bucket_id = 'models-3d'
+    and exists (
+      select 1 from public.user_organizations uo
+      where uo.user_id = auth.uid()
+        and uo.revoked_at is null
+        and uo.organization_id = (split_part(name, '/', 1))::uuid
+    )
+  );
+
+drop policy if exists "tenant_write_models_3d" on storage.objects;
+create policy "tenant_write_models_3d" on storage.objects for insert
+  with check (
+    bucket_id = 'models-3d'
+    and exists (
+      select 1 from public.user_organizations uo
+      where uo.user_id = auth.uid()
+        and uo.revoked_at is null
+        and uo.organization_id = (split_part(name, '/', 1))::uuid
+    )
+  );
+
+drop policy if exists "tenant_delete_models_3d" on storage.objects;
+create policy "tenant_delete_models_3d" on storage.objects for delete
+  using (
+    bucket_id = 'models-3d'
+    and exists (
+      select 1 from public.user_organizations uo
+      where uo.user_id = auth.uid()
+        and uo.revoked_at is null
+        and uo.organization_id = (split_part(name, '/', 1))::uuid
+    )
+  );
+
+-- ---- avatars: bucket publico de foto de perfil, escopo por usuario (migration 0046) ----
+values (
+  'avatars',
+  'avatars',
+  true,
+  5242880, -- 5 MB: foto de perfil não precisa de mais
+  array['image/png', 'image/jpeg', 'image/webp', 'image/avif']
+)
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "public_read_avatars" on storage.objects;
+create policy "public_read_avatars" on storage.objects for select
+  using (bucket_id = 'avatars');
+
+-- Escrita/atualização/remoção: só na própria pasta (<user_id>/...).
+drop policy if exists "own_write_avatars" on storage.objects;
+create policy "own_write_avatars" on storage.objects for insert
+  with check (bucket_id = 'avatars' and (split_part(name, '/', 1)) = auth.uid()::text);
+
+drop policy if exists "own_update_avatars" on storage.objects;
+create policy "own_update_avatars" on storage.objects for update
+  using (bucket_id = 'avatars' and (split_part(name, '/', 1)) = auth.uid()::text);
+
+drop policy if exists "own_delete_avatars" on storage.objects;
+create policy "own_delete_avatars" on storage.objects for delete
+  using (bucket_id = 'avatars' and (split_part(name, '/', 1)) = auth.uid()::text);
+
+-- ---- fn_my_sessions: RPC read-only das sessoes do usuario (migration 0047) ----
+create or replace function public.fn_my_sessions()
+returns table (
+  id uuid,
+  created_at timestamptz,
+  updated_at timestamptz,
+  not_after timestamptz,
+  user_agent text,
+  ip text
+)
+language sql
+security definer
+set search_path = auth, public
+as $$
+  select s.id, s.created_at, s.updated_at, s.not_after,
+         s.user_agent, host(s.ip) as ip
+  from auth.sessions s
+  where s.user_id = auth.uid()
+  order by s.updated_at desc nulls last
+$$;
+
+comment on function public.fn_my_sessions is
+  'Sessões ativas do usuário autenticado (auth.uid()). Read-only.';
+
+-- Só o usuário logado chama; anon não tem sessão.
+revoke all on function public.fn_my_sessions() from public, anon;
+grant execute on function public.fn_my_sessions() to authenticated;
+
+-- ---- marketplace_orders: vendas de marketplace, lancamento manual (migration 0048) ----
+create table if not exists public.marketplace_orders (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  platform text not null
+    check (platform in ('B2B', 'Shopee', 'Facebook', 'Mercado Livre', 'TikTok Shop', 'Olx', 'Outro')),
+  external_order_id text,                        -- id do pedido no marketplace (nullable no manual)
+  customer_name text,
+  status text not null default 'pago'
+    check (status in ('pendente', 'pago', 'enviado', 'concluido', 'cancelado')),
+  total_cents bigint not null default 0 check (total_cents >= 0),
+  commission_cents bigint not null default 0 check (commission_cents >= 0),
+  sold_at date not null default current_date,
+  -- Liga ao fluxo de produção quando o pedido vira uma OS (opcional).
+  service_order_id uuid references public.service_orders(id) on delete set null,
+  notes text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists marketplace_orders_org_idx
+  on public.marketplace_orders (organization_id, platform, sold_at desc);
+
+-- Idempotência da integração automática: um pedido externo entra uma vez só.
+-- Parcial porque no manual external_order_id é nulo (e nulos não colidem).
+create unique index if not exists marketplace_orders_ext_unique
+  on public.marketplace_orders (organization_id, platform, external_order_id)
+  where external_order_id is not null;
+
+alter table public.marketplace_orders enable row level security;
+drop policy if exists tenant_isolation_marketplace_orders_all on public.marketplace_orders;
+create policy tenant_isolation_marketplace_orders_all on public.marketplace_orders
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.marketplace_orders from anon;
+
+drop trigger if exists trg_marketplace_orders_audit on public.marketplace_orders;
+create trigger trg_marketplace_orders_audit
+  after insert or update or delete on public.marketplace_orders
+  for each row execute function public.fn_audit_log_row();
+
+-- ---- model_folders (arvore) + generalizacao de models_3d (migration 0049) ----
+-- 0049_model_folders
+-- Explorador de arquivos por cliente na Modelagem 3D. Cria a árvore livre de
+-- pastas/subpastas (`model_folders`) e generaliza `models_3d` (que era só STL)
+-- para guardar qualquer arquivo do cliente (STL/3MF/PNG) dentro de uma pasta.
+--
+-- Pastas são livres (o usuário cria e nomeia), com vínculo OPCIONAL a um contato
+-- do CRM. Arquivo sem pasta = raiz. Ao apagar uma pasta, a aplicação re-parenta
+-- os filhos para o pai (nada se perde) — o cascade abaixo é só backstop.
+--
+-- Idempotent — safe to re-apply.
+
+create table if not exists public.model_folders (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  parent_id uuid references public.model_folders(id) on delete cascade,  -- null = raiz
+  name text not null,
+  icon text not null default 'Folder',          -- nome do allowlist (lib/models/folder-icons.ts)
+  color text,                                    -- cor opcional do ícone
+  contact_id uuid references public.contacts(id) on delete set null,     -- vínculo opcional ao CRM
+  sort_order numeric,                            -- ordenação manual (fractional indexing)
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists model_folders_org_parent_idx
+  on public.model_folders (organization_id, parent_id);
+
+alter table public.model_folders enable row level security;
+drop policy if exists tenant_isolation_model_folders_all on public.model_folders;
+create policy tenant_isolation_model_folders_all on public.model_folders
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.model_folders from anon;
+
+drop trigger if exists trg_model_folders_audit on public.model_folders;
+create trigger trg_model_folders_audit
+  after insert or update or delete on public.model_folders
+  for each row execute function public.fn_audit_log_row();
+
+-- =============================================================================
+-- Generalizar models_3d: passa a ser a tabela de ARQUIVOS do cliente (não só
+-- STL). Nome mantido (forward-only). Colunas STL (triangles/volume/bounding_box)
+-- ficam nulas/zeradas para 3MF/PNG.
+-- =============================================================================
+alter table public.models_3d
+  add column if not exists folder_id uuid references public.model_folders(id) on delete set null,
+  add column if not exists mime_type text,
+  add column if not exists kind text not null default 'stl',
+  add column if not exists sort_order numeric;
+
+-- kind conhecido: stl (inspetor 3D), model3mf (inspetor 3D), image (preview), other.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'models_3d_kind_known') then
+    alter table public.models_3d
+      add constraint models_3d_kind_known
+      check (kind in ('stl', 'model3mf', 'image', 'other'));
+  end if;
+end $$;
+
+create index if not exists models_3d_org_folder_idx
+  on public.models_3d (organization_id, folder_id);
+
+-- =============================================================================
+-- Consumíveis (filamentos/resinas) — estoque em gramas (migration 0050).
+-- Módulo próprio, separado de inventory_assets (ativo fixo). Alimenta o
+-- "Sincronizar" da planilha de Controle. Idempotente e auto-curativo.
+-- =============================================================================
+create table if not exists public.consumables (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name text not null,
+  category text not null default 'filamento'
+    check (category in ('filamento', 'resina', 'outro')),
+  material text,
+  color text,
+  stock_grams numeric not null default 0,
+  min_stock_grams numeric not null default 0,
+  cost_per_kg_cents bigint not null default 0,
+  supplier text,
+  notes text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists consumables_org_idx on public.consumables (organization_id);
+create index if not exists consumables_org_cat_idx on public.consumables (organization_id, category);
+
+alter table public.consumables enable row level security;
+drop policy if exists tenant_isolation_consumables_all on public.consumables;
+create policy tenant_isolation_consumables_all on public.consumables
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.consumables from anon;
+
+drop trigger if exists trg_consumables_audit on public.consumables;
+create trigger trg_consumables_audit
+  after insert or update or delete on public.consumables
+  for each row execute function public.fn_audit_log_row();
+
+-- =============================================================================
+-- Quadro branco de briefing (migration 0051): project_notes ganha raia (phase)
+-- e ordem; project_phases guarda as raias nomeadas. Idempotente/auto-curativo.
+-- =============================================================================
+alter table public.project_notes
+  add column if not exists phase text,
+  add column if not exists sort_order numeric not null default 0;
+
+create table if not exists public.project_phases (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name text not null,
+  sort_order numeric not null default 0,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists project_phases_org_idx on public.project_phases (organization_id, sort_order);
+
+alter table public.project_phases enable row level security;
+drop policy if exists tenant_isolation_project_phases_all on public.project_phases;
+create policy tenant_isolation_project_phases_all on public.project_phases
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.project_phases from anon;
+
+drop trigger if exists trg_project_phases_audit on public.project_phases;
+create trigger trg_project_phases_audit
+  after insert or update or delete on public.project_phases
+  for each row execute function public.fn_audit_log_row();
+
+-- =============================================================================
+-- Quadro de briefing LIVRE (migration 0052): notas ganham posição x/y no plano
+-- (malha 3D estilo AutoCAD). phase/sort_order/project_phases ficam sem uso na UI.
+-- =============================================================================
+alter table public.project_notes
+  add column if not exists pos_x numeric,
+  add column if not exists pos_y numeric;

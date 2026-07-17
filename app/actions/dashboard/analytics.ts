@@ -46,6 +46,10 @@ export interface OsRow {
   status: string;
   totalCents: number;
   slaDueAt: string | null;
+  /** Plataforma da venda que originou a O.S. (do marketplace_orders ligado). */
+  platform: string | null;
+  /** Data da venda (sold_at). Cai para createdAt quando não há venda ligada. */
+  saleDate: string;
 }
 
 export interface ActivityRow {
@@ -118,7 +122,7 @@ export async function fetchDashboardData(
   const sinceIso = w.prevStart.toISOString();
   const sinceDate = w.prevStart.toISOString().slice(0, 10);
 
-  const [finRes, osRes, jobsRes, filRes] = await Promise.all([
+  const [finRes, osRes, jobsRes, filRes, moRes] = await Promise.all([
     supabase
       .from("financial_records")
       .select("id, date, description, type, category, platform, quantity, revenue_cents, expense_cents")
@@ -140,12 +144,22 @@ export async function fetchDashboardData(
       .order("completed_at", { ascending: false })
       .limit(30),
     supabase.from("filaments").select("name, weight_grams, min_weight_alert"),
+    // Venda ligada a cada O.S. (plataforma + data da venda). Existe após a migration 0048.
+    supabase
+      .from("marketplace_orders")
+      .select("service_order_id, platform, sold_at, customer_name")
+      .not("service_order_id", "is", null),
   ]);
 
   const fin = (finRes.data as FinRow[] | null) ?? [];
   const os = (osRes.data as SoRow[] | null) ?? [];
   const jobs = (jobsRes.data as Array<{ filename: string | null; printer_name: string | null; completed_at: string }> | null) ?? [];
   const filaments = (filRes.data as Array<{ name: string; weight_grams: number | string; min_weight_alert: number | string }> | null) ?? [];
+  // Mapa O.S. → venda (plataforma + data). Só O.S. geradas pelo Sincronizar têm venda ligada.
+  const moBySo = new Map<string, { platform: string | null; soldAt: string | null; customerName: string | null }>();
+  for (const m of (moRes.data as Array<{ service_order_id: string | null; platform: string | null; sold_at: string | null; customer_name: string | null }> | null) ?? []) {
+    if (m.service_order_id) moBySo.set(m.service_order_id, { platform: m.platform, soldAt: m.sold_at, customerName: m.customer_name });
+  }
 
   const inCurrent = (d: Date): boolean => d >= w.start;
   const inPrevious = (d: Date): boolean => d >= w.prevStart && d < w.start;
@@ -244,15 +258,20 @@ export async function fetchDashboardData(
 
   const osRows: OsRow[] = os
     .filter((o) => inCurrent(new Date(o.created_at)))
-    .map((o) => ({
-      id: o.id,
-      createdAt: o.created_at,
-      title: o.title ?? "Sem título",
-      contactName: o.contact_name ?? "—",
-      status: o.status,
-      totalCents: num(o.total_cents),
-      slaDueAt: o.sla_due_at,
-    }));
+    .map((o) => {
+      const mo = moBySo.get(o.id);
+      return {
+        id: o.id,
+        createdAt: o.created_at,
+        title: o.title ?? "Sem título",
+        contactName: o.contact_name || mo?.customerName || "—",
+        status: o.status,
+        totalCents: num(o.total_cents),
+        slaDueAt: o.sla_due_at,
+        platform: mo?.platform ?? null,
+        saleDate: mo?.soldAt ?? o.created_at,
+      };
+    });
 
   // ── Feed ────────────────────────────────────────────────────────────────
   const activities: ActivityRow[] = [];

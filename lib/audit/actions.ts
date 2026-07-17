@@ -119,4 +119,5 @@ export type AuditAction =
   | "channel.reconnected"
   | "lead.captured"
   | "marketing.lead_recovery_triggered"
-  | "instagram.broadcast";
+  | "instagram.broadcast"
+  | "profile.email_change_requested";

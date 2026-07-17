@@ -11,11 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Toolbox, Printer, Receipt, Warning, Plus, Trash, PencilSimple } from "@/lib/ui/icons";
+import { Toolbox, Printer, Receipt, Warning, Plus, Trash, PencilSimple, Drop } from "@/lib/ui/icons";
 import {
   createInventoryAsset, updateInventoryAsset, deleteInventoryAsset,
   type InventoryAssetView, type InventoryData,
 } from "@/app/actions/inventory/actions";
+import type { ConsumablesData } from "@/app/actions/consumables/actions";
+import { ConsumablesClient } from "@/app/app/consumables/_components/ConsumablesClient";
 import { INVENTORY_CATEGORIES, INVENTORY_STATUSES, type InventoryCategory, type InventoryStatus } from "@/lib/schemas/inventory";
 
 const brl = (cents: number) =>
@@ -32,11 +34,12 @@ const STATUS_META: Record<InventoryStatus, { label: string; variant: "success" |
   inativo: { label: "Inativo", variant: "neutral" },
 };
 
-export function InventoryClient({ data }: { data: InventoryData }) {
+export function InventoryClient({ data, consumables }: { data: InventoryData; consumables: ConsumablesData }) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<InventoryAssetView | null>(null);
   const [, startTransition] = useTransition();
+  const [tab, setTab] = useState<"ativos" | "consumiveis">("ativos");
 
   const { assets, kpis } = data;
 
@@ -64,16 +67,42 @@ export function InventoryClient({ data }: { data: InventoryData }) {
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">Inventário</h1>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Ativos fixos da oficina — impressoras, ferramentas, móveis e eletrônicos — com valor patrimonial e depreciação.
+                Ativos fixos (impressoras, ferramentas, móveis) e consumíveis (filamentos, resinas) da oficina.
               </p>
             </div>
           </div>
-          <Button onClick={() => { setEditing(null); setDialogOpen(true); }} className="gap-1.5 font-semibold shadow-sm">
-            <Plus size={16} weight="bold" /> Novo ativo
-          </Button>
+          {tab === "ativos" && (
+            <Button onClick={() => { setEditing(null); setDialogOpen(true); }} className="gap-1.5 font-semibold shadow-sm">
+              <Plus size={16} weight="bold" /> Novo ativo
+            </Button>
+          )}
         </div>
       </header>
 
+      {/* Sub-abas: Ativos | Consumíveis */}
+      <div className="flex w-fit items-center gap-0.5 rounded-xl border border-border bg-muted/50 p-0.5">
+        {([
+          { key: "ativos", label: "Ativos", icon: Toolbox },
+          { key: "consumiveis", label: "Consumíveis", icon: Drop },
+        ] as const).map((t) => {
+          const active = tab === t.key;
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${active ? "bg-surface text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <Icon size={14} weight="duotone" /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "consumiveis" ? (
+        <ConsumablesClient data={consumables} embedded />
+      ) : (
+      <>
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi label="Ativos" value={String(kpis.totalAssets)} sub="itens cadastrados" icon={Toolbox} iconCls="bg-accent-soft text-accent" />
@@ -148,6 +177,8 @@ export function InventoryClient({ data }: { data: InventoryData }) {
           </div>
         )}
       </Card>
+      </>
+      )}
 
       <AssetDialog
         open={dialogOpen}

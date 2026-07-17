@@ -2,7 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
-import { projectCreateSchema, projectNoteCreateSchema, type ProjectNoteColor } from "@/lib/schemas/projects";
+import {
+  projectCreateSchema, projectNoteCreateSchema, projectNotePatchSchema,
+  type ProjectNoteColor,
+} from "@/lib/schemas/projects";
 import { revalidatePath } from "next/cache";
 
 export interface ProjectView {
@@ -29,6 +32,9 @@ export interface ProjectNoteView {
   content: string;
   color: ProjectNoteColor;
   createdAt: string;
+  /** Posição no plano do quadro livre (null = ainda não posicionada). */
+  posX: number | null;
+  posY: number | null;
 }
 
 export interface ProjectsData {
@@ -47,7 +53,10 @@ interface ProjectRow {
 }
 interface NoteRow {
   id: string; title: string; content: string; color: ProjectNoteColor; created_at: string;
+  pos_x: number | string | null; pos_y: number | string | null;
 }
+
+const numOrNull = (v: unknown): number | null => (v == null ? null : Number(v));
 
 function mapProject(r: ProjectRow): ProjectView {
   return {
@@ -78,7 +87,7 @@ export async function fetchProjectsData(): Promise<{ ok: false } | { ok: true; d
   const supabase = await createClient();
   const [projRes, notesRes] = await Promise.all([
     supabase.from("projects").select("*").order("created_at", { ascending: false }),
-    supabase.from("project_notes").select("id, title, content, color, created_at").order("created_at", { ascending: false }),
+    supabase.from("project_notes").select("id, title, content, color, created_at, pos_x, pos_y").order("created_at", { ascending: false }),
   ]);
 
   return {
@@ -87,6 +96,7 @@ export async function fetchProjectsData(): Promise<{ ok: false } | { ok: true; d
       projects: ((projRes.data as ProjectRow[] | null) ?? []).map(mapProject),
       notes: ((notesRes.data as NoteRow[] | null) ?? []).map((n) => ({
         id: n.id, title: n.title, content: n.content, color: n.color, createdAt: n.created_at,
+        posX: numOrNull(n.pos_x), posY: numOrNull(n.pos_y),
       })),
     },
   };
@@ -161,6 +171,34 @@ export async function createProjectNote(raw: unknown) {
     color: d.color,
     created_by: authUser.id,
   });
+  if (error) return { ok: false as const, error: error.message };
+
+  revalidatePath("/app/projects");
+  return { ok: true as const };
+}
+
+/** Atualiza uma nota: posição no plano (posX/posY ao arrastar) ou texto/cor ao editar. */
+export async function updateProjectNote(id: string, raw: unknown) {
+  const authUser = await loadAuthUser();
+  if (!authUser) return { ok: false as const, error: "Unauthenticated" };
+  const activeOrg = await resolveActiveOrg(authUser);
+  if (!activeOrg) return { ok: false as const, error: "No active organization" };
+
+  const parsed = projectNotePatchSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
+  const d = parsed.data;
+
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (d.title !== undefined) patch.title = d.title;
+  if (d.content !== undefined) patch.content = d.content;
+  if (d.color !== undefined) patch.color = d.color;
+  if (d.posX !== undefined) patch.pos_x = d.posX;
+  if (d.posY !== undefined) patch.pos_y = d.posY;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("project_notes").update(patch)
+    .eq("organization_id", activeOrg.orgId).eq("id", id);
   if (error) return { ok: false as const, error: error.message };
 
   revalidatePath("/app/projects");

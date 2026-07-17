@@ -30,5 +30,14 @@ export const projectNoteCreateSchema = z.object({
   color: projectNoteColorSchema.optional().default("yellow"),
 });
 
+/** Patch de nota — usado ao arrastar no plano (posX/posY) e ao editar texto/cor. */
+export const projectNotePatchSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  content: z.string().trim().min(1).max(2000).optional(),
+  color: projectNoteColorSchema.optional(),
+  posX: z.coerce.number().optional(),
+  posY: z.coerce.number().optional(),
+});
+
 export type ProjectCreate = z.infer<typeof projectCreateSchema>;
 export type ProjectNoteColor = z.infer<typeof projectNoteColorSchema>;

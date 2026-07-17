@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useTransition, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { saveFinancialRecords, deleteFinancialRecord, type FinancialRecord } from "@/app/actions/control/actions";
-import { SpreadsheetGrid, type ColumnDef, isCustomKey, parseToISODate } from "./SpreadsheetGrid";
+import { syncControlToModules } from "@/app/actions/control/sync";
+import { SpreadsheetGrid, type ColumnDef, parseToISODate } from "./SpreadsheetGrid";
 import { ControlDashboard } from "./ControlDashboard";
+import { exportCSV, exportXLSX, exportPDF } from "../_lib/export";
 import {
   commit, undo as undoHistory, redo as redoHistory, type HistoryState
 } from "../_lib/history";
-import { Plus, Check, AlertTriangle, FileSpreadsheet, Loader2, Save, Trash2, Download, RefreshCw, Undo2, Redo2 } from "lucide-react";
+import { Plus, Check, AlertTriangle, FileSpreadsheet, Loader2, Save, Trash2, Download, RefreshCw, Undo2, Redo2, FileText, FileSpreadsheet as FileXlsx, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -39,7 +41,7 @@ const DEFAULT_COLUMNS: ColumnDef[] = [
 ];
 
 /** Intervalo do salvamento automático. */
-const AUTOSAVE_MS = 3 * 60 * 1000;
+const AUTOSAVE_MS = 2 * 60 * 1000;
 /** Teto da pilha de undo — o suficiente para desfazer uma sessão de edição sem inchar a memória. */
 const HISTORY_LIMIT = 100;
 
@@ -56,9 +58,23 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
     { id: "dashboard", name: "Dashboard" },
     { id: "lancamentos", name: "Lançamentos" }
   ]);
-  const [, startTransition] = useTransition();
   const [isSaving, setIsSaving] = useState(false);
+  // Autosave silencioso: indicador discreto, sem desabilitar a barra nem trocar o banner
+  // de status — é o que fazia a planilha "travar" a cada gravação.
+  const [isAutosaving, setIsAutosaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Espelhos em ref para o autosave assíncrono ler sempre o estado mais recente:
+  // se o usuário continua editando durante a gravação, essas refs evitam que a
+  // conclusão de um save antigo reverta as edições novas.
+  const recordsRef = useRef(records);
+  const dbRecordsRef = useRef(dbRecords);
+  const isDirtyRef = useRef(isDirty);
+  useEffect(() => { recordsRef.current = records; }, [records]);
+  useEffect(() => { dbRecordsRef.current = dbRecords; }, [dbRecords]);
+  useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
 
   // Dynamic columns state loaded/saved to localStorage
   const [columns, setColumns] = useState<ColumnDef[]>(() => {
@@ -81,8 +97,13 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
     }
   }, [columns]);
 
-  // Sync state with props and normalize dates to standard ISO strings
+  // Sync state with props and normalize dates to standard ISO strings.
+  // Guard: só absorve o estado do servidor quando NÃO há edições locais pendentes.
+  // Sem isso, qualquer novo `initialRecords` (ex.: um revalidate disparado por outro
+  // fluxo) sobrescreveria o grid e apagaria alterações ainda não salvas — era o que
+  // fazia "sumir informações de algumas colunas" ao excluir uma linha.
   useEffect(() => {
+    if (isDirtyRef.current) return;
     const normalized = initialRecords.map(r => {
       const isoDate = parseToISODate(r.date);
       if (isoDate && isoDate !== r.date) {
@@ -132,6 +153,19 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo]);
 
+  // Fecha o menu de exportação ao clicar fora dele.
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const el = e.target as Element;
+      if (!el.closest(".export-menu-pop") && !el.closest(".export-menu-btn")) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [exportMenuOpen]);
+
   // Ribbon menus
   const [activeMenuTab, setActiveMenuTab] = useState<string>("inicio");
 
@@ -144,12 +178,23 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
     setIsDirty(hasChanges);
   }, [records, dbRecords]);
 
-  // Save changes to database
-  const handleSave = async (customRecords?: FinancialRecord[]) => {
-    const recordsToSave = customRecords || records;
-    setIsSaving(true);
+  // Save changes to database.
+  // `silent` (autosave) não desabilita a UI nem mostra o banner de "Salvando" —
+  // grava em segundo plano com um indicador discreto. Só as linhas que mudaram
+  // (diff contra o snapshot do banco) sobem, deixando a gravação leve e imperceptível.
+  const handleSave = async (customRecords?: FinancialRecord[], opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false;
+    const source = customRecords || records;
+
+    // Diff: linhas novas (id temp) ou alteradas em relação ao snapshot do banco.
+    const dbById = new Map(dbRecords.map(r => [r.id, JSON.stringify(r)]));
+    const dirty = source.filter(r => dbById.get(r.id) !== JSON.stringify(r));
+    if (dirty.length === 0) { setIsDirty(false); return; }
+
+    const setBusy = silent ? setIsAutosaving : setIsSaving;
+    setBusy(true);
     try {
-      const recordsToUpsert = recordsToSave.map(r => ({
+      const recordsToUpsert = dirty.map(r => ({
         id: r.id,
         date: r.date,
         month: r.month,
@@ -166,24 +211,35 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
 
       const res = await saveFinancialRecords(recordsToUpsert);
       if (res.ok) {
-        // Swap the temp ids for the uuids the row actually got, otherwise the next save
-        // sees them as new rows again and inserts a duplicate.
-        const persisted = recordsToSave.map(r => {
-          const realId = res.idMap[r.id];
-          return realId ? { ...r, id: realId } : r;
-        });
-        setRecordsRaw(persisted);
-        setDbRecords(persisted);
-        setSelectedRowId(selectedRowId ? (res.idMap[selectedRowId] ?? selectedRowId) : null);
-        setIsDirty(false);
-        toast.success("Planilha salva com sucesso!");
+        // Reconciliação contra o estado MAIS RECENTE (via ref), não contra o snapshot
+        // capturado no início: se o usuário editou durante a gravação, essas edições
+        // ficam em recordsRef e não podem ser revertidas. Só trocamos os ids temporários
+        // pelos uuids reais — senão o próximo save reinsere a linha como nova (duplicata).
+        const swapId = (id: string) => res.idMap[id] ?? id;
+        const latest = recordsRef.current.map(r =>
+          res.idMap[r.id] ? { ...r, id: res.idMap[r.id]! } : r
+        );
+        setRecordsRaw(latest);
+
+        // dbRecords passa a refletir o que foi persistido: snapshot anterior + linhas sujas
+        // (com id trocado). Linhas editadas depois continuam divergindo → seguem "sujas" e
+        // entram no próximo ciclo de autosave.
+        const persistedDirty = new Map(dirty.map(r => [swapId(r.id), { ...r, id: swapId(r.id) }]));
+        const mergedDb = new Map(dbRecordsRef.current.map(r => [r.id, r]));
+        persistedDirty.forEach((v, k) => mergedDb.set(k, v));
+        // Alinha a ordem/composição de dbRecords com `latest` para o cálculo de "sujo".
+        const nextDb = latest.map(r => mergedDb.get(r.id) ?? r);
+        setDbRecords(nextDb);
+
+        setSelectedRowId(prev => (prev ? swapId(prev) : null));
+        if (!silent) toast.success("Planilha salva com sucesso!");
       } else {
         toast.error("Erro ao salvar planilha: " + res.error);
       }
     } catch (err) {
       toast.error("Erro ao salvar: " + (err instanceof Error ? err.message : String(err)));
     } finally {
-      setIsSaving(false);
+      setBusy(false);
     }
   };
 
@@ -196,10 +252,10 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
   });
 
   useEffect(() => {
-    if (!isDirty || isSaving) return;
-    const timer = setTimeout(() => { void handleSaveRef.current(); }, AUTOSAVE_MS);
+    if (!isDirty || isSaving || isAutosaving) return;
+    const timer = setTimeout(() => { void handleSaveRef.current(undefined, { silent: true }); }, AUTOSAVE_MS);
     return () => clearTimeout(timer);
-  }, [isDirty, isSaving]);
+  }, [isDirty, isSaving, isAutosaving]);
 
   // Add a new row to the table
   const handleAddRow = () => {
@@ -326,38 +382,51 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
     toast.success(`Coluna "${label}" adicionada!`);
   };
 
-  // Export to CSV/Excel using active columns configuration
-  const handleExportCSV = () => {
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-    
-    // Headers list from dynamic columns state
-    const headers = columns.map(c => c.label);
-    csvContent += headers.join(";") + "\r\n";
+  // Export in CSV / XLSX / PDF using the active columns configuration.
+  // As libs pesadas (exceljs/jspdf) entram por import din\u00E2mico dentro de _lib/export.
+  const handleExport = async (format: "csv" | "xlsx" | "pdf") => {
+    setExportMenuOpen(false);
+    try {
+      if (format === "csv") {
+        exportCSV(records, columns);
+        toast.success("CSV exportado com sucesso!");
+      } else if (format === "xlsx") {
+        await exportXLSX(records, columns);
+        toast.success("Planilha XLSX exportada com sucesso!");
+      } else {
+        await exportPDF(records, columns);
+        toast.success("PDF gerado com sucesso!");
+      }
+    } catch (err) {
+      toast.error("Erro ao exportar: " + (err instanceof Error ? err.message : String(err)));
+    }
+  };
 
-    records.forEach(r => {
-      const row = columns.map(col => {
-        const val = isCustomKey(col.key)
-          ? (r.custom_fields?.[col.key] || "")
-          : r[col.key as keyof FinancialRecord];
-        
-        if (col.key === "revenue" || col.key === "expense") {
-          return val ? Number(val).toFixed(2).replace(".", ",") : "";
-        }
-        
-        const valStr = val == null ? "" : String(val);
-        return `"${valStr.replace(/"/g, '""')}"`;
-      });
-      csvContent += row.join(";") + "\r\n";
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `controle_financeiro_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("CSV exportado com sucesso!");
+  // Sincroniza a planilha com os módulos (Vendas, Contatos, O.S., Inventário, Consumíveis).
+  // É idempotente no servidor; ainda assim confirmamos porque cria registros em vários módulos.
+  const handleSync = async () => {
+    if (isDirty && !confirm("Há alterações não salvas. Elas não entram na sincronização até você salvar. Sincronizar mesmo assim?")) return;
+    if (!confirm("Criar/atualizar Vendas, Contatos, O.S., Ferramentas (inventário) e Consumíveis a partir das linhas da planilha? Rodar de novo não duplica.")) return;
+    setIsSyncing(true);
+    try {
+      const res = await syncControlToModules();
+      if (!res.ok) { toast.error("Erro ao sincronizar: " + res.error); return; }
+      const r = res.result;
+      const osTotal = r.osCreated + r.osUpdated;
+      const parts = [
+        r.salesCreated ? `${r.salesCreated} venda(s) nova(s)` : null,
+        r.salesUpdated ? `${r.salesUpdated} venda(s) atualizada(s)` : null,
+        r.contactsCreated ? `${r.contactsCreated} contato(s)` : null,
+        osTotal ? `${osTotal} O.S.` : null,
+        r.toolsCreated ? `${r.toolsCreated} ferramenta(s)` : null,
+        r.consumablesCreated ? `${r.consumablesCreated} consumível(is)` : null,
+      ].filter(Boolean);
+      toast.success(parts.length ? `Sincronizado: ${parts.join(", ")}.` : "Nada novo para sincronizar.");
+    } catch (err) {
+      toast.error("Erro ao sincronizar: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
@@ -368,13 +437,20 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="text-emerald-500 h-5 w-5" />
           <h1 className="text-sm font-bold tracking-tight text-zinc-800 dark:text-zinc-200">GLTech3D - Controle Financeiro.xlsx</h1>
-          {isDirty && (
+          {isDirty && !isAutosaving && (
             <span className="flex items-center gap-1 text-[11px] font-medium text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
               <AlertTriangle size={10} />
               Pendências não salvas
             </span>
           )}
-          {!isDirty && !isSaving && (
+          {/* Autosave silencioso: indicador discreto, sem banner escuro nem UI travada. */}
+          {isAutosaving && !isSaving && (
+            <span className="flex items-center gap-1 text-[11px] font-medium text-zinc-400">
+              <Loader2 size={10} className="animate-spin" />
+              Salvando…
+            </span>
+          )}
+          {!isDirty && !isSaving && !isAutosaving && (
             <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
               <Check size={10} />
               Salvo na Nuvem
@@ -390,6 +466,15 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
 
         {/* Quick Toolbar */}
         <div className="flex items-center gap-1">
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="flex items-center gap-1.5 rounded bg-cyan-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-cyan-500 disabled:opacity-40"
+            title="Criar Vendas, Contatos, O.S., Ferramentas e Consumíveis a partir da planilha"
+          >
+            {isSyncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            <span>{isSyncing ? "Sincronizando…" : "Sincronizar"}</span>
+          </button>
           <button
             onClick={() => handleSave()}
             disabled={!isDirty || isSaving}
@@ -487,26 +572,44 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
                 </button>
               </div>
 
-              {/* Group: Banco de Dados */}
+              {/* Group: Exportar (o antigo "Salvar DB" saiu — o salvamento fica só no
+                  botão do topo + autosave). Agora é um menu com CSV / XLSX / PDF. */}
               <div className="flex items-center gap-2 border-r border-zinc-300 dark:border-zinc-800 pr-4">
-                <button
-                  onClick={() => handleSave()}
-                  disabled={!isDirty || isSaving}
-                  className="flex flex-col items-center justify-center p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors w-16 disabled:opacity-40"
-                  title="Salvar alterações no banco de dados"
-                >
-                  <Save size={14} className="text-orange-600 dark:text-orange-500" />
-                  <span className="text-[10px] mt-0.5">Salvar DB</span>
-                </button>
-
-                <button
-                  onClick={handleExportCSV}
-                  className="flex flex-col items-center justify-center p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors w-16"
-                  title="Exportar dados atuais como arquivo CSV"
-                >
-                  <Download size={14} className="text-blue-500 dark:text-blue-400" />
-                  <span className="text-[10px] mt-0.5">Exportar</span>
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setExportMenuOpen(o => !o)}
+                    className="export-menu-btn flex flex-col items-center justify-center p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors w-16"
+                    title="Exportar a planilha (CSV, Excel ou PDF)"
+                  >
+                    <Download size={14} className="text-blue-500 dark:text-blue-400" />
+                    <span className="text-[10px] mt-0.5 flex items-center gap-0.5">Exportar<ChevronDown size={9} /></span>
+                  </button>
+                  {exportMenuOpen && (
+                    <div className="export-menu-pop absolute left-0 top-full mt-1 z-50 w-44 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl py-1 text-left">
+                      <button
+                        onClick={() => handleExport("pdf")}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        <FileText size={13} className="text-red-500" />
+                        <span>PDF (2 páginas)</span>
+                      </button>
+                      <button
+                        onClick={() => handleExport("xlsx")}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        <FileXlsx size={13} className="text-emerald-600" />
+                        <span>Excel (.xlsx)</span>
+                      </button>
+                      <button
+                        onClick={() => handleExport("csv")}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        <Download size={13} className="text-blue-500" />
+                        <span>CSV</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Grid status helper */}
@@ -539,26 +642,33 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
           {activeMenuTab === "dados" && (
             <div className="flex items-center gap-2">
               <button
-                onClick={handleExportCSV}
+                onClick={() => handleExport("pdf")}
+                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800"
+              >
+                <FileText size={14} className="text-red-500" />
+                <span>Exportar PDF</span>
+              </button>
+              <button
+                onClick={() => handleExport("xlsx")}
+                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800"
+              >
+                <FileXlsx size={14} className="text-emerald-600" />
+                <span>Exportar Excel</span>
+              </button>
+              <button
+                onClick={() => handleExport("csv")}
                 className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800"
               >
                 <Download size={14} className="text-blue-400" />
-                <span>Exportar tudo como CSV</span>
+                <span>Exportar CSV</span>
               </button>
               <button
-                onClick={() => {
-                  startTransition(async () => {
-                    toast.promise(Promise.resolve(true), {
-                      loading: "Sincronizando...",
-                      success: "Banco sincronizado com o grid local",
-                      error: "Erro na sincronização"
-                    });
-                  });
-                }}
-                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800"
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800 disabled:opacity-40"
               >
-                <RefreshCw size={14} className="text-amber-500" />
-                <span>Sincronizar Banco</span>
+                <RefreshCw size={14} className={`text-cyan-500 ${isSyncing ? "animate-spin" : ""}`} />
+                <span>Sincronizar módulos</span>
               </button>
             </div>
           )}

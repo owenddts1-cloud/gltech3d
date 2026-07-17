@@ -125,6 +125,13 @@ const schema = z.object({
     .default("false")
     .transform((v) => v === "true"),
 
+  // Shopee Open Platform (integração automática de Vendas — Etapa 2, opcional).
+  // Só o dono da loja cria o app de desenvolvedor na Shopee e obtém estas chaves.
+  // Enquanto vazias, a aba Shopee funciona no modo manual e mostra "aguardando
+  // credenciais". NUNCA logar SHOPEE_PARTNER_KEY.
+  SHOPEE_PARTNER_ID: z.string().optional().default(""),
+  SHOPEE_PARTNER_KEY: z.string().optional().default(""),
+
   // App URLs
   NEXT_PUBLIC_APP_URL: z
     .string()

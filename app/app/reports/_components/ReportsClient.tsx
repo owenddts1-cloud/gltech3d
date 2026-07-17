@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ChartLineUp, Printer, Receipt, Clock, Toolbox, CaretUp, CaretDown, FileText, Sparkle, ClipboardText,
 } from "@/lib/ui/icons";
-import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-} from "recharts";
+import { FileSpreadsheet, Download } from "lucide-react";
 import { toast } from "sonner";
 import type { ReportsData } from "@/app/actions/reports/actions";
+import type { ReportBreakdowns, Breakdown } from "@/app/actions/reports/breakdowns";
+import { DynamicChart } from "@/components/charts/DynamicChart";
+import { ChartDrilldownSheet, type DrilldownRow } from "@/components/charts/ChartDrilldownSheet";
+import { exportReportsCSV, exportReportsXLSX, exportReportsPDF, type ReportsExportPayload } from "../_lib/export";
 
 const PERIODS = [
   { key: "30d", label: "30 Dias", months: 1 },
@@ -53,12 +55,10 @@ function TrendPill({ pct }: { pct: number | null }) {
   );
 }
 
-export function ReportsClient({ data }: { data: ReportsData }) {
+export function ReportsClient({ data, breakdowns }: { data: ReportsData; breakdowns: ReportBreakdowns }) {
   const [period, setPeriod] = useState<PeriodKey>("30d");
-  const [activeTab, setActiveTab] = useState<"revenue" | "sources">("revenue");
-  // Recharts mede 0×0 no SSR; só renderiza os gráficos após montar no cliente.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Drill-down: linhas por trás da fatia clicada.
+  const [drill, setDrill] = useState<{ title: string; rows: DrilldownRow[] } | null>(null);
 
   const months = PERIODS.find((p) => p.key === period)?.months ?? 1;
 
@@ -79,21 +79,42 @@ export function ReportsClient({ data }: { data: ReportsData }) {
 
   const completion = data.osTotal > 0 ? Math.round((data.osConcluidas / data.osTotal) * 100) : 0;
 
-  function exportCsv() {
-    const header = "Mes,Faturamento (R$),Filamento (g),Horas ativas,Jobs";
-    const rows = data.monthly.map(
-      (m) => `${m.month},${(m.revenueCents / 100).toFixed(2)},${m.filamentGrams},${m.activeHours},${m.jobs}`,
-    );
-    const csv = [header, ...rows].join("\n");
-    const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `relatorio-gltech3d-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Relatório exportado em CSV.");
+  // Faturamento mensal como série (para o gráfico dinâmico troca de tipo/animação).
+  const monthlySeries = useMemo(
+    () => data.monthly.map((m) => ({ label: m.month, Faturamento: m.revenueCents })),
+    [data.monthly],
+  );
+
+  const exportPayload = useMemo<ReportsExportPayload>(() => ({
+    periodLabel: PERIODS.find((p) => p.key === period)?.label ?? "",
+    kpis: [
+      { label: "Faturamento", value: brl(kpis.revenue) },
+      { label: "Filamento", value: `${kpis.filamentKg.toFixed(1)} kg` },
+      { label: "OS Concluídas", value: `${completion}%` },
+      { label: "Tempo Ativo", value: `${kpis.hours}h` },
+    ],
+    monthly: data.monthly,
+    breakdowns: [breakdowns.client, breakdowns.category, breakdowns.project, breakdowns.platform]
+      .map((b) => ({ title: b.title, isCurrency: b.isCurrency, groups: b.groups })),
+  }), [period, kpis, completion, data.monthly, breakdowns]);
+
+  async function handleExport(format: "csv" | "xlsx" | "pdf") {
+    try {
+      if (format === "csv") { exportReportsCSV(exportPayload); toast.success("Relatório exportado em CSV."); }
+      else if (format === "xlsx") { await exportReportsXLSX(exportPayload); toast.success("Planilha XLSX exportada."); }
+      else { await exportReportsPDF(exportPayload); toast.success("PDF gerado."); }
+    } catch (err) {
+      toast.error("Erro ao exportar: " + (err instanceof Error ? err.message : String(err)));
+    }
   }
+
+  // Abre o painel de detalhamento com as linhas do grupo clicado.
+  function openDrill(b: Breakdown, label: string) {
+    const rows = b.drill[label] ?? [];
+    setDrill({ title: `${b.title} · ${label}`, rows });
+  }
+
+  const drillValueFmt = (v: number) => brl(v);
 
   return (
     <div className="space-y-6 p-6 mx-auto max-w-7xl animate-in fade-in duration-300">
@@ -127,15 +148,20 @@ export function ReportsClient({ data }: { data: ReportsData }) {
                 </button>
               ))}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 h-9 rounded-lg font-semibold text-xs border-border bg-surface hover:bg-muted"
-              onClick={exportCsv}
-            >
-              <FileText size={14} />
-              <span>Exportar CSV</span>
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => handleExport("pdf")}
+                className="gap-1.5 h-9 rounded-lg font-semibold text-xs border-border bg-surface hover:bg-muted">
+                <FileText size={14} className="text-red-500" /> <span>Imprimir PDF</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExport("xlsx")}
+                className="gap-1.5 h-9 rounded-lg font-semibold text-xs border-border bg-surface hover:bg-muted">
+                <FileSpreadsheet size={14} className="text-emerald-600" /> <span>Planilha</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExport("csv")}
+                className="gap-1.5 h-9 rounded-lg font-semibold text-xs border-border bg-surface hover:bg-muted">
+                <Download size={14} className="text-blue-500" /> <span>CSV</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -155,98 +181,20 @@ export function ReportsClient({ data }: { data: ReportsData }) {
 
       {/* Chart + insights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 p-5 rounded-xl border border-border bg-surface flex flex-col justify-between">
-          <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-              <div>
-                <h2 className="text-sm font-bold text-foreground">Desempenho Comercial</h2>
-                <p className="text-[11px] text-muted-foreground">Faturamento mensal (12 meses) e origem dos contatos</p>
-              </div>
-              <div className="flex rounded-lg bg-muted p-1 border w-fit">
-                <button onClick={() => setActiveTab("revenue")}
-                  className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${activeTab === "revenue" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}>
-                  Evolução Mensal
-                </button>
-                <button onClick={() => setActiveTab("sources")}
-                  className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${activeTab === "sources" ? "bg-surface text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"}`}>
-                  Origem de Contatos
-                </button>
-              </div>
-            </div>
-
-            <div className="h-[270px] w-full mt-4">
-              {!mounted ? (
-                <div className="h-full w-full animate-pulse rounded-lg bg-muted/40" />
-              ) : activeTab === "revenue" ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data.monthly} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/40" />
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} className="fill-muted-foreground text-[10px] font-semibold" />
-                    <YAxis tickLine={false} axisLine={false} className="fill-muted-foreground text-[10px] font-semibold" tickFormatter={(v) => `R$${Math.round(v / 100)}`} />
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length && payload[0]) {
-                          const d = payload[0].payload as ReportsData["monthly"][number];
-                          return (
-                            <div className="rounded-lg border border-border bg-surface p-2.5 shadow-md text-xs">
-                              <p className="font-bold text-foreground">{d.month}</p>
-                              <p className="text-muted-foreground mt-0.5">Faturamento: <span className="font-bold text-foreground">{brl(d.revenueCents)}</span></p>
-                              <p className="text-[10px] text-muted-foreground mt-0.5">{d.jobs} jobs · {d.activeHours}h</p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Area type="monotone" dataKey="revenueCents" stroke="var(--color-accent)" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : data.sources.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Sem contatos cadastrados ainda.</div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.sources} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={32}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/40" />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} className="fill-muted-foreground text-[10px] font-semibold" />
-                    <YAxis tickLine={false} axisLine={false} className="fill-muted-foreground text-[10px] font-semibold" allowDecimals={false} />
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length && payload[0]) {
-                          const d = payload[0].payload as ReportsData["sources"][number];
-                          return (
-                            <div className="rounded-lg border border-border bg-surface p-2.5 shadow-md text-xs">
-                              <p className="font-bold text-foreground">{d.name}</p>
-                              <p className="text-muted-foreground mt-0.5">Contatos: <span className="font-bold text-foreground">{d.value}</span></p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                      {data.sources.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+        <Card className="lg:col-span-2 p-5 rounded-xl border border-border bg-surface">
+          <div className="mb-2">
+            <h2 className="text-sm font-bold text-foreground">Desempenho Comercial</h2>
+            <p className="text-[11px] text-muted-foreground">Faturamento mensal (12 meses) — troque o tipo de gráfico no seletor</p>
           </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-4 mt-4 pt-3 border-t border-border/40 text-[10px] font-semibold text-muted-foreground">
-            {activeTab === "revenue" ? (
-              <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-accent" /><span>Faturamento mensal (OS concluídas)</span></div>
-            ) : (
-              data.sources.map((s, idx) => (
-                <div key={idx} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} /><span>{s.name} ({s.value})</span></div>
-              ))
-            )}
-          </div>
+          <DynamicChart
+            data={monthlySeries}
+            series={[{ key: "Faturamento", name: "Faturamento" }]}
+            categoryKey="label"
+            type="area"
+            height={270}
+            valueFormat={(v) => brl(v)}
+            showBarLabels
+          />
         </Card>
 
         {/* Insights (reais) */}
@@ -292,6 +240,22 @@ export function ReportsClient({ data }: { data: ReportsData }) {
             </div>
           </div>
         </Card>
+      </div>
+
+      {/* Detalhamento — clique numa fatia para abrir o drill-down */}
+      <div>
+        <div className="mb-3">
+          <h2 className="text-sm font-bold text-foreground">Detalhamento (drill-down)</h2>
+          <p className="text-[11px] text-muted-foreground">
+            Clique numa fatia/barra para ver os lançamentos por trás. Troque o tipo de gráfico no seletor de cada painel.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <BreakdownPanel b={breakdowns.category} onDrill={openDrill} />
+          <BreakdownPanel b={breakdowns.client} onDrill={openDrill} />
+          <BreakdownPanel b={breakdowns.platform} onDrill={openDrill} />
+          <BreakdownPanel b={breakdowns.project} onDrill={openDrill} />
+        </div>
       </div>
 
       {/* Printer farm — real */}
@@ -344,7 +308,40 @@ export function ReportsClient({ data }: { data: ReportsData }) {
           </div>
         )}
       </Card>
+
+      {/* Painel de drill-down */}
+      <ChartDrilldownSheet
+        open={!!drill}
+        onOpenChange={(v) => { if (!v) setDrill(null); }}
+        title={drill?.title ?? ""}
+        rows={drill?.rows ?? []}
+        valueFormat={drillValueFmt}
+      />
     </div>
+  );
+}
+
+/** Card de breakdown: gráfico categórico dinâmico + drill-down ao clicar. */
+function BreakdownPanel({ b, onDrill }: { b: Breakdown; onDrill: (b: Breakdown, label: string) => void }) {
+  const brlLocal = (cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((cents || 0) / 100);
+  return (
+    <Card className="p-5 rounded-xl border border-border bg-surface">
+      <div className="mb-2">
+        <h3 className="text-sm font-bold text-foreground">{b.title}</h3>
+        <p className="text-[11px] text-muted-foreground">{b.groups.length} grupo(s) · clique numa fatia para detalhar</p>
+      </div>
+      <DynamicChart
+        data={b.groups.slice(0, 12)}
+        nameKey="name"
+        valueKey="value"
+        valueLabel={b.title}
+        type="donut"
+        height={260}
+        valueFormat={b.isCurrency ? brlLocal : (v) => v.toLocaleString("pt-BR")}
+        onDrill={(info) => onDrill(b, info.label)}
+        emptyText="Sem dados neste grupo."
+      />
+    </Card>
   );
 }
 
