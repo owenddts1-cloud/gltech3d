@@ -5232,3 +5232,48 @@ create trigger trg_project_phases_audit
 alter table public.project_notes
   add column if not exists pos_x numeric,
   add column if not exists pos_y numeric;
+
+-- =============================================================================
+-- Destino/Uso por item de inventário/consumível (migration 0053). Texto livre.
+-- =============================================================================
+alter table public.inventory_assets add column if not exists purpose text;
+alter table public.consumables     add column if not exists purpose text;
+
+-- =============================================================================
+-- Impressoras: status "maintenance" + leitura por IP (migration 0054).
+-- =============================================================================
+alter table public.printers drop constraint if exists printers_status_check;
+alter table public.printers add constraint printers_status_check
+  check (status in ('idle', 'printing', 'error', 'offline', 'maintenance'));
+alter table public.printers add column if not exists api_key text;
+alter table public.printers add column if not exists poll_mode text not null default 'browser';
+alter table public.printers drop constraint if exists printers_poll_mode_check;
+alter table public.printers add constraint printers_poll_mode_check
+  check (poll_mode in ('browser', 'server', 'off'));
+
+-- =============================================================================
+-- Vendas: eixos separados de produção e pagamento p/ o board Kanban (migration 0058).
+-- Aditivo; backfill do status legado antes dos checks (auto-cura clones).
+-- =============================================================================
+alter table public.marketplace_orders
+  add column if not exists fulfillment_status text not null default 'confirmada',
+  add column if not exists payment_status     text not null default 'pendente',
+  add column if not exists board_position     numeric;
+update public.marketplace_orders set
+  fulfillment_status = case status
+    when 'cancelado' then 'cancelada' when 'enviado' then 'enviada'
+    when 'concluido' then 'entregue' else 'confirmada' end,
+  payment_status = case status
+    when 'pago' then 'pago' when 'enviado' then 'pago'
+    when 'concluido' then 'pago' else 'pendente' end
+where fulfillment_status = 'confirmada' and payment_status = 'pendente';
+alter table public.marketplace_orders drop constraint if exists marketplace_orders_fulfillment_check;
+alter table public.marketplace_orders add constraint marketplace_orders_fulfillment_check
+  check (fulfillment_status in ('confirmada', 'produzindo', 'pronta', 'enviada', 'entregue', 'cancelada'));
+alter table public.marketplace_orders drop constraint if exists marketplace_orders_payment_check;
+alter table public.marketplace_orders add constraint marketplace_orders_payment_check
+  check (payment_status in ('pendente', 'pago', 'estornado'));
+create index if not exists marketplace_orders_org_fulfillment_idx
+  on public.marketplace_orders (organization_id, fulfillment_status, sold_at desc);
+create index if not exists marketplace_orders_org_payment_pending_idx
+  on public.marketplace_orders (organization_id, payment_status) where payment_status <> 'pago';

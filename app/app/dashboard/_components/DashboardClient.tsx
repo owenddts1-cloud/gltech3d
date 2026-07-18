@@ -1,26 +1,12 @@
 "use client";
 
-import { useState, startTransition, useTransition, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  CartesianGrid,
-  BarChart,
-  Bar,
-  Cell,
-} from "recharts";
 import {
   Gauge,
   Printer,
   Package,
   ChartBar,
-  ChartLineUp,
   Warning,
   Info,
   ArrowsClockwise,
@@ -28,8 +14,12 @@ import {
   Play,
   Trash,
   CheckCircle,
-  Gear
+  Wrench,
+  WifiSlash,
 } from "@/lib/ui/icons";
+import { fetchPrinterLiveStatus } from "@/app/actions/printers/live-status";
+import { pollPrinterFromBrowser } from "@/lib/printers/browser-poll";
+import { liveStateToPrinterStatus, type LiveStatus } from "@/lib/printers/live-status";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,10 +29,12 @@ import { calculateRealCost } from "@/lib/pricing/engine";
 import { savePrintersAndFilaments } from "@/app/actions/printers/actions";
 import { PrintingDetails } from "@/app/app/printers/_components/PrintingDetails";
 
+type PrinterStatus = "idle" | "printing" | "error" | "offline" | "maintenance";
+
 interface PrinterItem {
   id: string;
   name: string;
-  status: "idle" | "printing" | "error" | "offline";
+  status: PrinterStatus;
   powerDraw: number;
   depreciationPerHour: number;
   activeFilamentId?: string | null;
@@ -56,6 +48,9 @@ interface PrinterItem {
     serviceOrderId?: string | null;
     serviceOrderTitle?: string | null;
   } | null;
+  networkUrl?: string;
+  apiKey?: string;
+  pollMode?: "browser" | "server" | "off";
 }
 
 export interface ServiceOrderLite {
@@ -111,6 +106,16 @@ interface DashboardClientProps {
   };
 }
 
+/** Aparência por status da impressora (ícone, cores, borda). */
+const PRINTER_STATUS_META: Record<PrinterStatus, { label: string; badge: string; border: string; Icon: typeof Printer; icon: string }> = {
+  printing:    { label: "Imprimindo",    badge: "bg-orange-500/10 text-orange-400 border-orange-500/20",   border: "border-l-orange-500",  Icon: Printer,     icon: "text-orange-400" },
+  idle:        { label: "Ociosa",        badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", border: "border-l-emerald-500", Icon: CheckCircle, icon: "text-emerald-400" },
+  maintenance: { label: "Em manutenção", badge: "bg-amber-500/10 text-amber-400 border-amber-500/20",       border: "border-l-amber-500",   Icon: Wrench,      icon: "text-amber-400" },
+  error:       { label: "Erro",          badge: "bg-red-500/10 text-red-400 border-red-500/20",             border: "border-l-red-500",     Icon: Warning,     icon: "text-red-400" },
+  offline:     { label: "Offline",       badge: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",          border: "border-l-zinc-600",    Icon: WifiSlash,   icon: "text-zinc-400" },
+};
+const PRINTER_STATUS_ORDER: PrinterStatus[] = ["printing", "idle", "maintenance", "error", "offline"];
+
 function SpotlightCard({ children, className, ...props }: { children: React.ReactNode, className?: string } & React.HTMLAttributes<HTMLDivElement>) {
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const [isFocused, setIsFocused] = useState(false);
@@ -156,22 +161,24 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   const serviceOrders = initialData.serviceOrders;
   const [kEnergy, setKEnergy] = useState<number>(initialData.kEnergy);
   const [isPending, startSaveTransition] = useTransition();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Modal / Form states
   const [showAddPrinter, setShowAddPrinter] = useState(false);
   const [showAddFilament, setShowAddFilament] = useState(false);
 
+  // Live status por IP (client) + qual impressora está sendo lida.
+  const [liveStatus, setLiveStatus] = useState<Record<string, LiveStatus>>({});
+  const [pollingId, setPollingId] = useState<string | null>(null);
+
   // New printer state
   const [newPrinter, setNewPrinter] = useState({
     name: "",
-    status: "idle" as "idle" | "printing" | "error" | "offline",
+    status: "idle" as PrinterStatus,
     powerDraw: 200,
-    depreciationPerHour: 0.40
+    depreciationPerHour: 0.40,
+    networkUrl: "",
+    apiKey: "",
+    pollMode: "browser" as "browser" | "server" | "off",
   });
 
   // New filament state
@@ -316,7 +323,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     const updated = [...printers, printer];
     setPrinters(updated);
     setShowAddPrinter(false);
-    setNewPrinter({ name: "", status: "idle", powerDraw: 200, depreciationPerHour: 0.40 });
+    setNewPrinter({ name: "", status: "idle", powerDraw: 200, depreciationPerHour: 0.40, networkUrl: "", apiKey: "", pollMode: "browser" });
     handleSave(updated, filaments);
   };
 
@@ -353,6 +360,37 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     const updated = filaments.filter((f) => f.id !== id);
     setFilaments(updated);
     handleSave(printers, updated);
+  };
+
+  // Muda o status de uma impressora à mão (Operando/Manutenção/Ociosa/Erro/Offline).
+  const updatePrinterStatus = (id: string, status: PrinterStatus) => {
+    const updated = printers.map((p) => (p.id === id ? { ...p, status } : p));
+    setPrinters(updated);
+    handleSave(updated, filaments);
+  };
+
+  // Lê o status ao vivo por IP (navegador na LAN OU servidor p/ IP público).
+  const refreshLive = async (printer: PrinterItem) => {
+    if (!printer.networkUrl) return toast.error("Cadastre o IP/URL da impressora primeiro (editar a máquina).");
+    if (printer.pollMode === "off") return toast.error("Leitura por IP desligada nesta máquina.");
+    setPollingId(printer.id);
+    try {
+      const live =
+        printer.pollMode === "server"
+          ? await fetchPrinterLiveStatus({ url: printer.networkUrl, apiKey: printer.apiKey }).then((r) => (r.ok ? r.status : null))
+          : await pollPrinterFromBrowser(printer.networkUrl, printer.apiKey);
+      if (!live) return toast.error("Falha ao ler a impressora.");
+      setLiveStatus((prev) => ({ ...prev, [printer.id]: live }));
+      if (!live.reachable) return toast.error(`${printer.name}: inalcançável (verifique IP/CORS/rede).`);
+      // Reflete a telemetria no status persistido — mas nunca sobrescreve "manutenção" manual.
+      if (printer.status !== "maintenance") {
+        const mapped = liveStateToPrinterStatus(live.state);
+        if (mapped !== printer.status) updatePrinterStatus(printer.id, mapped);
+      }
+      toast.success(`${printer.name}: ${live.state}${live.nozzleTemp != null ? ` · bico ${live.nozzleTemp}°C` : ""}`);
+    } finally {
+      setPollingId(null);
+    }
   };
 
   const triggerSimulatePrint = async (e: React.FormEvent) => {
@@ -427,73 +465,29 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         } else {
           toast.error(`Erro no webhook: ${resJson.error}`);
         }
-      } catch (err: unknown) {
+      } catch {
         toast.error("Falha ao se comunicar com o webhook local.");
       }
     });
   };
 
-  // KPIs
-  const printersOnline = printers.filter((p) => p.status === "printing").length;
-  const lowStockFilaments = filaments.filter((f) => f.weightGrams < f.minWeightAlert).length;
-  const totalRevenue = printJobs.reduce((acc, job) => acc + (job.costs?.totalCost || 0) * 2.5, 0);
-  const totalCostAcc = printJobs.reduce((acc, job) => acc + (job.costs?.totalCost || 0), 0);
-
+  // ── KPIs reais (impressoras + filamentos + jobs concluídos) ──
+  const printingCount = printers.filter((p) => p.status === "printing").length;
+  const maintenanceCount = printers.filter((p) => p.status === "maintenance").length;
   const errorPrinters = printers.filter((p) => p.status === "error").length;
-  const healthScore = printers.length > 0 
+  const lowStockFilaments = filaments.filter((f) => f.weightGrams < f.minWeightAlert).length;
+  const filamentTotalGrams = filaments.reduce((s, f) => s + f.weightGrams, 0);
+  const realCostAcc = printJobs.reduce((acc, job) => acc + (job.costs?.totalCost || 0), 0);
+  const healthScore = printers.length > 0
     ? Math.round(100 - (errorPrinters / printers.length) * 40 - (lowStockFilaments / Math.max(1, filaments.length)) * 20)
     : 100;
 
-  // Chart Data preparation
-  const revenueHistory = [
-    { date: "Seg", revenue: totalRevenue * 0.15 + 80 },
-    { date: "Ter", revenue: totalRevenue * 0.32 + 150 },
-    { date: "Qua", revenue: totalRevenue * 0.45 + 110 },
-    { date: "Qui", revenue: totalRevenue * 0.60 + 220 },
-    { date: "Sex", revenue: totalRevenue * 0.78 + 310 },
-    { date: "Sáb", revenue: totalRevenue * 0.90 + 260 },
-    { date: "Dom", revenue: totalRevenue },
-  ];
-
-  const filamentChartData = filaments.map((f) => ({
-    name: f.name.replace("PLA Premium - ", "").replace("PETG Tough - ", "").replace("ABS Carbon - ", "").split(" - ")[0],
-    quantity: f.weightGrams,
-    color: f.color,
-  }));
-
-  interface ChartTooltipProps {
-    active?: boolean;
-    payload?: Array<{ value: number }>;
-    label?: string;
-  }
-
-  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
-    if (active && payload && payload.length && payload[0]) {
-      return (
-        <div className="bg-zinc-950/90 backdrop-blur-md border border-zinc-800/80 p-3 rounded-lg shadow-xl text-xs space-y-1">
-          <p className="text-zinc-400 font-semibold">{label}</p>
-          <p className="text-orange-500 font-bold text-sm">
-            R$ {Number(payload[0].value).toFixed(2)}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const CustomBarTooltip = ({ active, payload, label }: ChartTooltipProps) => {
-    if (active && payload && payload.length && payload[0]) {
-      return (
-        <div className="bg-zinc-950/90 backdrop-blur-md border border-zinc-800/80 p-3 rounded-lg shadow-xl text-xs space-y-1">
-          <p className="text-zinc-400 font-semibold">{label}</p>
-          <p className="text-emerald-500 font-bold text-sm">
-            {Number(payload[0].value).toFixed(0)}g
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
+  // Estoque agregado por material (rodapé do painel de filamentos): { PLA: 3200, PETG: 1000, ... }
+  const stockByMaterial = filaments.reduce<Record<string, number>>((acc, f) => {
+    const key = (f.material || "Outro").toUpperCase();
+    acc[key] = (acc[key] ?? 0) + f.weightGrams;
+    return acc;
+  }, {});
 
   return (
     <div className="flex h-full flex-col gap-6 p-6">
@@ -531,31 +525,13 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         <SpotlightCard>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Faturamento Mensal</p>
-              <p className="text-2xl font-bold mt-1 text-zinc-100">R$ {totalRevenue.toFixed(2)}</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
-                  +12.4%
-                </span>
-                <span className="text-[10px] text-zinc-500">vs mês anterior</span>
-              </div>
-            </div>
-            <div className="p-3 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20 shadow-inner">
-              <ChartLineUp size={20} />
-            </div>
-          </div>
-        </SpotlightCard>
-
-        <SpotlightCard>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Ordens de Serviço</p>
-              <p className="text-2xl font-bold mt-1 text-zinc-100">{printersOnline} Ativas</p>
+              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Máquinas</p>
+              <p className="text-2xl font-bold mt-1 text-zinc-100">{printers.length}</p>
               <div className="flex items-center gap-1.5 mt-1">
                 <span className="text-[10px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
-                  +{printers.length} total
+                  {printingCount} imprimindo
                 </span>
-                <span className="text-[10px] text-zinc-500">Klipper Farm active</span>
+                <span className="text-[10px] text-zinc-500">{maintenanceCount} em manutenção</span>
               </div>
             </div>
             <div className="p-3 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20 shadow-inner">
@@ -567,17 +543,35 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         <SpotlightCard>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Conversão WhatsApp</p>
-              <p className="text-2xl font-bold mt-1 text-zinc-100">68.2%</p>
+              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Estoque de Filamento</p>
+              <p className="text-2xl font-bold mt-1 text-zinc-100">{(filamentTotalGrams / 1000).toFixed(1)} kg</p>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider text-xs">
-                  WAHA API
+                <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
+                  {filaments.length} bobinas
                 </span>
-                <span className="text-[10px] text-zinc-500">142 chats integrados</span>
+                <span className="text-[10px] text-zinc-500">{lowStockFilaments > 0 ? `${lowStockFilaments} abaixo do mínimo` : "estoque ok"}</span>
               </div>
             </div>
             <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20 shadow-inner">
-              <Plus size={20} />
+              <Package size={20} />
+            </div>
+          </div>
+        </SpotlightCard>
+
+        <SpotlightCard>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Jobs Concluídos</p>
+              <p className="text-2xl font-bold mt-1 text-zinc-100">{printJobs.length}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
+                  R$ {realCostAcc.toFixed(2)}
+                </span>
+                <span className="text-[10px] text-zinc-500">custo real produzido</span>
+              </div>
+            </div>
+            <div className="p-3 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20 shadow-inner">
+              <CheckCircle size={20} />
             </div>
           </div>
         </SpotlightCard>
@@ -601,83 +595,6 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         </SpotlightCard>
       </div>
 
-      {/* Advanced Charting Layout */}
-      {mounted && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Revenue Area Chart */}
-          <Card className="lg:col-span-2 p-6 border-zinc-800/60 bg-zinc-950/40 backdrop-blur-md flex flex-col gap-4 shadow-xl rounded-2xl">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-                  <ChartLineUp className="text-orange-500" />
-                  Métricas de Faturamento Real
-                </h2>
-                <p className="text-xs text-zinc-400 mt-0.5">Visão detalhada do faturamento acumulado por dia da semana</p>
-              </div>
-              <Badge variant="outline" className="border-orange-500/20 text-orange-400 bg-orange-500/5">Período de 7 Dias</Badge>
-            </div>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueHistory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ff6b00" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#ff6b00" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                  <XAxis dataKey="date" stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} />
-                  <RechartsTooltip content={<CustomTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#ff6b00"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorRevenue)"
-                    activeDot={{ r: 6, stroke: "#ff6b00", strokeWidth: 2, fill: "#09090b", className: "animate-pulse" }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-
-          {/* Filament Stock Bar Chart */}
-          <Card className="p-6 border-zinc-800/60 bg-zinc-950/40 backdrop-blur-md flex flex-col gap-4 shadow-xl rounded-2xl">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-                  <Package className="text-orange-500" />
-                  Nível de Insumos
-                </h2>
-                <p className="text-xs text-zinc-400 mt-0.5">Peso residual em gramas do estoque de filamentos</p>
-              </div>
-              <Badge variant="outline" className="border-emerald-500/20 text-emerald-400 bg-emerald-500/5 font-semibold">Estoque (g)</Badge>
-            </div>
-            
-            <div className="h-64 w-full flex items-end justify-center">
-              {filamentChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={filamentChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                    <XAxis dataKey="name" stroke="#71717a" fontSize={10} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#71717a" fontSize={10} tickLine={false} axisLine={false} />
-                    <RechartsTooltip content={<CustomBarTooltip />} />
-                    <Bar dataKey="quantity" radius={[4, 4, 0, 0]} maxBarSize={30}>
-                      {filamentChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color || "#ff6b00"} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="text-zinc-500 text-xs py-10">Nenhum filamento disponível</div>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
 
       {/* Bento Grid layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -698,35 +615,37 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 (f) => f.id === printer.activeFilamentId
               );
               
+              const meta = PRINTER_STATUS_META[printer.status];
+              const live = liveStatus[printer.id];
+              const StatusIcon = meta.Icon;
               return (
-                <Card 
-                  key={printer.id} 
-                  className={`p-4 border-zinc-800/60 relative overflow-hidden transition-all flex flex-col justify-between rounded-xl bg-zinc-950/20 ${
-                    printer.status === "printing"
-                      ? "border-l-4 border-l-orange-500"
-                      : printer.status === "error"
-                      ? "border-l-4 border-l-red-500"
-                      : "border-l-4 border-l-emerald-500"
-                  }`}
+                <Card
+                  key={printer.id}
+                  className={`p-4 border-zinc-800/60 relative overflow-hidden transition-all flex flex-col justify-between rounded-xl bg-zinc-950/20 border-l-4 ${meta.border}`}
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-sm text-zinc-100">{printer.name}</h3>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-sm text-zinc-100 flex items-center gap-1.5">
+                        <StatusIcon size={14} className={meta.icon} /> {printer.name}
+                      </h3>
                       <p className="text-xs text-zinc-400 mt-0.5">
-                        Consumo: {printer.powerDraw}W | Depreciação: R$ {printer.depreciationPerHour}/h
+                        Consumo: {printer.powerDraw}W · Depreciação: R$ {printer.depreciationPerHour}/h
                       </p>
+                      {printer.networkUrl && (
+                        <p className="text-[10px] text-zinc-500 mt-0.5 truncate" title={printer.networkUrl}>IP: {printer.networkUrl}</p>
+                      )}
                     </div>
-                    <Badge 
-                      className={
-                        printer.status === "printing"
-                          ? "bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/10"
-                          : printer.status === "error"
-                          ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/10"
-                          : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/10"
-                      }
+                    {/* Definir status à mão (Operando/Manutenção/…). */}
+                    <select
+                      value={printer.status}
+                      onChange={(e) => updatePrinterStatus(printer.id, e.target.value as PrinterStatus)}
+                      title="Definir status da máquina"
+                      className={`shrink-0 cursor-pointer rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wider outline-none ${meta.badge}`}
                     >
-                      {printer.status === "printing" ? "Imprimindo" : printer.status === "error" ? "Falha" : "Ociosa"}
-                    </Badge>
+                      {PRINTER_STATUS_ORDER.map((s) => (
+                        <option key={s} value={s} className="bg-zinc-900 text-zinc-100">{PRINTER_STATUS_META[s].label}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {printer.status === "printing" && printer.activePrintJob ? (
@@ -741,31 +660,41 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     />
                   ) : (
                     <div className="mt-4 flex flex-col items-center justify-center p-4 bg-zinc-900/30 rounded-md border border-zinc-800/40 text-center">
-                      {printer.status === "error" ? (
-                        <>
-                          <Warning className="text-red-500 h-6 w-6 mb-1" />
-                          <p className="text-xs font-semibold text-zinc-200">Filamento Emperrado</p>
-                          <p className="text-[10px] text-zinc-400">Bico obstruído / Erro de telemetria</p>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="text-emerald-500 h-6 w-6 mb-1" />
-                          <p className="text-xs font-semibold text-zinc-200">Pronta para Produção</p>
-                          <p className="text-[10px] text-zinc-400">Aguardando arquivo GCode</p>
-                        </>
-                      )}
+                      <StatusIcon className={`${meta.icon} h-6 w-6 mb-1`} />
+                      <p className="text-xs font-semibold text-zinc-200">
+                        {printer.status === "maintenance" ? "Em manutenção"
+                          : printer.status === "error" ? "Falha na impressora"
+                          : printer.status === "offline" ? "Offline"
+                          : "Pronta para produção"}
+                      </p>
+                      <p className="text-[10px] text-zinc-400">
+                        {printer.status === "maintenance" ? "Fora de operação para manutenção"
+                          : printer.status === "error" ? "Verifique bico / telemetria"
+                          : printer.status === "offline" ? "Sem comunicação com a máquina"
+                          : "Aguardando arquivo GCode"}
+                      </p>
                     </div>
                   )}
 
-                  <div className="mt-4 pt-2 border-t border-zinc-800/40 flex justify-between items-center text-[10px] text-zinc-400">
-                    <span>Nozzle: {printer.status === "printing" ? "215°C" : "25°C"}</span>
-                    <span>Mesa: {printer.status === "printing" ? "60°C" : "25°C"}</span>
-                    <button 
-                      onClick={() => deletePrinter(printer.id)} 
-                      className="text-red-400 hover:text-red-500 transition-colors p-1"
-                    >
-                      <Trash size={12} />
-                    </button>
+                  <div className="mt-4 pt-2 border-t border-zinc-800/40 flex items-center justify-between text-[10px] text-zinc-400">
+                    <span>Bico: {live?.nozzleTemp != null ? `${live.nozzleTemp}°C` : "—"}</span>
+                    <span>Mesa: {live?.bedTemp != null ? `${live.bedTemp}°C` : "—"}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => refreshLive(printer)}
+                        disabled={pollingId === printer.id}
+                        title={`Atualizar status por IP (modo: ${printer.pollMode ?? "browser"})`}
+                        className="text-zinc-400 hover:text-orange-400 transition-colors p-1 disabled:opacity-40"
+                      >
+                        <ArrowsClockwise size={12} className={pollingId === printer.id ? "animate-spin" : ""} />
+                      </button>
+                      <button
+                        onClick={() => deletePrinter(printer.id)}
+                        className="text-red-400 hover:text-red-500 transition-colors p-1"
+                      >
+                        <Trash size={12} />
+                      </button>
+                    </div>
                   </div>
                 </Card>
               );
@@ -781,73 +710,75 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           </div>
         </Card>
 
-        {/* Dynamic List fallback for stock management */}
+        {/* Estoque de filamentos — por marca, com quantidade e soma por material */}
         <Card className="p-6 border-zinc-800/60 bg-zinc-950/40 backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
               <Package className="text-orange-500" />
-              Rendimento Insumos
+              Estoque de Filamentos
             </h2>
-            <Badge variant="outline" className="border-zinc-800 text-zinc-300">Resíduos</Badge>
+            <Badge variant="outline" className="border-emerald-500/20 text-emerald-400 bg-emerald-500/5 font-semibold">{(filamentTotalGrams / 1000).toFixed(1)} kg</Badge>
           </div>
 
-          <div className="space-y-4 overflow-y-auto max-h-[350px] pr-1 flex-1 scrollbar-none">
-            {filaments.map((filament) => {
-              const percentage = (filament.weightGrams / filament.initialWeightGrams) * 100;
-              const isLow = filament.weightGrams < filament.minWeightAlert;
-
-              return (
-                <div key={filament.id} className="space-y-1.5 p-2 rounded-xl hover:bg-zinc-900/35 border border-transparent hover:border-zinc-800/30 transition-all">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span 
-                        className="h-3.5 w-3.5 rounded-full border border-zinc-800 shadow-xs" 
-                        style={{ backgroundColor: filament.color }}
-                      />
-                      <div>
-                        <p className="text-xs font-semibold text-zinc-100">{filament.name}</p>
-                        <p className="text-[10px] text-zinc-400">{filament.material} | R$ {filament.costPerGram}/g</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-bold text-zinc-100">{filament.weightGrams}g</p>
-                      {isLow && (
-                        <span className="text-[9px] font-bold text-red-500 uppercase flex items-center gap-0.5 justify-end">
-                          <Warning size={10} />
-                          Baixo
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full transition-all duration-500 ${isLow ? "bg-red-500" : "bg-emerald-500"}`}
-                      style={{ width: `${Math.min(100, percentage)}%` }}
-                    />
-                  </div>
-                  
-                  <div className="flex justify-between items-center text-[9px] text-zinc-400">
-                    <span>Original: {filament.initialWeightGrams}g</span>
-                    <button 
-                      onClick={() => deleteFilament(filament.id)} 
-                      className="hover:text-red-500 transition-colors"
-                    >
-                      Remover spool
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-
-            {filaments.length === 0 && (
-              <div className="flex flex-col items-center justify-center p-8 border border-dashed border-zinc-800 rounded-xl text-center">
-                <Package className="h-10 w-10 text-zinc-500 mb-2" />
-                <p className="text-sm font-semibold text-zinc-200">Estoque vazio</p>
-                <p className="text-xs text-zinc-400">Adicione rolos de filamento para começar.</p>
+          {filaments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 border border-dashed border-zinc-800 rounded-xl text-center">
+              <Package className="h-10 w-10 text-zinc-500 mb-2" />
+              <p className="text-sm font-semibold text-zinc-200">Estoque vazio</p>
+              <p className="text-xs text-zinc-400">Adicione rolos de filamento para começar.</p>
+            </div>
+          ) : (
+            <>
+              <div className="max-h-[340px] overflow-y-auto overflow-x-auto scrollbar-none">
+                <table className="w-full text-left text-[11px]">
+                  <thead className="text-zinc-500 uppercase tracking-wider text-[9px]">
+                    <tr className="border-b border-zinc-800/60">
+                      <th className="py-2 pr-2">Marca</th>
+                      <th className="py-2 px-2">Material</th>
+                      <th className="py-2 px-2 text-right">Quantidade</th>
+                      <th className="py-2 px-2 text-right">Custo/g</th>
+                      <th className="py-2 pl-2 text-right"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filaments.map((f) => {
+                      const pct = f.initialWeightGrams > 0 ? (f.weightGrams / f.initialWeightGrams) * 100 : 0;
+                      const isLow = f.weightGrams < f.minWeightAlert;
+                      return (
+                        <tr key={f.id} className="border-b border-zinc-800/30 hover:bg-zinc-900/35 transition-colors">
+                          <td className="py-2 pr-2">
+                            <div className="flex items-center gap-2">
+                              <span className="h-3 w-3 shrink-0 rounded-full border border-zinc-800" style={{ backgroundColor: f.color }} />
+                              <span className="font-semibold text-zinc-100 truncate max-w-[130px]" title={f.name}>{f.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 text-zinc-400">{f.material || "—"}</td>
+                          <td className="py-2 px-2 text-right">
+                            <div className={`font-bold tabular-nums ${isLow ? "text-red-400" : "text-zinc-100"}`}>{f.weightGrams} g</div>
+                            <div className="ml-auto mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-zinc-900">
+                              <div className={`h-full ${isLow ? "bg-red-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                            </div>
+                          </td>
+                          <td className="py-2 px-2 text-right text-zinc-400 tabular-nums">R$ {f.costPerGram}</td>
+                          <td className="py-2 pl-2 text-right whitespace-nowrap">
+                            {isLow && <span className="mr-1 inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-red-500"><Warning size={9} />Baixo</span>}
+                            <button onClick={() => deleteFilament(f.id)} className="text-zinc-500 hover:text-red-500 transition-colors" title="Remover filamento"><Trash size={11} /></button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+              {/* Soma por material (total PLA, PETG, ...) */}
+              <div className="flex flex-wrap gap-2 border-t border-zinc-800/40 pt-3">
+                {Object.entries(stockByMaterial).sort((a, b) => b[1] - a[1]).map(([mat, g]) => (
+                  <span key={mat} className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-1 text-[10px] text-zinc-300">
+                    <span className="font-bold text-zinc-100">{mat}</span> · {(g / 1000).toFixed(g >= 1000 ? 1 : 2)} kg
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </Card>
       </div>
 
@@ -1062,9 +993,9 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="printer_depr">Depreciação (R$/h)</Label>
-                  <Input 
+                  <Input
                     id="printer_depr"
-                    type="number" 
+                    type="number"
                     step="0.05"
                     value={newPrinter.depreciationPerHour}
                     onChange={(e) => setNewPrinter({...newPrinter, depreciationPerHour: Number(e.target.value)})}
@@ -1072,6 +1003,46 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   />
                 </div>
               </div>
+
+              {/* Telemetria por IP (Moonraker/OctoPrint) */}
+              <div className="space-y-2">
+                <Label htmlFor="printer_url">IP / URL da impressora</Label>
+                <Input
+                  id="printer_url"
+                  placeholder="ex: http://192.168.0.50:7125 (Moonraker) ou http://192.168.0.50 (OctoPrint)"
+                  value={newPrinter.networkUrl}
+                  onChange={(e) => setNewPrinter({ ...newPrinter, networkUrl: e.target.value })}
+                  className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="printer_pollmode">Leitura de status</Label>
+                  <select
+                    id="printer_pollmode"
+                    value={newPrinter.pollMode}
+                    onChange={(e) => setNewPrinter({ ...newPrinter, pollMode: e.target.value as "browser" | "server" | "off" })}
+                    className="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 text-sm text-zinc-200 outline-none"
+                  >
+                    <option value="browser">Navegador (LAN)</option>
+                    <option value="server">Servidor (IP público)</option>
+                    <option value="off">Desligada</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="printer_apikey">API key (OctoPrint)</Label>
+                  <Input
+                    id="printer_apikey"
+                    placeholder="só p/ OctoPrint"
+                    value={newPrinter.apiKey}
+                    onChange={(e) => setNewPrinter({ ...newPrinter, apiKey: e.target.value })}
+                    className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-zinc-500">
+                Moonraker não precisa de key. Na LAN, use &quot;Navegador&quot; e habilite CORS no Moonraker (cors_domains). Detalhes em docs/printer-telemetry.md.
+              </p>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">

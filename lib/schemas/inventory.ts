@@ -22,6 +22,8 @@ export const inventoryAssetCreateSchema = z.object({
   purchaseDate: z.string().trim().max(10).nullable().optional(),
   usefulLifeMonths: z.coerce.number().int().min(1).max(1200).optional().default(60),
   status: inventoryStatusSchema.optional().default("ativo"),
+  /** Destino/uso do item (Produção, Manutenção, Revenda, Ferramenta, Peça, Insumo, Outro…). */
+  purpose: z.string().trim().max(60).optional().default(""),
   notes: z.string().trim().max(2000).optional().default(""),
 });
 

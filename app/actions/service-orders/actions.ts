@@ -13,6 +13,7 @@ import { revalidatePath } from "next/cache";
 
 export interface ServiceOrderView {
   id: string;
+  code: string | null;
   title: string;
   contactId: string | null;
   contactName: string | null;
@@ -28,7 +29,7 @@ export interface ServiceOrderView {
 }
 
 interface SoRow {
-  id: string; title: string; contact_id: string | null; contact_name: string | null;
+  id: string; code: string | null; title: string; contact_id: string | null; contact_name: string | null;
   status: SoStatus; priority: SoPriority | null; material: string | null;
   total_cents: number | string; qty: number | string; sla_due_at: string | null;
   slicer_notes: unknown; position: number | string; created_at: string;
@@ -37,6 +38,7 @@ interface SoRow {
 function mapRow(r: SoRow): ServiceOrderView {
   return {
     id: r.id,
+    code: r.code ?? null,
     title: r.title,
     contactId: r.contact_id,
     contactName: r.contact_name,

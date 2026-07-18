@@ -4,11 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import {
   computeReportBreakdowns,
-  type ReportBreakdowns, type FinRow, type SoRow, type MoRow, type ProjRow,
+  type FinRow, type SoRow, type MoRow, type ProjRow,
 } from "@/app/app/reports/_lib/breakdowns-compute";
-
-// Re-exporta os tipos para os consumidores existentes (page/ReportsClient).
-export type { ReportBreakdowns, Breakdown, BreakdownGroup, BreakdownKey, BreakdownDrillRow } from "@/app/app/reports/_lib/breakdowns-compute";
+import type { ReportBreakdowns } from "./types";
 
 /**
  * Breakdowns para os gráficos dinâmicos + drill-down dos Relatórios.

@@ -13,6 +13,7 @@ interface PrinterRow {
   client_id: string; name: string; status: string; power_draw: number | string;
   depreciation_per_hour: number | string; active_filament_id: string | null;
   active_print_job: unknown; network_url: string | null;
+  api_key: string | null; poll_mode: string | null;
 }
 interface FilamentRow {
   client_id: string; name: string; material: string | null; color: string | null;
@@ -39,6 +40,8 @@ function mapPrinter(r: PrinterRow) {
     activeFilamentId: r.active_filament_id,
     activePrintJob: r.active_print_job ?? null,
     networkUrl: r.network_url ?? "",
+    apiKey: r.api_key ?? "",
+    pollMode: (r.poll_mode ?? "browser") as "browser" | "server" | "off",
   };
 }
 function mapFilament(r: FilamentRow) {
@@ -149,6 +152,8 @@ export async function savePrintersAndFilaments(
     active_filament_id: p.activeFilamentId ?? null,
     active_print_job: p.activePrintJob ?? null,
     network_url: p.networkUrl,
+    api_key: p.apiKey || null,
+    poll_mode: p.pollMode,
     created_by: authUser.id,
     updated_at: nowIso,
   }));

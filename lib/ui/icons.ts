@@ -19,6 +19,8 @@ export {
   Robot,
   ShieldCheck,
   Gear,
+  Wrench,
+  Lightning,
   House,
   // admin platform
   Buildings,
@@ -90,6 +92,12 @@ export {
   ChartLineUp,
   FolderOpen,
   Calculator,
+  // sales shell (E1)
+  Funnel,
+  DownloadSimple,
+  Table,
+  Rows,
+  BookmarkSimple,
   // misc
   DotsThree,
   CaretDown,

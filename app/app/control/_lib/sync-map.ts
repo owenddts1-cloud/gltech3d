@@ -42,26 +42,44 @@ export interface SaleTarget {
   osTitle: string;
 }
 
-export interface ToolTarget {
+/** Item de inventário derivado do Controle: ferramentas, insumos e peças. */
+export interface InventoryTarget {
   name: string;
   purchaseValueCents: number;
   quantity: number;
   purchaseDate: string | null;
+  /** Categoria do inventory_assets (check: só 'ferramenta' ou 'outro' aqui). */
+  category: "ferramenta" | "outro";
+  /** Destino/uso (Ferramenta, Insumo, Peça…). */
+  purpose: string;
 }
 
-export interface ConsumableTarget {
+/** Filamento → tabela `filaments` (módulo Impressoras & Filamentos). */
+export interface FilamentTarget {
+  /** Idempotência: unique (org, client_id). Estável por nome. */
+  clientId: string;
   name: string;
-  stockGrams: number;
-  costPerKgCents: number;
+  weightGrams: number;
+  costPerGram: number;
+  minWeightAlert: number;
 }
 
 export interface SyncPlan {
   sales: SaleTarget[];
   /** Nomes de clientes únicos (das vendas) para virar contatos. */
   contactNames: string[];
-  tools: ToolTarget[];
-  consumables: ConsumableTarget[];
+  /** Ferramentas + Insumos + Peças → inventory_assets (classificados por purpose). */
+  inventory: InventoryTarget[];
+  /** Filamentos → tabela `filaments` (Impressoras & Filamentos). */
+  filaments: FilamentTarget[];
 }
+
+/**
+ * Nomes de cliente que são o DONO da oficina — não viram contato no Sincronizar.
+ * O Guilherme ("Gui") entrou como contato pelo formulário da landing; não deve
+ * ser recriado como cliente ao sincronizar as vendas. Edite esta lista se mudar.
+ */
+export const SYNC_OWNER_NAMES = ["gui"];
 
 const num = (v: unknown): number => (v == null ? 0 : Number(v) || 0);
 const norm = (s: string | null | undefined): string => (s ?? "").trim();
@@ -86,12 +104,23 @@ function parseSale(desc: string): { product: string; client: string } {
   return { product: desc || "Venda", client: "" };
 }
 
+const isOwner = (name: string): boolean => SYNC_OWNER_NAMES.includes(name.trim().toLowerCase());
+
+/** Categorias do Controle que viram item de inventário, com categoria + destino. */
+const INVENTORY_CATEGORY_MAP: Record<string, { category: "ferramenta" | "outro"; purpose: string }> = {
+  Ferramentas: { category: "ferramenta", purpose: "Ferramenta" },
+  Insumo: { category: "outro", purpose: "Insumo" },
+  Insumos: { category: "outro", purpose: "Insumo" },
+  Peças: { category: "outro", purpose: "Peça" },
+  Pecas: { category: "outro", purpose: "Peça" },
+};
+
 /** Monta o plano de sincronização a partir das linhas da planilha. Deduplica dentro do plano. */
 export function planControlSync(rows: SyncSourceRow[]): SyncPlan {
   const sales: SaleTarget[] = [];
   const contactSet = new Set<string>();
-  const toolByName = new Map<string, ToolTarget>();
-  const consumableByName = new Map<string, ConsumableTarget>();
+  const inventoryByName = new Map<string, InventoryTarget>();
+  const filamentByName = new Map<string, FilamentTarget>();
 
   for (const r of rows) {
     const category = norm(r.category);
@@ -110,33 +139,41 @@ export function planControlSync(rows: SyncSourceRow[]): SyncPlan {
         soldAt: r.date,
         osTitle: product,
       });
-      if (client) contactSet.add(customerName);
+      // Cria contato só se há cliente de verdade e não é o dono (Gui).
+      if (client && !isOwner(client)) contactSet.add(customerName);
       continue;
     }
 
-    // ── Ferramentas → inventário (dedup por nome) ──
-    if (category === "Ferramentas" && desc) {
+    // ── Ferramentas / Insumos / Peças → inventário (classificado por purpose; dedup por nome) ──
+    const invMap = INVENTORY_CATEGORY_MAP[category];
+    if (invMap && desc) {
       const key = desc.toLowerCase();
-      if (!toolByName.has(key)) {
-        toolByName.set(key, {
+      if (!inventoryByName.has(key)) {
+        inventoryByName.set(key, {
           name: desc,
           purchaseValueCents: num(r.expense_cents),
           quantity: Math.max(1, Math.round(num(r.quantity)) || 1),
           purchaseDate: r.date || null,
+          category: invMap.category,
+          purpose: invMap.purpose,
         });
       }
       continue;
     }
 
-    // ── Filamentos → consumíveis (dedup por nome; assume bobina de 1kg) ──
+    // ── Filamentos → tabela `filaments` (dedup por nome; assume bobina de 1kg) ──
     if (category === "Filamentos" && desc) {
       const key = desc.toLowerCase();
-      if (!consumableByName.has(key)) {
+      if (!filamentByName.has(key)) {
         const qty = Math.max(1, Math.round(num(r.quantity)) || 1);
-        consumableByName.set(key, {
+        const grams = qty * 1000;
+        filamentByName.set(key, {
+          clientId: `ctrl:${key}`,
           name: desc,
-          stockGrams: qty * 1000,
-          costPerKgCents: Math.round(num(r.expense_cents) / qty),
+          weightGrams: grams,
+          // custo por grama em reais: (despesa total em R$) ÷ gramas.
+          costPerGram: grams > 0 ? Math.round(((num(r.expense_cents) / 100) / grams) * 10000) / 10000 : 0,
+          minWeightAlert: 0,
         });
       }
       continue;
@@ -146,7 +183,7 @@ export function planControlSync(rows: SyncSourceRow[]): SyncPlan {
   return {
     sales,
     contactNames: Array.from(contactSet),
-    tools: Array.from(toolByName.values()),
-    consumables: Array.from(consumableByName.values()),
+    inventory: Array.from(inventoryByName.values()),
+    filaments: Array.from(filamentByName.values()),
   };
 }

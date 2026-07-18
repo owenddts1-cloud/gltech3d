@@ -2,6 +2,7 @@
   "name": "deskcomm-crm",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
   "description": "DeskcommCRM — CRM operacional multi-tenant para e-commerce com IA conversacional, WhatsApp via WAHA e LGPD nativa.",
   "engines": {
     "node": ">=20"
@@ -16,7 +17,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,css}\"",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "echo 'TODO: wire supabase db push or pg-migrate' && exit 0",
+    "db:migrate": "supabase db push",
+    "db:migrate:dry": "supabase db push --dry-run",
     "db:reset": "supabase db reset",
     "test:e2e": "playwright test",
     "test:unit": "vitest run"
@@ -104,6 +106,7 @@
     "postcss": "^8.4.47",
     "prettier": "^3.3.3",
     "prettier-plugin-tailwindcss": "^0.6.8",
+    "rimraf": "^2.7.1",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.0",
     "vitest": "^2.1.9"

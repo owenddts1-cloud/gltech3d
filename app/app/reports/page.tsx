@@ -1,5 +1,6 @@
 import { fetchReportsData, type ReportsData } from "@/app/actions/reports/actions";
-import { fetchReportBreakdowns, type ReportBreakdowns } from "@/app/actions/reports/breakdowns";
+import { fetchReportBreakdowns } from "@/app/actions/reports/breakdowns";
+import type { ReportBreakdowns } from "@/app/actions/reports/types";
 import { ReportsClient } from "./_components/ReportsClient";
 
 export const metadata = { title: "Relatórios" };

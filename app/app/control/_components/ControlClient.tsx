@@ -233,6 +233,11 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
 
         setSelectedRowId(prev => (prev ? swapId(prev) : null));
         if (!silent) toast.success("Planilha salva com sucesso!");
+        // Sincronização automática ao salvar (escolha do usuário): propaga em segundo plano
+        // para Vendas/Contatos/O.S./Inventário/Consumíveis. Silenciosa; só avisa em erro.
+        void syncControlToModules().then((r) => {
+          if (!r.ok) toast.error("Sincronização automática falhou: " + r.error);
+        });
       } else {
         toast.error("Erro ao salvar planilha: " + res.error);
       }
@@ -418,8 +423,8 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
         r.salesUpdated ? `${r.salesUpdated} venda(s) atualizada(s)` : null,
         r.contactsCreated ? `${r.contactsCreated} contato(s)` : null,
         osTotal ? `${osTotal} O.S.` : null,
-        r.toolsCreated ? `${r.toolsCreated} ferramenta(s)` : null,
-        r.consumablesCreated ? `${r.consumablesCreated} consumível(is)` : null,
+        r.toolsCreated ? `${r.toolsCreated} item(ns) de inventário` : null,
+        r.filamentsCreated ? `${r.filamentsCreated} filamento(s)` : null,
       ].filter(Boolean);
       toast.success(parts.length ? `Sincronizado: ${parts.join(", ")}.` : "Nada novo para sincronizar.");
     } catch (err) {

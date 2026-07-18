@@ -94,6 +94,7 @@ export function ConsumablesClient({ data, embedded = false }: { data: Consumable
                   <th className="py-3 px-3">Nome</th>
                   <th className="py-3 px-3">Categoria</th>
                   <th className="py-3 px-3">Material / Cor</th>
+                  <th className="py-3 px-3">Destino</th>
                   <th className="py-3 px-3 text-right">Estoque</th>
                   <th className="py-3 px-3 text-right">Custo/kg</th>
                   <th className="py-3 px-3 text-right">Valor</th>
@@ -108,6 +109,7 @@ export function ConsumablesClient({ data, embedded = false }: { data: Consumable
                     </td>
                     <td className="py-3 px-3"><Badge variant="secondary" className="font-normal">{CAT_LABEL[it.category]}</Badge></td>
                     <td className="py-3 px-3 text-muted-foreground">{[it.material, it.color].filter(Boolean).join(" · ") || "—"}</td>
+                    <td className="py-3 px-3 text-muted-foreground">{it.purpose || "—"}</td>
                     <td className="py-3 px-3 text-right font-mono">
                       <span className={it.low ? "text-amber-600 dark:text-amber-400 font-bold" : "text-foreground"}>{kg(it.stockGrams)}</span>
                       {it.low && <Badge variant="secondary" className="ml-1.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[9px]">baixo</Badge>}
@@ -171,7 +173,7 @@ function ConsumableDialog({ open, onOpenChange, editing, onSaved }: {
       const payload = {
         name: f.name.trim(), category: f.category, material: f.material, color: f.color,
         stockGrams: Number(f.stockGrams) || 0, minStockGrams: Number(f.minStockGrams) || 0,
-        costPerKg: Number(f.costPerKg) || 0, supplier: f.supplier, notes: f.notes,
+        costPerKg: Number(f.costPerKg) || 0, supplier: f.supplier, purpose: f.purpose, notes: f.notes,
       };
       const res = editing ? await updateConsumable(editing.id, payload) : await createConsumable(payload);
       if (!res.ok) { toast.error(res.error || "Erro ao salvar"); return; }
@@ -200,6 +202,13 @@ function ConsumableDialog({ open, onOpenChange, editing, onSaved }: {
             <div className="space-y-1.5"><Label>Estoque (g)</Label><Input inputMode="decimal" value={f.stockGrams} onChange={set("stockGrams")} className="h-9 rounded-lg" /></div>
             <div className="space-y-1.5"><Label>Mínimo (g)</Label><Input inputMode="decimal" value={f.minStockGrams} onChange={set("minStockGrams")} className="h-9 rounded-lg" /></div>
             <div className="space-y-1.5"><Label>Custo (R$/kg)</Label><Input inputMode="decimal" value={f.costPerKg} onChange={set("costPerKg")} className="h-9 rounded-lg" /></div>
+            <div className="space-y-1.5">
+              <Label>Destino / Uso</Label>
+              <Input list="cons-purpose-list" value={f.purpose} onChange={set("purpose")} placeholder="Ex: Consumo, Produção..." className="h-9 rounded-lg" />
+              <datalist id="cons-purpose-list">
+                {["Consumo", "Produção", "Revenda", "Outro"].map((p) => <option key={p} value={p} />)}
+              </datalist>
+            </div>
           </div>
           <div className="space-y-1.5"><Label>Notas</Label><Input value={f.notes} onChange={set("notes")} className="h-9 rounded-lg" /></div>
         </div>
@@ -222,6 +231,7 @@ function defaults(editing: ConsumableView | null) {
     minStockGrams: String(editing?.minStockGrams ?? ""),
     costPerKg: editing ? String(editing.costPerKgCents / 100) : "",
     supplier: editing?.supplier ?? "",
+    purpose: editing?.purpose ?? "",
     notes: editing?.notes ?? "",
   };
 }

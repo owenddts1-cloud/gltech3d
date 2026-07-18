@@ -28,6 +28,9 @@ const CATEGORY_LABEL: Record<InventoryCategory, string> = {
   computador: "Computador", estufa: "Estufa", eletronico: "Eletrônico", outro: "Outro",
 };
 
+/** Sugestões de destino/uso (o campo é livre — datalist só sugere). */
+const PURPOSE_SUGGESTIONS = ["Produção", "Manutenção", "Revenda", "Consumo", "Ferramenta", "Peça", "Insumo", "Outro"];
+
 const STATUS_META: Record<InventoryStatus, { label: string; variant: "success" | "warning" | "neutral" }> = {
   ativo: { label: "Ativo", variant: "success" },
   manutencao: { label: "Manutenção", variant: "warning" },
@@ -128,6 +131,7 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
                 <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-3">Ativo</th>
                   <th className="px-4 py-3">Categoria</th>
+                  <th className="px-4 py-3">Destino/Uso</th>
                   <th className="px-4 py-3 text-right">Qtd</th>
                   <th className="px-4 py-3 text-right">Valor compra</th>
                   <th className="px-4 py-3 text-right">Valor atual</th>
@@ -139,7 +143,11 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
                 {assets.map((a) => {
                   const s = STATUS_META[a.status];
                   return (
-                    <tr key={a.id} className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/40">
+                    <tr
+                      key={a.id}
+                      onClick={() => { setEditing(a); setDialogOpen(true); }}
+                      className="cursor-pointer border-b border-border/50 transition-colors last:border-0 hover:bg-muted/40"
+                    >
                       <td className="px-4 py-3">
                         <div className="font-medium text-foreground">{a.name}</div>
                         {a.notes && <div className="truncate max-w-[240px] text-xs text-muted-foreground">{a.notes}</div>}
@@ -147,6 +155,7 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
                       <td className="px-4 py-3">
                         <Badge variant="neutral" className="text-[10px]">{CATEGORY_LABEL[a.category]}</Badge>
                       </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{a.purpose || "—"}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{a.quantity}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-foreground">{brl(a.totalValueCents)}</td>
                       <td className="px-4 py-3 text-right tabular-nums font-semibold text-foreground">{brl(a.currentValueCents)}</td>
@@ -154,14 +163,14 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => { setEditing(a); setDialogOpen(true); }}
+                            onClick={(e) => { e.stopPropagation(); setEditing(a); setDialogOpen(true); }}
                             className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             aria-label="Editar"
                           >
                             <PencilSimple size={14} />
                           </button>
                           <button
-                            onClick={() => onDelete(a.id)}
+                            onClick={(e) => { e.stopPropagation(); onDelete(a.id); }}
                             className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-500"
                             aria-label="Excluir"
                           >
@@ -221,6 +230,7 @@ function AssetDialog({
   const [purchaseDate, setPurchaseDate] = useState("");
   const [usefulLifeMonths, setUsefulLifeMonths] = useState("60");
   const [status, setStatus] = useState<InventoryStatus>("ativo");
+  const [purpose, setPurpose] = useState("");
   const [notes, setNotes] = useState("");
 
   // Popula o form ao abrir (novo x edição).
@@ -234,10 +244,11 @@ function AssetDialog({
       setPurchaseDate(editing.purchaseDate ?? "");
       setUsefulLifeMonths(String(editing.usefulLifeMonths));
       setStatus(editing.status);
+      setPurpose(editing.purpose);
       setNotes(editing.notes);
     } else {
       setName(""); setCategory("outro"); setQuantity("1"); setPurchaseValue("");
-      setPurchaseDate(""); setUsefulLifeMonths("60"); setStatus("ativo"); setNotes("");
+      setPurchaseDate(""); setUsefulLifeMonths("60"); setStatus("ativo"); setPurpose(""); setNotes("");
     }
   }, [open, editing]);
 
@@ -251,6 +262,7 @@ function AssetDialog({
       purchaseDate: purchaseDate || null,
       usefulLifeMonths: Number(usefulLifeMonths) || 60,
       status,
+      purpose: purpose.trim(),
       notes: notes.trim(),
     };
     startTransition(async () => {
@@ -312,6 +324,13 @@ function AssetDialog({
               <Label htmlFor="inv-life">Vida útil (meses)</Label>
               <Input id="inv-life" inputMode="numeric" value={usefulLifeMonths} onChange={(e) => setUsefulLifeMonths(e.target.value)} className="h-9 rounded-lg" />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="inv-purpose">Destino / Uso</Label>
+            <Input id="inv-purpose" list="inv-purpose-list" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Ex: Produção, Manutenção, Revenda, Peça..." className="h-9 rounded-lg" />
+            <datalist id="inv-purpose-list">
+              {PURPOSE_SUGGESTIONS.map((p) => <option key={p} value={p} />)}
+            </datalist>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="inv-notes">Notas</Label>

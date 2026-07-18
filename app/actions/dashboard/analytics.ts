@@ -60,16 +60,39 @@ export interface ActivityRow {
   at: string;
 }
 
+export interface ActiveOrderRow {
+  id: string;
+  title: string;
+  contactName: string;
+  status: string;
+  totalCents: number;
+  slaDueAt: string | null;
+}
+
 export interface DashboardData {
   period: Period;
+  welcomeName: string;
   kpis: {
     faturamentoCents: Kpi;
     pedidosConcluidos: Kpi;
     osAtivas: Kpi;
     lucroLiquidoCents: Kpi;
+    totalVendas: Kpi;
+    ticketMedioCents: Kpi;
   };
+  inventory: {
+    productsValueCents: number;
+    productsCount: number;
+    filamentValueCents: number;
+    filamentSpools: number;
+    potentialProfitCents: number;
+    investedCents: number;
+  };
+  channelSeries: { name: string; value: number; cents: number }[];
+  /** O.S. em andamento (status ≠ concluido), independente do período. */
+  activeOrders: ActiveOrderRow[];
   /** Gráfico 1 — faturamento vs. despesa por bucket. */
-  salesSeries: { label: string; faturamento: number; despesa: number }[];
+  salesSeries: { label: string; faturamento: number; despesa: number; lucro: number }[];
   /** Gráfico 2 — O.S. criadas vs. concluídas por bucket. */
   osSeries: { label: string; criadas: number; concluidas: number }[];
   salesRows: SalesRow[];
@@ -102,6 +125,21 @@ interface SoRow {
   updated_at: string | null;
   /** Só existe depois da migration 0043 — undefined em banco sem ela. */
   concluded_at?: string | null;
+}
+
+interface ProductStockRow {
+  sale_price_cents: number | string | null;
+  stock_qty: number | string | null;
+  filament_grams: number | string | null;
+  filament_client_id: string | null;
+}
+
+interface FilamentStockRow {
+  client_id: string;
+  name: string;
+  weight_grams: number | string | null;
+  cost_per_gram: number | string | null;
+  min_weight_alert: number | string | null;
 }
 
 export async function fetchDashboardData(
@@ -143,18 +181,22 @@ export async function fetchDashboardData(
       .gte("completed_at", sinceIso)
       .order("completed_at", { ascending: false })
       .limit(30),
-    supabase.from("filaments").select("name, weight_grams, min_weight_alert"),
+    supabase.from("filaments").select("client_id, name, weight_grams, cost_per_gram, min_weight_alert"),
     // Venda ligada a cada O.S. (plataforma + data da venda). Existe após a migration 0048.
     supabase
       .from("marketplace_orders")
       .select("service_order_id, platform, sold_at, customer_name")
       .not("service_order_id", "is", null),
   ]);
+  const productsRes = await supabase
+    .from("products")
+    .select("sale_price_cents, stock_qty, filament_grams, filament_client_id");
 
   const fin = (finRes.data as FinRow[] | null) ?? [];
   const os = (osRes.data as SoRow[] | null) ?? [];
   const jobs = (jobsRes.data as Array<{ filename: string | null; printer_name: string | null; completed_at: string }> | null) ?? [];
-  const filaments = (filRes.data as Array<{ name: string; weight_grams: number | string; min_weight_alert: number | string }> | null) ?? [];
+  const filaments = (filRes.data as FilamentStockRow[] | null) ?? [];
+  const products = (productsRes.data as ProductStockRow[] | null) ?? [];
   // Mapa O.S. → venda (plataforma + data). Só O.S. geradas pelo Sincronizar têm venda ligada.
   const moBySo = new Map<string, { platform: string | null; soldAt: string | null; customerName: string | null }>();
   for (const m of (moRes.data as Array<{ service_order_id: string | null; platform: string | null; sold_at: string | null; customer_name: string | null }> | null) ?? []) {
@@ -199,6 +241,39 @@ export async function fetchDashboardData(
   const lucroAtual = faturamentoAtual - despesaAtual;
   const lucroPrev = faturamentoPrev - despesaPrev;
 
+  const salesCurrent = fin.filter((r) => r.type === "Receita" && inCurrent(new Date(`${r.date}T00:00:00`)));
+  const salesPrevious = fin.filter((r) => r.type === "Receita" && inPrevious(new Date(`${r.date}T00:00:00`)));
+  const ticketAtual = salesCurrent.length > 0 ? faturamentoAtual / salesCurrent.length : 0;
+  const ticketPrev = salesPrevious.length > 0 ? faturamentoPrev / salesPrevious.length : 0;
+
+  const filamentCostById = new Map(filaments.map((f) => [f.client_id, num(f.cost_per_gram)]));
+  const productsValueCents = products.reduce(
+    (sum, p) => sum + num(p.sale_price_cents) * Math.max(0, num(p.stock_qty)),
+    0,
+  );
+  // `cost_per_gram` é REAIS por grama → o produto grams×custo dá REAIS; ×100 p/ cents.
+  const productMaterialCostReais = products.reduce(
+    (sum, p) => sum + num(p.filament_grams) * (filamentCostById.get(p.filament_client_id ?? "") ?? 0) * Math.max(0, num(p.stock_qty)),
+    0,
+  );
+  const filamentValueReais = filaments.reduce(
+    (sum, f) => sum + num(f.weight_grams) * num(f.cost_per_gram),
+    0,
+  );
+  const productMaterialCostCents = Math.round(productMaterialCostReais * 100);
+  const filamentValueCents = Math.round(filamentValueReais * 100);
+  const potentialProfitCents = Math.max(0, productsValueCents - productMaterialCostCents);
+  const investedCents = Math.max(0, productMaterialCostCents + filamentValueCents);
+
+  const channels = new Map<string, number>();
+  for (const r of salesCurrent) {
+    const label = (r.platform || "Direto / B2B").trim();
+    channels.set(label, (channels.get(label) ?? 0) + num(r.revenue_cents));
+  }
+  const channelSeries = Array.from(channels.entries())
+    .map(([name, cents]) => ({ name, cents, value: Math.round((cents / 100) * 100) / 100 }))
+    .sort((a, b) => b.cents - a.cents);
+
   // ── Séries ──────────────────────────────────────────────────────────────
   const salesMap = new Map(buckets.map((b) => [b.key, { faturamento: 0, despesa: 0 }]));
   for (const r of fin) {
@@ -234,6 +309,7 @@ export async function fetchDashboardData(
     label: b.label,
     faturamento: Math.round((salesMap.get(b.key)?.faturamento ?? 0) * 100) / 100,
     despesa: Math.round((salesMap.get(b.key)?.despesa ?? 0) * 100) / 100,
+    lucro: Math.round(((salesMap.get(b.key)?.faturamento ?? 0) - (salesMap.get(b.key)?.despesa ?? 0)) * 100) / 100,
   }));
   const osSeries = buckets.map((b) => ({
     label: b.label,
@@ -313,16 +389,47 @@ export async function fetchDashboardData(
   }
   activities.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
+  // O.S. em andamento (todas as ativas, não só do período) — para o painel do dashboard.
+  const activeOrders: ActiveOrderRow[] = os
+    .filter((o) => o.status !== "concluido")
+    .map((o) => ({
+      id: o.id,
+      title: o.title ?? "Sem título",
+      contactName: o.contact_name || moBySo.get(o.id)?.customerName || "—",
+      status: o.status,
+      totalCents: num(o.total_cents),
+      slaDueAt: o.sla_due_at,
+    }))
+    .sort((a, b) => {
+      // Em risco (SLA vencido/próximo) primeiro; depois por prazo mais próximo.
+      const da = a.slaDueAt ? new Date(a.slaDueAt).getTime() : Infinity;
+      const db = b.slaDueAt ? new Date(b.slaDueAt).getTime() : Infinity;
+      return da - db;
+    });
+
   return {
     ok: true,
     data: {
       period,
+      welcomeName: authUser.email?.split("@")[0] || "equipe GLTech3D",
+      activeOrders,
       kpis: {
         faturamentoCents: { value: faturamentoAtual, changePct: pctChange(faturamentoAtual, faturamentoPrev) },
         pedidosConcluidos: { value: concluidasAtual, changePct: pctChange(concluidasAtual, concluidasPrev) },
         osAtivas: { value: osAtivasAgora, changePct: pctChange(osAtivasAgora, osAtivasAntes) },
         lucroLiquidoCents: { value: lucroAtual, changePct: pctChange(lucroAtual, lucroPrev) },
+        totalVendas: { value: salesCurrent.length, changePct: pctChange(salesCurrent.length, salesPrevious.length) },
+        ticketMedioCents: { value: ticketAtual, changePct: pctChange(ticketAtual, ticketPrev) },
       },
+      inventory: {
+        productsValueCents,
+        productsCount: products.reduce((sum, p) => sum + Math.max(0, Math.round(num(p.stock_qty))), 0),
+        filamentValueCents,
+        filamentSpools: filaments.length,
+        potentialProfitCents,
+        investedCents,
+      },
+      channelSeries,
       salesSeries,
       osSeries,
       salesRows,

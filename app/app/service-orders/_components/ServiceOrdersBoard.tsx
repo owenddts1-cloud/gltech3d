@@ -20,9 +20,10 @@ import {
   Warning,
   MagnifyingGlass,
   Cube,
+  PencilSimple,
 } from "@/lib/ui/icons";
 import {
-  createServiceOrder, updateServiceOrderStatus, deleteServiceOrder,
+  createServiceOrder, updateServiceOrderStatus, updateServiceOrder, deleteServiceOrder,
   type ServiceOrderView,
 } from "@/app/actions/service-orders/actions";
 import { SO_STATUSES, type SoStatus, type SoPriority } from "@/lib/schemas/service-orders";
@@ -35,6 +36,8 @@ const COLUMNS: { id: SoStatus; label: string; accent: string; bgClass: string; b
   { id: "pronto_entrega", label: "Pronto p/ Entrega", accent: "#3B82F6", bgClass: "bg-blue-500/[0.02] dark:bg-blue-500/[0.01]", borderClass: "border-blue-500/10 hover:border-blue-500/20", dotClass: "bg-blue-500" },
   { id: "concluido", label: "Concluído", accent: "#10B981", bgClass: "bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]", borderClass: "border-emerald-500/10 hover:border-emerald-500/20", dotClass: "bg-emerald-500" },
 ];
+
+const STATUS_LABEL = Object.fromEntries(COLUMNS.map((c) => [c.id, c.label])) as Record<SoStatus, string>;
 
 const PRIORITY_META: Record<SoPriority, { label: string; cls: string }> = {
   alta: { label: "Alta", cls: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20" },
@@ -56,13 +59,21 @@ function slaInfo(iso: string | null, status: SoStatus): { label: string; tone: s
 interface Props {
   initialOrders: ServiceOrderView[];
   contacts: Array<{ id: string; name: string | null }>;
+  /** Abre o detalhe desta O.S. ao montar (deep-link ?os=<id> vindo do Dashboard). */
+  openOsId?: string;
 }
 
-export function ServiceOrdersBoard({ initialOrders, contacts }: Props) {
+export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props) {
   const [orders, setOrders] = useState<ServiceOrderView[]>(initialOrders);
   const [, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  // Filtros
+  const [priorityFilter, setPriorityFilter] = useState<"todas" | SoPriority>("todas");
+  const [clientFilter, setClientFilter] = useState<string>("todos");
+  const [riskOnly, setRiskOnly] = useState(false);
+  // Detalhe/edição de uma O.S.
+  const [detailOrder, setDetailOrder] = useState<ServiceOrderView | null>(null);
   // Prefill vindo do simulador de Projetos ("Copiar e Gerar OS"). Antes o
   // ProjectsClient gravava esta chave e nada a lia — o dado era descartado.
   const [prefill, setPrefill] = useState<{ title?: string; notes?: string; total?: number } | null>(
@@ -82,16 +93,36 @@ export function ServiceOrdersBoard({ initialOrders, contacts }: Props) {
     }
   }, []);
 
-  // Filter orders by search term (searches titles & contact names)
+  // Abre o detalhe quando chega com ?os=<id> (deep-link do Dashboard).
+  useEffect(() => {
+    if (!openOsId) return;
+    const o = orders.find((x) => x.id === openOsId);
+    if (o) setDetailOrder(o);
+    // roda só uma vez por id vindo do servidor
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openOsId]);
+
+  // Lista de clientes presentes nas O.S. (para o filtro).
+  const clientOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of orders) if (o.contactName) set.add(o.contactName);
+    return Array.from(set).sort();
+  }, [orders]);
+
+  // Filtros: busca (título/cliente) + prioridade + cliente + SLA em risco.
   const filteredOrders = useMemo(() => {
-    if (!searchTerm.trim()) return orders;
-    const term = searchTerm.toLowerCase();
-    return orders.filter(
-      (o) =>
-        o.title.toLowerCase().includes(term) ||
-        (o.contactName && o.contactName.toLowerCase().includes(term))
-    );
-  }, [orders, searchTerm]);
+    const term = searchTerm.trim().toLowerCase();
+    return orders.filter((o) => {
+      if (term && !(o.title.toLowerCase().includes(term) || (o.contactName?.toLowerCase().includes(term)))) return false;
+      if (priorityFilter !== "todas" && o.priority !== priorityFilter) return false;
+      if (clientFilter !== "todos" && o.contactName !== clientFilter) return false;
+      if (riskOnly) {
+        const info = slaInfo(o.slaDueAt, o.status);
+        if (!(info?.tone.includes("rose") || info?.tone.includes("amber"))) return false;
+      }
+      return true;
+    });
+  }, [orders, searchTerm, priorityFilter, clientFilter, riskOnly]);
 
   // Group by status
   const byStatus = useMemo(() => {
@@ -241,6 +272,47 @@ export function ServiceOrdersBoard({ initialOrders, contacts }: Props) {
         </Card>
       </div>
 
+      {/* ─── Filtros ─── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Filtros:</span>
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value as "todas" | SoPriority)}
+          className="h-8 rounded-lg border border-border bg-surface px-2.5 text-xs outline-none focus:ring-2 focus:ring-accent/20"
+        >
+          <option value="todas">Toda prioridade</option>
+          <option value="alta">Alta</option>
+          <option value="media">Média</option>
+          <option value="baixa">Baixa</option>
+        </select>
+        <select
+          value={clientFilter}
+          onChange={(e) => setClientFilter(e.target.value)}
+          className="h-8 max-w-[180px] rounded-lg border border-border bg-surface px-2.5 text-xs outline-none focus:ring-2 focus:ring-accent/20"
+        >
+          <option value="todos">Todos os clientes</option>
+          {clientOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <button
+          type="button"
+          onClick={() => setRiskOnly((v) => !v)}
+          aria-pressed={riskOnly}
+          className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors ${riskOnly ? "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400" : "border-border bg-surface text-muted-foreground hover:text-foreground"}`}
+        >
+          <Warning size={13} /> Só em risco
+        </button>
+        {(priorityFilter !== "todas" || clientFilter !== "todos" || riskOnly || searchTerm) && (
+          <button
+            type="button"
+            onClick={() => { setPriorityFilter("todas"); setClientFilter("todos"); setRiskOnly(false); setSearchTerm(""); }}
+            className="h-8 rounded-lg px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            Limpar
+          </button>
+        )}
+        <span className="ml-auto text-[11px] text-muted-foreground">{filteredOrders.length} O.S.</span>
+      </div>
+
       {/* ─── Board ─── */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-2">
@@ -296,7 +368,8 @@ export function ServiceOrdersBoard({ initialOrders, contacts }: Props) {
                               ref={dp.innerRef}
                               {...dp.draggableProps}
                               {...dp.dragHandleProps}
-                              className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border bg-surface p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${
+                              onClick={() => setDetailOrder(o)}
+                              className={`group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-xl border bg-surface p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md ${
                                 ds.isDragging 
                                   ? "rotate-[1deg] shadow-lg ring-2 ring-accent/30 scale-105 border-accent bg-surface-elevated"
                                   : "border-border"
@@ -313,16 +386,25 @@ export function ServiceOrdersBoard({ initialOrders, contacts }: Props) {
                                   <h3 className="line-clamp-2 text-xs font-bold text-foreground leading-snug tracking-tight group-hover:text-accent transition-colors">
                                     {o.title}
                                   </h3>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onDelete(o.id);
-                                    }}
-                                    className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 p-1 rounded-lg"
-                                    aria-label="Excluir OS"
-                                  >
-                                    <Trash size={12} />
-                                  </button>
+                                  <div className="flex items-center gap-0.5">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setDetailOrder(o); }}
+                                      className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 text-muted-foreground hover:text-accent hover:bg-accent-soft p-1 rounded-lg"
+                                      aria-label="Ver/editar OS"
+                                    >
+                                      <PencilSimple size={12} />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelete(o.id);
+                                      }}
+                                      className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 p-1 rounded-lg"
+                                      aria-label="Excluir OS"
+                                    >
+                                      <Trash size={12} />
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {/* Customer details with overlapping gradient avatar */}
@@ -391,8 +473,157 @@ export function ServiceOrdersBoard({ initialOrders, contacts }: Props) {
           ))}
         </div>
       </DragDropContext>
+
+      {/* Detalhe / edição de uma O.S. */}
+      <OsEditDialog
+        order={detailOrder}
+        contacts={contacts}
+        onOpenChange={(v) => { if (!v) setDetailOrder(null); }}
+        onSaved={(patched) => {
+          setOrders((prev) => prev.map((o) => (o.id === patched.id ? patched : o)));
+          setDetailOrder(null);
+        }}
+      />
     </div>
   );
+}
+
+function OsEditDialog({
+  order, contacts, onOpenChange, onSaved,
+}: {
+  order: ServiceOrderView | null;
+  contacts: Array<{ id: string; name: string | null }>;
+  onOpenChange: (v: boolean) => void;
+  onSaved: (o: ServiceOrderView) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [f, setF] = useState(() => formFromOrder(order));
+  const [lastId, setLastId] = useState<string | null>(order?.id ?? null);
+  // Re-sincroniza o form quando abre para outra O.S.
+  if (order && order.id !== lastId) { setLastId(order.id); setF(formFromOrder(order)); }
+
+  if (!order) return null;
+
+  function submit() {
+    if (!order) return;
+    if (!f.title.trim()) return toast.error("Informe o título da OS");
+    const contact = contacts.find((c) => c.id === f.contactId);
+    const payload = {
+      title: f.title.trim(),
+      contactId: f.contactId || null,
+      contactName: f.contactId ? (contact?.name ?? null) : (f.contactName || null),
+      status: f.status,
+      priority: f.priority,
+      material: f.material.trim() || null,
+      total: f.total ? Number(f.total.replace(",", ".")) : 0,
+      qty: Number(f.qty) || 1,
+      slaDueAt: f.sla ? new Date(f.sla).toISOString() : null,
+      notes: f.notes.trim() || undefined,
+    };
+    startTransition(async () => {
+      const res = await updateServiceOrder(order.id, payload);
+      if (!res.ok) { toast.error(res.error || "Erro ao salvar"); return; }
+      toast.success("O.S. atualizada");
+      onSaved({
+        ...order,
+        title: payload.title,
+        contactId: payload.contactId,
+        contactName: payload.contactName,
+        status: payload.status,
+        priority: payload.priority,
+        material: payload.material,
+        totalCents: Math.round((payload.total ?? 0) * 100),
+        qty: payload.qty,
+        slaDueAt: payload.slaDueAt,
+        slicerNotes: payload.notes ? { ...order.slicerNotes, notes: payload.notes } : order.slicerNotes,
+      });
+    });
+  }
+
+  return (
+    <Dialog open={!!order} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md rounded-xl border border-border bg-surface text-xs max-h-[88vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-bold text-foreground">Ordem de Serviço</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="ed-title">Título / Produto</Label>
+            <Input id="ed-title" value={f.title} onChange={(e) => setF((p) => ({ ...p, title: e.target.value }))} className="h-9 rounded-lg" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ed-status">Status</Label>
+              <select id="ed-status" value={f.status} onChange={(e) => setF((p) => ({ ...p, status: e.target.value as SoStatus }))}
+                className="flex h-9 w-full rounded-lg border border-border bg-surface px-3 text-xs outline-hidden focus:ring-2 focus:ring-accent/20">
+                {SO_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ed-priority">Prioridade</Label>
+              <select id="ed-priority" value={f.priority} onChange={(e) => setF((p) => ({ ...p, priority: e.target.value as SoPriority }))}
+                className="flex h-9 w-full rounded-lg border border-border bg-surface px-3 text-xs outline-hidden focus:ring-2 focus:ring-accent/20">
+                <option value="alta">Alta</option>
+                <option value="media">Média</option>
+                <option value="baixa">Baixa</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ed-contact">Cliente</Label>
+            <select id="ed-contact" value={f.contactId} onChange={(e) => setF((p) => ({ ...p, contactId: e.target.value }))}
+              className="flex h-9 w-full rounded-lg border border-border bg-surface px-3 text-xs outline-hidden focus:ring-2 focus:ring-accent/20">
+              <option value="">{f.contactName ? `${f.contactName} (não vinculado)` : "— Sem cliente —"}</option>
+              {contacts.map((c) => <option key={c.id} value={c.id}>{c.name || "(sem nome)"}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ed-total">Valor (R$)</Label>
+              <Input id="ed-total" inputMode="decimal" value={f.total} onChange={(e) => setF((p) => ({ ...p, total: e.target.value }))} className="h-9 rounded-lg" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ed-qty">Qtd</Label>
+              <Input id="ed-qty" inputMode="numeric" value={f.qty} onChange={(e) => setF((p) => ({ ...p, qty: e.target.value }))} className="h-9 rounded-lg" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ed-material">Material</Label>
+              <Input id="ed-material" value={f.material} onChange={(e) => setF((p) => ({ ...p, material: e.target.value }))} className="h-9 rounded-lg" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ed-sla">Prazo (SLA)</Label>
+            <Input id="ed-sla" type="date" value={f.sla} onChange={(e) => setF((p) => ({ ...p, sla: e.target.value }))} className="h-9 rounded-lg" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ed-notes">Notas técnicas</Label>
+            <Input id="ed-notes" value={f.notes} onChange={(e) => setF((p) => ({ ...p, notes: e.target.value }))} className="h-9 rounded-lg" />
+          </div>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => onOpenChange(false)}>Fechar</Button>
+          <Button size="sm" className="rounded-lg text-xs font-semibold bg-accent text-white hover:bg-accent/90" onClick={submit} disabled={pending}>
+            {pending ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function formFromOrder(o: ServiceOrderView | null) {
+  return {
+    title: o?.title ?? "",
+    contactId: o?.contactId ?? "",
+    contactName: o?.contactName ?? "",
+    status: (o?.status ?? "orcamento") as SoStatus,
+    priority: (o?.priority ?? "media") as SoPriority,
+    material: o?.material ?? "",
+    total: o ? String(o.totalCents / 100) : "",
+    qty: String(o?.qty ?? 1),
+    sla: o?.slaDueAt ? o.slaDueAt.slice(0, 10) : "",
+    notes: o?.slicerNotes?.notes ?? "",
+  };
 }
 
 function Card({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -459,6 +690,7 @@ function NewOsDialog({
       toast.success("OS criada");
       onCreated({
         id: crypto.randomUUID(),
+        code: null,
         title: payload.title,
         contactId: payload.contactId,
         contactName: payload.contactName ?? null,

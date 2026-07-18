@@ -35,24 +35,41 @@ describe("planControlSync", () => {
     expect(p.contactNames).toEqual([]);
   });
 
-  it("mapeia ferramentas para inventário e deduplica por nome", () => {
+  it("mapeia ferramentas, insumos e peças para inventário com purpose, deduplicando por nome", () => {
     const p = planControlSync([
       row({ id: "t1", description: "Alicate", category: "Ferramentas", type: "Despesa", expense_cents: 4500, quantity: 2 }),
       row({ id: "t2", description: "alicate", category: "Ferramentas", type: "Despesa", expense_cents: 9999, quantity: 1 }), // dup
+      row({ id: "i1", description: "Cola epóxi", category: "Insumo", type: "Despesa", expense_cents: 3000, quantity: 1 }),
+      row({ id: "p1", description: "Rolamento 608", category: "Peças", type: "Despesa", expense_cents: 800, quantity: 4 }),
     ]);
-    expect(p.tools).toEqual([{ name: "Alicate", purchaseValueCents: 4500, quantity: 2, purchaseDate: "2026-07-01" }]);
+    expect(p.inventory).toEqual([
+      { name: "Alicate", purchaseValueCents: 4500, quantity: 2, purchaseDate: "2026-07-01", category: "ferramenta", purpose: "Ferramenta" },
+      { name: "Cola epóxi", purchaseValueCents: 3000, quantity: 1, purchaseDate: "2026-07-01", category: "outro", purpose: "Insumo" },
+      { name: "Rolamento 608", purchaseValueCents: 800, quantity: 4, purchaseDate: "2026-07-01", category: "outro", purpose: "Peça" },
+    ]);
   });
 
-  it("mapeia filamentos para consumíveis assumindo bobina de 1kg (estoque e custo/kg)", () => {
+  it("mapeia filamentos para a tabela `filaments` (bobina de 1kg, client_id estável)", () => {
     const p = planControlSync([
       row({ id: "f1", description: "PLA Preto", category: "Filamentos", type: "Despesa", expense_cents: 16000, quantity: 2 }),
     ]);
-    // 2 bobinas → 2000g ; custo/kg = 16000/2 = 8000
-    expect(p.consumables).toEqual([{ name: "PLA Preto", stockGrams: 2000, costPerKgCents: 8000 }]);
+    // 2 bobinas → 2000g ; custo total R$160 ÷ 2000g = 0,08/g
+    expect(p.filaments).toEqual([
+      { clientId: "ctrl:pla preto", name: "PLA Preto", weightGrams: 2000, costPerGram: 0.08, minWeightAlert: 0 },
+    ]);
+  });
+
+  it("não cria contato para o dono (Gui), mas cria a venda normalmente", () => {
+    const p = planControlSync([
+      row({ id: "g1", description: "Peça teste - Gui", category: "Venda", platform: "B2B", revenue_cents: 5000 }),
+      row({ id: "c1", description: "Letreiro - Jane Neneco", category: "Venda", platform: "B2B", revenue_cents: 7000 }),
+    ]);
+    expect(p.sales).toHaveLength(2);
+    expect(p.contactNames).toEqual(["Jane Neneco"]); // "Gui" foi excluído
   });
 
   it("não quebra com entrada vazia", () => {
     const p = planControlSync([]);
-    expect(p).toEqual({ sales: [], contactNames: [], tools: [], consumables: [] });
+    expect(p).toEqual({ sales: [], contactNames: [], inventory: [], filaments: [] });
   });
 });

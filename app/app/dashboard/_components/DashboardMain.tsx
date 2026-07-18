@@ -1,419 +1,307 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
-import { DynamicChart } from '@/components/charts/DynamicChart';
+import { useState, useTransition, type ReactNode } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  PackageCheck,
-  ClipboardList,
-  PiggyBank,
-  Loader2,
-  ShoppingCart,
-  Printer,
+  ArrowDownRight,
+  ArrowUpRight,
   Boxes,
-  FileText,
+  CalendarDays,
+  ChartNoAxesCombined,
+  ClipboardList,
+  Package,
+  PackageOpen,
+  Plus,
+  ReceiptText,
+  Search,
+  ShoppingBag,
+  Sparkles,
+  WalletCards,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { DynamicChart } from '@/components/charts/DynamicChart';
 import { cn } from '@/lib/utils';
-import { PERIODS, PERIOD_LABEL, type Period } from '@/lib/dashboard/period';
-import { fetchDashboardData, type DashboardData } from '@/app/actions/dashboard/analytics';
-import DataTable, { type Column } from './DataTable';
-import type { SalesRow, OsRow, ActivityRow } from '@/app/actions/dashboard/analytics';
+import { fetchDashboardData, type ActivityRow, type DashboardData } from '@/app/actions/dashboard/analytics';
+import { PERIOD_LABEL, type Period } from '@/lib/dashboard/period';
 
-const brl = (cents: number): string =>
-  (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-const brlPlain = (v: number): string =>
-  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-
-const dateBR = (iso: string): string =>
-  new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'short',
+const brl = (cents: number, fractionDigits = 2) =>
+  (cents / 100).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   });
 
-function ChangeBadge({ pct }: { pct: number | null }) {
-  if (pct === null) {
-    return <span className="text-[11px] text-muted-foreground">sem base anterior</span>;
-  }
-  if (Math.abs(pct) < 0.05) {
-    return <span className="text-[11px] text-muted-foreground">estável</span>;
-  }
-  const up = pct > 0;
-  const Icon = up ? TrendingUp : TrendingDown;
+const brlChart = (value: number) =>
+  value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+const PERIOD_BUTTONS: Array<{ key: Period; label: string }> = [
+  { key: 'semanal', label: '7 dias' },
+  { key: 'mensal', label: '30 dias' },
+  { key: 'trimestral', label: '90 dias' },
+  { key: 'semestral', label: '6 meses' },
+  { key: 'anual', label: '12 meses' },
+];
+
+const ACTIVITY_LABEL: Record<ActivityRow['kind'], string> = {
+  venda: 'Venda',
+  os: 'O.S.',
+  impressao: 'Impressão',
+  estoque: 'Estoque',
+};
+
+const ACTIVITY_COLOR: Record<ActivityRow['kind'], string> = {
+  venda: 'bg-emerald-500/15 text-emerald-500',
+  os: 'bg-blue-500/15 text-blue-500',
+  impressao: 'bg-violet-500/15 text-violet-500',
+  estoque: 'bg-amber-500/15 text-amber-500',
+};
+
+/**
+ * Sparkline SVG inline (sem lib) — desenha a tendência do período no KPI, como no
+ * dashboard de referência. Cor herdada via `currentColor`.
+ */
+function Sparkline({ points, className }: { points: number[]; className?: string }) {
+  if (points.length < 2) return null;
+  const w = 96;
+  const h = 28;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const step = w / (points.length - 1);
+  const path = points
+    .map((v, i) => `${i === 0 ? "M" : "L"} ${(i * step).toFixed(1)} ${(h - ((v - min) / span) * h).toFixed(1)}`)
+    .join(" ");
   return (
-    <span
-      className={cn(
-        'flex items-center gap-1 text-[11px] font-medium',
-        up ? 'text-success' : 'text-error',
-      )}
-    >
-      <Icon className="h-3 w-3" />
-      {up ? '+' : ''}
-      {pct.toFixed(1)}%
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden className={cn("h-7 w-24", className)}>
+      <path d={path} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function Change({ value }: { value: number | null }) {
+  if (value === null) return <span className="text-[11px] text-text-muted">sem comparação</span>;
+  const positive = value >= 0;
+  return (
+    <span className={cn('inline-flex items-center gap-1 text-[11px] font-semibold', positive ? 'text-emerald-500' : 'text-rose-500')}>
+      {positive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+      {positive ? '+' : ''}{value.toFixed(1)}% <span className="font-normal text-text-muted">vs. período anterior</span>
     </span>
   );
 }
 
-function KpiCard({
+function MetricCard({
   label,
-  hint,
   value,
-  changePct,
+  note,
   icon: Icon,
-  loading,
+  change,
+  tone = 'orange',
+  loading = false,
+  spark,
+  href,
 }: {
   label: string;
-  hint: string;
   value: string;
-  changePct: number | null;
-  icon: typeof Wallet;
-  loading: boolean;
+  note: string;
+  icon: typeof WalletCards;
+  change?: number | null;
+  tone?: 'orange' | 'green' | 'blue' | 'violet' | 'amber';
+  loading?: boolean;
+  /** Série do período para o sparkline (opcional — só onde há dados reais). */
+  spark?: number[];
+  /** Se informado, o card vira um link para o módulo correspondente. */
+  href?: string;
 }) {
-  return (
-    <div className="rounded-2xl border border-border bg-surface p-5 transition-shadow hover:shadow-md">
-      <div className="mb-4 flex items-start justify-between gap-3">
+  const tones = {
+    orange: 'bg-orange-500/12 text-orange-500',
+    green: 'bg-emerald-500/12 text-emerald-500',
+    blue: 'bg-blue-500/12 text-blue-500',
+    violet: 'bg-violet-500/12 text-violet-500',
+    amber: 'bg-amber-500/12 text-amber-500',
+  };
+  const sparkTone = {
+    orange: 'text-orange-500/60',
+    green: 'text-emerald-500/60',
+    blue: 'text-blue-500/60',
+    violet: 'text-violet-500/60',
+    amber: 'text-amber-500/60',
+  };
+  const card = (
+    <article className="group relative h-full overflow-hidden rounded-2xl border border-border/80 bg-surface/85 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg">
+      <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-accent/5 blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-medium text-foreground">{label}</div>
-          <div className="truncate text-[11px] text-muted-foreground">{hint}</div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-text-muted">{label}</p>
+          <p className={cn('mt-3 truncate text-2xl font-bold tracking-tight text-foreground md:text-[27px]', loading && 'animate-pulse opacity-50')}>
+            {value}
+          </p>
+          <div className="mt-2 min-h-4">
+            {change !== undefined ? <Change value={change} /> : <span className="text-[11px] text-text-muted">{note}</span>}
+          </div>
         </div>
-        <span className="shrink-0 rounded-xl bg-accent-soft p-2 text-accent">
-          <Icon className="h-4 w-4" />
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <span className={cn('relative rounded-xl p-2.5', tones[tone])}>
+            <Icon className="h-5 w-5" />
+          </span>
+          {spark && spark.length > 1 && <Sparkline points={spark} className={sparkTone[tone]} />}
+        </div>
       </div>
-      <div
-        className={cn(
-          'font-mono text-3xl font-semibold tracking-tight transition-opacity',
-          loading && 'opacity-40',
-        )}
-      >
-        {value}
-      </div>
-      <div className="mt-2">
-        <ChangeBadge pct={changePct} />
-      </div>
-    </div>
+    </article>
+  );
+  return href ? (
+    <Link
+      href={href}
+      aria-label={`Abrir ${label}`}
+      className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+    >
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }
 
-function Panel({
-  title,
-  subtitle,
-  action,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
+function Panel({ title, subtitle, icon: Icon, children, className }: { title: string; subtitle?: string; icon?: typeof ChartNoAxesCombined; children: ReactNode; className?: string }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
-          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+    <section className={cn('rounded-2xl border border-border/80 bg-surface/85 p-5 shadow-sm backdrop-blur-sm md:p-6', className)}>
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          {Icon && <span className="rounded-lg bg-accent-soft p-2 text-accent"><Icon className="h-4 w-4" /></span>}
+          <div>
+            <h2 className="text-sm font-bold tracking-tight text-foreground">{title}</h2>
+            {subtitle && <p className="mt-1 text-xs text-text-muted">{subtitle}</p>}
+          </div>
         </div>
-        {action}
       </div>
       {children}
     </section>
   );
 }
 
-const ACTIVITY_META: Record<ActivityRow['kind'], { label: string; icon: typeof Wallet }> = {
-  venda: { label: 'Vendas', icon: ShoppingCart },
-  os: { label: 'Ordens de Serviço', icon: FileText },
-  impressao: { label: 'Impressões', icon: Printer },
-  estoque: { label: 'Estoque', icon: Boxes },
-};
+function formatActivityDate(iso: string) {
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
 
 export default function DashboardMain({ initial }: { initial: DashboardData }) {
+  const router = useRouter();
   const [data, setData] = useState(initial);
   const [period, setPeriod] = useState<Period>(initial.period);
   const [pending, startTransition] = useTransition();
-  const [tableKind, setTableKind] = useState<'vendas' | 'os'>('vendas');
-  const [activityKind, setActivityKind] = useState<ActivityRow['kind'] | 'todas'>('todas');
 
   function changePeriod(next: Period) {
     setPeriod(next);
     startTransition(async () => {
-      const r = await fetchDashboardData(next);
-      if (r.ok) setData(r.data);
+      const result = await fetchDashboardData(next);
+      if (result.ok) setData(result.data);
     });
   }
 
-  const salesColumns: Column<SalesRow>[] = useMemo(
-    () => [
-      { key: 'date', header: 'Data', value: (r) => r.date, cell: (r) => dateBR(r.date) },
-      { key: 'description', header: 'Descrição', value: (r) => r.description },
-      {
-        key: 'category',
-        header: 'Categoria',
-        value: (r) => r.category,
-        cell: (r) => (
-          <Badge variant="secondary" className="font-normal">
-            {r.category}
-          </Badge>
-        ),
-      },
-      { key: 'platform', header: 'Canal', value: (r) => r.platform ?? '—' },
-      { key: 'quantity', header: 'Qtd', value: (r) => r.quantity, align: 'right' },
-      {
-        key: 'revenue',
-        header: 'Valor',
-        value: (r) => (r.type === 'Receita' ? r.revenueCents : -r.expenseCents),
-        align: 'right',
-        cell: (r) => (
-          <span
-            className={cn(
-              'font-mono text-xs font-medium',
-              r.type === 'Receita' ? 'text-success' : 'text-error',
-            )}
-          >
-            {r.type === 'Receita' ? brl(r.revenueCents) : `- ${brl(r.expenseCents)}`}
-          </span>
-        ),
-      },
-    ],
-    [],
-  );
-
-  const osColumns: Column<OsRow>[] = useMemo(
-    () => [
-      { key: 'date', header: 'Data', value: (r) => r.saleDate, cell: (r) => dateBR(r.saleDate) },
-      { key: 'title', header: 'Nome', value: (r) => r.title },
-      { key: 'contact', header: 'Cliente', value: (r) => r.contactName },
-      { key: 'platform', header: 'Plataforma', value: (r) => r.platform ?? '—' },
-      {
-        key: 'status',
-        header: 'Status',
-        value: (r) => r.status,
-        cell: (r) => (
-          <Badge
-            variant={r.status === 'concluido' ? 'default' : 'secondary'}
-            className="font-normal capitalize"
-          >
-            {r.status.replace('_', ' ')}
-          </Badge>
-        ),
-      },
-      {
-        key: 'total',
-        header: 'Valor',
-        value: (r) => r.totalCents,
-        align: 'right',
-        cell: (r) => <span className="font-mono text-xs font-medium">{brl(r.totalCents)}</span>,
-      },
-    ],
-    [],
-  );
-
-  const activities = useMemo(
-    () =>
-      activityKind === 'todas'
-        ? data.activities
-        : data.activities.filter((a) => a.kind === activityKind),
-    [data.activities, activityKind],
-  );
-
-  const periodNote = `no período ${PERIOD_LABEL[period].toLowerCase()}`;
+  const periodLabel = PERIOD_LABEL[period].toLowerCase();
+  const lineData = data.salesSeries;
+  // Séries reais para os sparklines dos KPIs (só onde temos o dado por bucket).
+  const sparkRevenue = data.salesSeries.map((d) => d.faturamento);
+  const sparkProfit = data.salesSeries.map((d) => d.lucro);
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-6 p-6">
-      {/* Filtro global — governa cards, gráficos, tabela e feed de uma vez. */}
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Visão geral</h1>
-          <p className="text-sm text-muted-foreground">
-            Como a operação foi {periodNote}.
-            {pending && (
-              <span className="ml-2 inline-flex items-center gap-1 text-xs">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                atualizando
-              </span>
-            )}
-          </p>
-        </div>
+    <main className="min-h-full bg-[radial-gradient(circle_at_82%_0%,rgba(234,88,12,0.09),transparent_28%),radial-gradient(circle_at_10%_12%,rgba(16,185,129,0.05),transparent_25%)] px-4 py-5 md:px-8 md:py-7">
+      <div className="mx-auto max-w-[1500px] space-y-6">
+        <header className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="mb-5 flex items-center gap-2 text-xs text-text-muted">
+              <span>Geral</span><span>/</span><span className="font-semibold text-foreground">Dashboard</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Bom dia, {data.welcomeName} <span aria-hidden>☀️</span></h1>
+                <p className="mt-2 text-sm text-text-muted">Aqui está o resumo da sua operação GLTech3D.</p>
+              </div>
+              {pending && <span className="mt-2 h-2.5 w-2.5 animate-pulse rounded-full bg-accent" aria-label="Atualizando" />}
+            </div>
+          </div>
 
-        <div
-          className="flex items-center gap-0.5 rounded-xl border border-border bg-muted/50 p-0.5"
-          role="group"
-          aria-label="Periodicidade"
-        >
-          {PERIODS.map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={period === p}
-              onClick={() => changePeriod(p)}
-              className={cn(
-                'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                period === p
-                  ? 'bg-surface text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {PERIOD_LABEL[p]}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <label className="flex h-10 min-w-[190px] items-center gap-2 rounded-xl border border-border bg-surface/70 px-3 text-sm text-text-muted">
+              <Search className="h-4 w-4" />
+              <input className="w-full bg-transparent outline-none placeholder:text-text-muted" placeholder="Buscar no CRM" aria-label="Buscar no CRM" />
+            </label>
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-surface/75 p-1" role="group" aria-label="Período">
+              {PERIOD_BUTTONS.map((item) => (
+                <button key={item.key} type="button" aria-pressed={period === item.key} onClick={() => changePeriod(item.key)} className={cn('rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors sm:px-3', period === item.key ? 'bg-accent text-white shadow-sm' : 'text-text-muted hover:bg-muted hover:text-foreground')}>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={() => router.push('/app/sales')} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-bold text-white shadow-sm transition hover:bg-accent-hover">
+              <Plus className="h-4 w-4" /> Nova venda
             </button>
-          ))}
-        </div>
-      </header>
+          </div>
+        </header>
 
-      {/* 4 KPIs, no máximo 2 colunas */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <KpiCard
-          label="Faturamento"
-          hint={`Receitas lançadas ${periodNote}`}
-          value={brl(data.kpis.faturamentoCents.value)}
-          changePct={data.kpis.faturamentoCents.changePct}
-          icon={Wallet}
-          loading={pending}
-        />
-        <KpiCard
-          label="Pedidos concluídos"
-          hint={`Ordens fechadas ${periodNote}`}
-          value={String(data.kpis.pedidosConcluidos.value)}
-          changePct={data.kpis.pedidosConcluidos.changePct}
-          icon={PackageCheck}
-          loading={pending}
-        />
-        <KpiCard
-          label="O.S. ativas"
-          hint="Em aberto agora, na oficina"
-          value={String(data.kpis.osAtivas.value)}
-          changePct={data.kpis.osAtivas.changePct}
-          icon={ClipboardList}
-          loading={pending}
-        />
-        <KpiCard
-          label="Lucro líquido"
-          hint="Receitas menos despesas"
-          value={brl(data.kpis.lucroLiquidoCents.value)}
-          changePct={data.kpis.lucroLiquidoCents.changePct}
-          icon={PiggyBank}
-          loading={pending}
-        />
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Receita bruta" value={brl(data.kpis.faturamentoCents.value)} note="Receitas lançadas" change={data.kpis.faturamentoCents.changePct} icon={WalletCards} tone="orange" loading={pending} spark={sparkRevenue} href="/app/sales" />
+          <MetricCard label="Lucro líquido" value={brl(data.kpis.lucroLiquidoCents.value)} note="Receitas menos despesas" change={data.kpis.lucroLiquidoCents.changePct} icon={ChartNoAxesCombined} tone="green" loading={pending} spark={sparkProfit} href="/app/reports" />
+          <MetricCard label="Total de vendas" value={data.kpis.totalVendas.value.toLocaleString('pt-BR')} note="Lançamentos de receita" change={data.kpis.totalVendas.changePct} icon={ShoppingBag} tone="blue" loading={pending} href="/app/sales" />
+          <MetricCard label="Ticket médio" value={brl(data.kpis.ticketMedioCents.value)} note="Por venda registrada" change={data.kpis.ticketMedioCents.changePct} icon={ReceiptText} tone="violet" loading={pending} href="/app/sales" />
+        </section>
+
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Estoque de produtos" value={brl(data.inventory.productsValueCents)} note={`${data.inventory.productsCount.toLocaleString('pt-BR')} unidades em estoque`} icon={Boxes} tone="orange" loading={pending} href="/app/products" />
+          <MetricCard label="Estoque de filamentos" value={brl(data.inventory.filamentValueCents)} note={`${data.inventory.filamentSpools} rolos cadastrados`} icon={Package} tone="blue" loading={pending} href="/app/printers" />
+          <MetricCard label="Lucro potencial" value={brl(data.inventory.potentialProfitCents)} note="Se todo o estoque for vendido" icon={ChartNoAxesCombined} tone="green" loading={pending} href="/app/products" />
+          <MetricCard label="Total investido" value={brl(data.inventory.investedCents)} note="Custo material em estoque" icon={PackageOpen} tone="amber" loading={pending} href="/app/inventory" />
+        </section>
+
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+          <Panel title="Receita × Custo × Lucro" subtitle={`Visão ${periodLabel}`} icon={ChartNoAxesCombined}>
+            <DynamicChart data={lineData} series={[{ key: 'faturamento', name: 'Receita', color: '#f97316' }, { key: 'despesa', name: 'Custo', color: '#ef4444' }, { key: 'lucro', name: 'Lucro', color: '#10b981' }]} type="line" allowedTypes={['line', 'area', 'bar']} height={310} valueFormat={brlChart} />
+          </Panel>
+
+          <Panel title="Vendas por canal" subtitle={`Distribuição de receita no período`} icon={ShoppingBag}>
+            {data.channelSeries.length === 0 ? (
+              <div className="flex h-[310px] flex-col items-center justify-center gap-3 text-center text-sm text-text-muted"><ShoppingBag className="h-8 w-8 opacity-40" /><span>Nenhuma venda com canal informado.</span></div>
+            ) : (
+              <DynamicChart data={data.channelSeries} nameKey="name" valueKey="value" valueLabel="Receita" type="donut" allowedTypes={['donut']} height={310} currency />
+            )}
+          </Panel>
+        </section>
+
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <Panel title="O.S. em andamento" subtitle="Prioridade operacional da oficina" icon={ClipboardList}>
+            {data.activeOrders.length === 0 ? <EmptyState icon={ClipboardList} text="Nenhuma O.S. em andamento." /> : (
+              <ul className="divide-y divide-border/70">
+                {data.activeOrders.slice(0, 6).map((order) => (
+                  <li key={order.id}>
+                    <button type="button" onClick={() => router.push(`/app/service-orders?os=${order.id}`)} className="flex w-full items-center gap-3 py-3 text-left transition hover:bg-muted/40">
+                      <span className="rounded-lg bg-accent-soft p-2 text-accent"><ClipboardList className="h-4 w-4" /></span>
+                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{order.title}</span><span className="block truncate text-xs text-text-muted">{order.contactName}</span></span>
+                      <span className="text-right"><span className="block font-mono text-sm font-semibold">{brl(order.totalCents)}</span><span className="text-[10px] capitalize text-text-muted">{order.status.replace('_', ' ')}</span></span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          <Panel title="Atividade recente" subtitle="Últimos movimentos do CRM" icon={CalendarDays}>
+            {data.activities.length === 0 ? <EmptyState icon={Sparkles} text={`Nada registrado ${periodLabel}.`} /> : (
+              <ul className="divide-y divide-border/70">
+                {data.activities.slice(0, 6).map((activity) => (
+                  <li key={activity.id} className="flex items-center gap-3 py-3">
+                    <span className={cn('rounded-lg p-2', ACTIVITY_COLOR[activity.kind])}><Sparkles className="h-4 w-4" /></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{activity.text}</span><span className="block truncate text-xs text-text-muted">{ACTIVITY_LABEL[activity.kind]}{activity.sub ? ` · ${activity.sub}` : ''}</span></span>
+                    <time className="shrink-0 text-[11px] text-text-muted">{formatActivityDate(activity.at)}</time>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        </section>
       </div>
-
-      {/* Gráfico 1 — vendas e faturamento (dinâmico: troca de tipo + animação) */}
-      <Panel title="Vendas e faturamento" subtitle={`Entradas e saídas ${periodNote}`}>
-        <DynamicChart
-          data={data.salesSeries}
-          series={[
-            { key: 'faturamento', name: 'Faturamento' },
-            { key: 'despesa', name: 'Despesa' },
-          ]}
-          type="area"
-          height={280}
-          valueFormat={(v) => brlPlain(v)}
-        />
-      </Panel>
-
-      {/* Gráfico 2 — fluxo de O.S., empilhado abaixo do primeiro */}
-      <Panel title="Fluxo de ordens de serviço" subtitle={`Criadas contra concluídas ${periodNote}`}>
-        <DynamicChart
-          data={data.osSeries}
-          series={[
-            { key: 'criadas', name: 'Criadas' },
-            { key: 'concluidas', name: 'Concluídas' },
-          ]}
-          type="bar"
-          height={280}
-          showBarLabels
-          valueFormat={(v) => String(Math.round(v))}
-        />
-      </Panel>
-
-      {/* Tabela alternável, com filtro por coluna */}
-      <Panel
-        title={tableKind === 'vendas' ? 'Lançamentos Recentes' : 'Ordens de serviço'}
-        subtitle={tableKind === 'vendas'
-          ? 'Receitas e despesas lançadas — cada coluna tem filtro e ordenação própria'
-          : 'Geradas das vendas (nome, data, valor, cliente, plataforma)'}
-        action={
-          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
-            {(['vendas', 'os'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={tableKind === k}
-                onClick={() => setTableKind(k)}
-                className={cn(
-                  'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                  tableKind === k
-                    ? 'bg-surface text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {k === 'vendas' ? 'Lançamentos' : 'O.S.'}
-              </button>
-            ))}
-          </div>
-        }
-      >
-        {tableKind === 'vendas' ? (
-          <DataTable
-            rows={data.salesRows}
-            columns={salesColumns}
-            empty={`Nenhum lançamento ${periodNote}.`}
-          />
-        ) : (
-          <DataTable rows={data.osRows} columns={osColumns} empty={`Nenhuma O.S. ${periodNote}.`} />
-        )}
-      </Panel>
-
-      {/* Feed de atividades, filtrável por tipo */}
-      <Panel
-        title="Atividades recentes"
-        subtitle="O que aconteceu no sistema"
-        action={
-          <div className="flex flex-wrap items-center gap-1">
-            {(['todas', 'venda', 'os', 'impressao', 'estoque'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={activityKind === k}
-                onClick={() => setActivityKind(k)}
-                className={cn(
-                  'rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
-                  activityKind === k
-                    ? 'border-accent bg-accent-soft text-accent'
-                    : 'border-border text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {k === 'todas' ? 'Todas' : ACTIVITY_META[k].label}
-              </button>
-            ))}
-          </div>
-        }
-      >
-        {activities.length === 0 ? (
-          <p className="py-10 text-center text-xs text-muted-foreground">
-            Nada por aqui {periodNote}.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {activities.map((a) => {
-              const Icon = ACTIVITY_META[a.kind].icon;
-              return (
-                <li key={a.id} className="flex items-center gap-3 py-2.5">
-                  <span className="shrink-0 rounded-lg bg-muted p-1.5 text-muted-foreground">
-                    <Icon className="h-3.5 w-3.5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs font-medium">{a.text}</div>
-                    {a.sub && <div className="truncate text-[11px] text-muted-foreground">{a.sub}</div>}
-                  </div>
-                  <time className="shrink-0 text-[11px] text-muted-foreground">{dateBR(a.at)}</time>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Panel>
-    </div>
+    </main>
   );
+}
+
+function EmptyState({ icon: Icon, text }: { icon: typeof ClipboardList; text: string }) {
+  return <div className="flex min-h-[190px] flex-col items-center justify-center gap-3 text-center text-sm text-text-muted"><Icon className="h-8 w-8 opacity-40" /><span>{text}</span></div>;
 }

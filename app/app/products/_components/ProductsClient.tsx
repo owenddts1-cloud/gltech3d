@@ -272,6 +272,8 @@ function buildOptimistic(
     id: crypto.randomUUID(),
     name: p.name,
     category: p.category ?? null,
+    categoryId: null,
+    categoryName: p.category ?? null,
     description: null,
     images: [],
     filamentClientId: p.filamentClientId,

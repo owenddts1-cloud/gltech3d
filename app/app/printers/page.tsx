@@ -32,9 +32,10 @@ export default async function PrintersPage() {
 
   const initialData = result.ok && result.printers ? {
     printers: result.printers as Array<{
-      id: string; name: string; status: "idle" | "printing" | "error" | "offline";
+      id: string; name: string; status: "idle" | "printing" | "error" | "offline" | "maintenance";
       powerDraw: number; depreciationPerHour: number; activeFilamentId?: string | null;
       activePrintJob?: { filename: string; progress: number; timeElapsed: number; timeRemaining: number; filamentId: string; weightGrams: number; serviceOrderId?: string | null; serviceOrderTitle?: string | null } | null;
+      networkUrl?: string; apiKey?: string; pollMode?: "browser" | "server" | "off";
     }>,
     filaments: result.filaments as Array<{
       id: string; name: string; color: string; material: string; weightGrams: number;

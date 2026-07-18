@@ -10,7 +10,7 @@ import {
 import { FileSpreadsheet, Download } from "lucide-react";
 import { toast } from "sonner";
 import type { ReportsData } from "@/app/actions/reports/actions";
-import type { ReportBreakdowns, Breakdown } from "@/app/actions/reports/breakdowns";
+import type { ReportBreakdowns, Breakdown } from "@/app/actions/reports/types";
 import { DynamicChart } from "@/components/charts/DynamicChart";
 import { ChartDrilldownSheet, type DrilldownRow } from "@/components/charts/ChartDrilldownSheet";
 import { exportReportsCSV, exportReportsXLSX, exportReportsPDF, type ReportsExportPayload } from "../_lib/export";

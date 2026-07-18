@@ -17,6 +17,7 @@ export interface ConsumableView {
   minStockGrams: number;
   costPerKgCents: number;
   supplier: string;
+  purpose: string;
   notes: string;
   /** Estoque no ou abaixo do mínimo. */
   low: boolean;
@@ -38,7 +39,7 @@ interface Row {
   id: string; name: string; category: ConsumableCategory;
   material: string | null; color: string | null;
   stock_grams: number | string; min_stock_grams: number | string;
-  cost_per_kg_cents: number | string; supplier: string | null; notes: string | null;
+  cost_per_kg_cents: number | string; supplier: string | null; purpose: string | null; notes: string | null;
 }
 
 const num = (v: unknown) => (v == null ? 0 : Number(v) || 0);
@@ -71,6 +72,7 @@ export async function fetchConsumables(): Promise<{ ok: false } | { ok: true; da
       minStockGrams,
       costPerKgCents,
       supplier: r.supplier ?? "",
+      purpose: r.purpose ?? "",
       notes: r.notes ?? "",
       low: minStockGrams > 0 && stockGrams <= minStockGrams,
       stockValueCents: Math.round((stockGrams / 1000) * costPerKgCents),
@@ -112,6 +114,7 @@ export async function createConsumable(raw: unknown) {
     min_stock_grams: d.minStockGrams,
     cost_per_kg_cents: Math.round((d.costPerKg ?? 0) * 100),
     supplier: d.supplier || null,
+    purpose: d.purpose || null,
     notes: d.notes || null,
     created_by: authUser.id,
   });
@@ -140,6 +143,7 @@ export async function updateConsumable(id: string, raw: unknown) {
   if (d.minStockGrams !== undefined) patch.min_stock_grams = d.minStockGrams;
   if (d.costPerKg !== undefined) patch.cost_per_kg_cents = Math.round(d.costPerKg * 100);
   if (d.supplier !== undefined) patch.supplier = d.supplier || null;
+  if (d.purpose !== undefined) patch.purpose = d.purpose || null;
   if (d.notes !== undefined) patch.notes = d.notes || null;
 
   const supabase = await createClient();

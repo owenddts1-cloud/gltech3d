@@ -1,5 +1,6 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
+import path from "node:path";
 
 /** Performance budget (EPIC-12 §S-12.05):
  *  - LCP < 2.5s p75
@@ -11,6 +12,9 @@ const nextConfig: NextConfig = {
   // Self-host (HostGator): gera .next/standalone pro container Docker (node server.js).
   // Aditivo — não afeta o deploy Vercel.
   output: "standalone",
+  // Este app vive dentro de uma pasta que também contém outro package-lock.
+  // Fixar a raiz evita que o Next rastreie dependências do projeto pai.
+  outputFileTracingRoot: path.join(__dirname),
   reactStrictMode: true,
   poweredByHeader: false,
   // Hide the on-screen dev indicator ("N" badge / build activity) in dev.

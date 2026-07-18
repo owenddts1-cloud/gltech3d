@@ -12,7 +12,7 @@ export interface SyncResult {
   osCreated: number;
   osUpdated: number;
   toolsCreated: number;
-  consumablesCreated: number;
+  filamentsCreated: number;
   /** Vendas do plano que já existiam (idempotência). */
   alreadySynced: number;
 }
@@ -44,7 +44,7 @@ export async function syncControlToModules(): Promise<
 
   const result: SyncResult = {
     salesCreated: 0, salesUpdated: 0, contactsCreated: 0, osCreated: 0, osUpdated: 0,
-    toolsCreated: 0, consumablesCreated: 0, alreadySynced: 0,
+    toolsCreated: 0, filamentsCreated: 0, alreadySynced: 0,
   };
 
   // ── Contatos (dedup por nome) ──
@@ -152,40 +152,41 @@ export async function syncControlToModules(): Promise<
     }
   }
 
-  // ── Ferramentas → inventory_assets (dedup por nome, category 'ferramenta') ──
-  if (plan.tools.length > 0) {
-    const { data: existingTools } = await supabase
+  // ── Ferramentas / Insumos / Peças → inventory_assets (dedup por nome, com purpose) ──
+  if (plan.inventory.length > 0) {
+    const { data: existingInv } = await supabase
       .from("inventory_assets")
       .select("name")
-      .eq("organization_id", org)
-      .eq("category", "ferramenta");
-    const have = new Set(((existingTools as Array<{ name: string }> | null) ?? []).map((t) => lc(t.name)));
-    const newTools = plan.tools.filter((t) => !have.has(lc(t.name)));
-    if (newTools.length > 0) {
-      const { error } = await supabase.from("inventory_assets").insert(newTools.map((t) => ({
-        organization_id: org, name: t.name, category: "ferramenta", quantity: t.quantity,
-        purchase_value_cents: t.purchaseValueCents, purchase_date: t.purchaseDate, status: "ativo", created_by: authUser.id,
+      .eq("organization_id", org);
+    const have = new Set(((existingInv as Array<{ name: string }> | null) ?? []).map((t) => lc(t.name)));
+    const newItems = plan.inventory.filter((t) => !have.has(lc(t.name)));
+    if (newItems.length > 0) {
+      const { error } = await supabase.from("inventory_assets").insert(newItems.map((t) => ({
+        organization_id: org, name: t.name, category: t.category, quantity: t.quantity,
+        purchase_value_cents: t.purchaseValueCents, purchase_date: t.purchaseDate,
+        status: "ativo", purpose: t.purpose, created_by: authUser.id,
       })));
-      if (error) return { ok: false, error: `ferramentas: ${error.message}` };
-      result.toolsCreated = newTools.length;
+      if (error) return { ok: false, error: `inventário: ${error.message}` };
+      result.toolsCreated = newItems.length;
     }
   }
 
-  // ── Filamentos → consumables (dedup por nome) ──
-  if (plan.consumables.length > 0) {
-    const { data: existingCons } = await supabase
-      .from("consumables")
-      .select("name")
+  // ── Filamentos → tabela `filaments` (módulo Impressoras & Filamentos; dedup por client_id) ──
+  if (plan.filaments.length > 0) {
+    const { data: existingFil } = await supabase
+      .from("filaments")
+      .select("client_id")
       .eq("organization_id", org);
-    const have = new Set(((existingCons as Array<{ name: string }> | null) ?? []).map((c) => lc(c.name)));
-    const newCons = plan.consumables.filter((c) => !have.has(lc(c.name)));
-    if (newCons.length > 0) {
-      const { error } = await supabase.from("consumables").insert(newCons.map((c) => ({
-        organization_id: org, name: c.name, category: "filamento",
-        stock_grams: c.stockGrams, cost_per_kg_cents: c.costPerKgCents, created_by: authUser.id,
+    const have = new Set(((existingFil as Array<{ client_id: string }> | null) ?? []).map((f) => f.client_id));
+    const newFil = plan.filaments.filter((f) => !have.has(f.clientId));
+    if (newFil.length > 0) {
+      const { error } = await supabase.from("filaments").insert(newFil.map((f) => ({
+        organization_id: org, client_id: f.clientId, name: f.name,
+        initial_weight_grams: f.weightGrams, weight_grams: f.weightGrams,
+        cost_per_gram: f.costPerGram, min_weight_alert: f.minWeightAlert, created_by: authUser.id,
       })));
-      if (error) return { ok: false, error: `consumíveis: ${error.message}` };
-      result.consumablesCreated = newCons.length;
+      if (error) return { ok: false, error: `filamentos: ${error.message}` };
+      result.filamentsCreated = newFil.length;
     }
   }
 
@@ -193,6 +194,7 @@ export async function syncControlToModules(): Promise<
   revalidatePath("/app/contacts");
   revalidatePath("/app/service-orders");
   revalidatePath("/app/inventory");
+  revalidatePath("/app/printers");
   revalidatePath("/app/calendar");
   return { ok: true, result };
 }

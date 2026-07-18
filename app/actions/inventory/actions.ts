@@ -19,6 +19,7 @@ export interface InventoryAssetView {
   purchaseDate: string | null;
   usefulLifeMonths: number;
   status: InventoryStatus;
+  purpose: string;
   notes: string;
   /** valor de compra total (unitário × quantidade) */
   totalValueCents: number;
@@ -39,7 +40,7 @@ export interface InventoryData {
 interface AssetRow {
   id: string; name: string; category: InventoryCategory; quantity: number | string;
   purchase_value_cents: number | string; purchase_date: string | null;
-  useful_life_months: number | string; status: InventoryStatus; notes: string | null;
+  useful_life_months: number | string; status: InventoryStatus; purpose: string | null; notes: string | null;
 }
 
 const num = (v: unknown) => (v == null ? 0 : Number(v));
@@ -68,6 +69,7 @@ function mapRow(r: AssetRow): InventoryAssetView {
     purchaseDate: r.purchase_date,
     usefulLifeMonths: life,
     status: r.status,
+    purpose: r.purpose ?? "",
     notes: r.notes ?? "",
     totalValueCents,
     currentValueCents,
@@ -83,7 +85,7 @@ export async function fetchInventoryData(): Promise<{ ok: false } | { ok: true; 
   const supabase = await createClient();
   const { data } = await supabase
     .from("inventory_assets")
-    .select("id, name, category, quantity, purchase_value_cents, purchase_date, useful_life_months, status, notes")
+    .select("id, name, category, quantity, purchase_value_cents, purchase_date, useful_life_months, status, purpose, notes")
     .order("created_at", { ascending: false });
 
   const assets = ((data as AssetRow[] | null) ?? []).map(mapRow);
@@ -117,6 +119,7 @@ export async function createInventoryAsset(raw: unknown) {
     purchase_date: d.purchaseDate || null,
     useful_life_months: d.usefulLifeMonths,
     status: d.status,
+    purpose: d.purpose || null,
     notes: d.notes || null,
     created_by: authUser.id,
   });
@@ -144,6 +147,7 @@ export async function updateInventoryAsset(id: string, raw: unknown) {
   if (d.purchaseDate !== undefined) patch.purchase_date = d.purchaseDate || null;
   if (d.usefulLifeMonths !== undefined) patch.useful_life_months = d.usefulLifeMonths;
   if (d.status !== undefined) patch.status = d.status;
+  if (d.purpose !== undefined) patch.purpose = d.purpose || null;
   if (d.notes !== undefined) patch.notes = d.notes || null;
 
   const supabase = await createClient();

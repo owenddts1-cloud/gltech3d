@@ -7,6 +7,10 @@ import { z } from "zod";
 import {
   SALES_PLATFORMS,
   SALES_STATUSES,
+  SALES_FULFILLMENT,
+  SALES_PAYMENT,
+  type SaleFulfillment,
+  type SalePayment,
   type SaleRow,
   type SalesKpis,
 } from "@/lib/sales/config";
@@ -24,6 +28,13 @@ const createSchema = z.object({
   commission: z.coerce.number().nonnegative().max(10_000_000).optional().default(0),
   soldAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida."),
   notes: z.string().trim().max(2000).optional().default(""),
+  /** FK → products.id (migration 0055). Enables sales bump trigger. */
+  productId: z.string().uuid().nullable().optional(),
+  qty: z.coerce.number().int().min(1).max(100_000).optional().default(1),
+  /** Eixos de produção/pagamento do Kanban (migration 0058). */
+  fulfillmentStatus: z.enum(SALES_FULFILLMENT).optional(),
+  paymentStatus: z.enum(SALES_PAYMENT).optional(),
+  boardPosition: z.coerce.number().nullable().optional(),
 });
 
 const patchSchema = createSchema.partial().refine((v) => Object.keys(v).length > 0, {
@@ -49,18 +60,35 @@ interface Row {
   platform: string;
   customer_name: string | null;
   status: string;
+  fulfillment_status: string | null;
+  payment_status: string | null;
+  board_position: number | string | null;
   total_cents: number | string;
   commission_cents: number | string;
   sold_at: string;
   notes: string | null;
 }
 
+/** Colunas lidas de marketplace_orders — reusado em fetch/create/update. */
+const SALE_SELECT =
+  "id, platform, customer_name, status, fulfillment_status, payment_status, board_position, total_cents, commission_cents, sold_at, notes";
+
 function toView(r: Row): SaleRow {
+  // Fallbacks defensivos: linhas anteriores à 0058 podem não ter os eixos novos.
+  const fulfillment = (SALES_FULFILLMENT as readonly string[]).includes(r.fulfillment_status ?? "")
+    ? (r.fulfillment_status as SaleFulfillment)
+    : "confirmada";
+  const payment = (SALES_PAYMENT as readonly string[]).includes(r.payment_status ?? "")
+    ? (r.payment_status as SalePayment)
+    : "pendente";
   return {
     id: r.id,
     platform: r.platform,
     customerName: r.customer_name,
     status: r.status,
+    fulfillmentStatus: fulfillment,
+    paymentStatus: payment,
+    boardPosition: r.board_position == null ? null : Number(r.board_position),
     totalCents: Number(r.total_cents),
     commissionCents: Number(r.commission_cents),
     soldAt: r.sold_at,
@@ -75,7 +103,7 @@ export async function fetchSales(platform?: string) {
 
   let query = c.ctx.supabase
     .from("marketplace_orders")
-    .select("id, platform, customer_name, status, total_cents, commission_cents, sold_at, notes")
+    .select(SALE_SELECT)
     .order("sold_at", { ascending: false });
   if (platform && (SALES_PLATFORMS as readonly string[]).includes(platform)) {
     query = query.eq("platform", platform);
@@ -127,9 +155,13 @@ export async function createSale(raw: unknown) {
       commission_cents: Math.round((d.commission ?? 0) * 100),
       sold_at: d.soldAt,
       notes: d.notes || null,
+      product_id: d.productId ?? null,
+      qty: d.qty ?? 1,
+      fulfillment_status: d.fulfillmentStatus ?? "confirmada",
+      payment_status: d.paymentStatus ?? (d.status === "cancelado" ? "estornado" : "pendente"),
       created_by: c.ctx.userId,
     })
-    .select("id, platform, customer_name, status, total_cents, commission_cents, sold_at, notes")
+    .select(SALE_SELECT)
     .single();
   if (error) return { ok: false as const, error: error.message };
 
@@ -153,6 +185,11 @@ export async function updateSale(id: string, raw: unknown) {
   if (d.commission !== undefined) patch.commission_cents = Math.round(d.commission * 100);
   if (d.soldAt !== undefined) patch.sold_at = d.soldAt;
   if (d.notes !== undefined) patch.notes = d.notes || null;
+  if (d.productId !== undefined) patch.product_id = d.productId;
+  if (d.qty !== undefined) patch.qty = d.qty;
+  if (d.fulfillmentStatus !== undefined) patch.fulfillment_status = d.fulfillmentStatus;
+  if (d.paymentStatus !== undefined) patch.payment_status = d.paymentStatus;
+  if (d.boardPosition !== undefined) patch.board_position = d.boardPosition;
 
   const { error } = await c.ctx.supabase
     .from("marketplace_orders")

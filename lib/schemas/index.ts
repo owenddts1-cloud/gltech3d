@@ -14,3 +14,6 @@ export * from "./contacts";
 export * from "./team";
 export * from "./onboarding";
 export * from "./messaging";
+export * from "./categories";
+export * from "./service-orders";
+export * from "./products-catalog";

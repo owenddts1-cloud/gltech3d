@@ -8,6 +8,8 @@ import { z } from "zod";
 export const productCreateSchema = z.object({
   name: z.string().trim().min(1).max(200),
   category: z.string().trim().max(80).optional().default(""),
+  /** FK → categories.id (migration 0055). Preferred over text `category`. */
+  categoryId: z.string().uuid().nullable().optional(),
   description: z.string().trim().max(2000).optional().default(""),
   filamentClientId: z.string().max(64).nullable().optional(),
   filamentGrams: z.coerce.number().nonnegative().max(1_000_000).optional().default(0),

@@ -20,6 +20,8 @@ export const consumableCreateSchema = z.object({
   /** Custo por kg em reais (convertido p/ cents na action). */
   costPerKg: z.coerce.number().nonnegative().max(1_000_000).optional().default(0),
   supplier: z.string().trim().max(200).optional().default(""),
+  /** Destino/uso do consumível (Consumo, Produção, Revenda, Outro…). */
+  purpose: z.string().trim().max(60).optional().default(""),
   notes: z.string().trim().max(2000).optional().default(""),
 });
 

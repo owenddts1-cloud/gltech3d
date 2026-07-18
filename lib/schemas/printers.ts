@@ -23,16 +23,27 @@ export const filamentInputSchema = z.object({
   supplier: z.string().trim().max(200).optional().default(""),
 });
 
+export const PRINTER_STATUSES = ["idle", "printing", "error", "offline", "maintenance"] as const;
+export const POLL_MODES = ["browser", "server", "off"] as const;
+
 export const printerInputSchema = z.object({
   id: clientId,
   name: z.string().trim().min(1).max(200),
-  status: z.enum(["idle", "printing", "error", "offline"]).optional().default("idle"),
+  status: z.enum(PRINTER_STATUSES).optional().default("idle"),
   powerDraw: z.coerce.number().nonnegative().max(100_000).optional().default(200),
   depreciationPerHour: z.coerce.number().nonnegative().max(100_000).optional().default(0.4),
   activeFilamentId: clientId.nullable().optional(),
   activePrintJob: z.unknown().nullable().optional(),
+  /** IP/URL da impressora (Moonraker http://<ip>:7125 ou OctoPrint http://<ip>). */
   networkUrl: z.string().trim().max(500).optional().default(""),
+  /** API key do OctoPrint (opcional; Moonraker não precisa). */
+  apiKey: z.string().trim().max(200).optional().default(""),
+  /** Como ler o status ao vivo: navegador (LAN), servidor (IP público) ou desligado. */
+  pollMode: z.enum(POLL_MODES).optional().default("browser"),
 });
+
+export type PrinterStatus = (typeof PRINTER_STATUSES)[number];
+export type PollMode = (typeof POLL_MODES)[number];
 
 export const savePrintFarmSchema = z.object({
   printers: z.array(printerInputSchema).max(200),

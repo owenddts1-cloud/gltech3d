@@ -2,14 +2,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { LogOut, Zap } from "lucide-react";
+import { motion } from "motion/react";
 import {
   Kanban, Users, UsersThree, Gear, CaretDoubleLeft, CaretDoubleRight, CaretDown,
   Inbox, ScalesSimple, Robot, PlugsConnected, House,
   Gauge, Printer, Ruler, ClipboardText, Sparkle, ShoppingCart, Package, Cube,
   CalendarBlank, ChartLineUp, Toolbox, Handshake, AddressBook, Calculator, Coins,
-  Storefront,
+  Storefront, SignOut, Lightning,
 } from "@/lib/ui/icons";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -276,7 +275,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
                     {activeOrg?.name || "Workspace"}
                   </span>
                   <span className="flex items-center gap-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-500 text-[8px] font-bold px-1 py-0.2 rounded uppercase border border-orange-500/20 tracking-wider">
-                    <Zap size={6} fill="currentColor" />
+                    <Lightning size={6} weight="fill" />
                     PRO
                   </span>
                 </div>
@@ -291,7 +290,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
                 whileTap={{ scale: 0.95 }}
                 className="rounded-md p-1.5 text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-500 shrink-0"
               >
-                <LogOut size={15} strokeWidth={2} />
+                <SignOut size={15} weight="bold" />
               </motion.button>
             </>
           )}

@@ -10,12 +10,25 @@ export const dynamic = "force-dynamic";
  */
 const EMPTY: DashboardData = {
   period: "mensal",
+  welcomeName: "equipe GLTech3D",
   kpis: {
     faturamentoCents: { value: 0, changePct: null },
     pedidosConcluidos: { value: 0, changePct: null },
     osAtivas: { value: 0, changePct: null },
     lucroLiquidoCents: { value: 0, changePct: null },
+    totalVendas: { value: 0, changePct: null },
+    ticketMedioCents: { value: 0, changePct: null },
   },
+  inventory: {
+    productsValueCents: 0,
+    productsCount: 0,
+    filamentValueCents: 0,
+    filamentSpools: 0,
+    potentialProfitCents: 0,
+    investedCents: 0,
+  },
+  channelSeries: [],
+  activeOrders: [],
   salesSeries: [],
   osSeries: [],
   salesRows: [],
