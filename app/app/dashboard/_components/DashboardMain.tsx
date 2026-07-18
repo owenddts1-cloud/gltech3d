@@ -80,12 +80,12 @@ function Sparkline({ points, className }: { points: number[]; className?: string
 }
 
 function Change({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-[11px] text-text-muted">sem comparação</span>;
+  if (value === null) return <span className="text-[11px] text-text-muted-foreground">sem comparação</span>;
   const positive = value >= 0;
   return (
     <span className={cn('inline-flex items-center gap-1 text-[11px] font-semibold', positive ? 'text-emerald-500' : 'text-rose-500')}>
       {positive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-      {positive ? '+' : ''}{value.toFixed(1)}% <span className="font-normal text-text-muted">vs. período anterior</span>
+      {positive ? '+' : ''}{value.toFixed(1)}% <span className="font-normal text-text-muted-foreground">vs. período anterior</span>
     </span>
   );
 }
@@ -114,14 +114,14 @@ function MetricCard({
   href?: string;
 }) {
   const tones = {
-    orange: 'bg-orange-500/12 text-orange-500',
+    orange: 'bg-accent-soft text-accent',
     green: 'bg-emerald-500/12 text-emerald-500',
     blue: 'bg-blue-500/12 text-blue-500',
     violet: 'bg-violet-500/12 text-violet-500',
     amber: 'bg-amber-500/12 text-amber-500',
   };
   const sparkTone = {
-    orange: 'text-orange-500/60',
+    orange: 'text-accent-400',
     green: 'text-emerald-500/60',
     blue: 'text-blue-500/60',
     violet: 'text-violet-500/60',
@@ -132,12 +132,12 @@ function MetricCard({
       <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-accent/5 blur-2xl transition-opacity group-hover:opacity-100" />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-text-muted">{label}</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-text-muted-foreground">{label}</p>
           <p className={cn('mt-3 truncate text-2xl font-bold tracking-tight text-foreground md:text-[27px]', loading && 'animate-pulse opacity-50')}>
             {value}
           </p>
           <div className="mt-2 min-h-4">
-            {change !== undefined ? <Change value={change} /> : <span className="text-[11px] text-text-muted">{note}</span>}
+            {change !== undefined ? <Change value={change} /> : <span className="text-[11px] text-text-muted-foreground">{note}</span>}
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -170,7 +170,7 @@ function Panel({ title, subtitle, icon: Icon, children, className }: { title: st
           {Icon && <span className="rounded-lg bg-accent-soft p-2 text-accent"><Icon className="h-4 w-4" /></span>}
           <div>
             <h2 className="text-sm font-bold tracking-tight text-foreground">{title}</h2>
-            {subtitle && <p className="mt-1 text-xs text-text-muted">{subtitle}</p>}
+            {subtitle && <p className="mt-1 text-xs text-text-muted-foreground">{subtitle}</p>}
           </div>
         </div>
       </div>
@@ -208,26 +208,26 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
       <div className="mx-auto max-w-[1500px] space-y-6">
         <header className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <div className="mb-5 flex items-center gap-2 text-xs text-text-muted">
+            <div className="mb-5 flex items-center gap-2 text-xs text-text-muted-foreground">
               <span>Geral</span><span>/</span><span className="font-semibold text-foreground">Dashboard</span>
             </div>
             <div className="flex items-start gap-3">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Bom dia, {data.welcomeName} <span aria-hidden>☀️</span></h1>
-                <p className="mt-2 text-sm text-text-muted">Aqui está o resumo da sua operação GLTech3D.</p>
+                <p className="mt-2 text-sm text-text-muted-foreground">Aqui está o resumo da sua operação GLTech3D.</p>
               </div>
               {pending && <span className="mt-2 h-2.5 w-2.5 animate-pulse rounded-full bg-accent" aria-label="Atualizando" />}
             </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <label className="flex h-10 min-w-[190px] items-center gap-2 rounded-xl border border-border bg-surface/70 px-3 text-sm text-text-muted">
+            <label className="flex h-10 min-w-[190px] items-center gap-2 rounded-xl border border-border bg-surface/70 px-3 text-sm text-text-muted-foreground">
               <Search className="h-4 w-4" />
-              <input className="w-full bg-transparent outline-none placeholder:text-text-muted" placeholder="Buscar no CRM" aria-label="Buscar no CRM" />
+              <input className="w-full bg-transparent outline-none placeholder:text-text-muted-foreground" placeholder="Buscar no CRM" aria-label="Buscar no CRM" />
             </label>
             <div className="flex items-center gap-1 rounded-xl border border-border bg-surface/75 p-1" role="group" aria-label="Período">
               {PERIOD_BUTTONS.map((item) => (
-                <button key={item.key} type="button" aria-pressed={period === item.key} onClick={() => changePeriod(item.key)} className={cn('rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors sm:px-3', period === item.key ? 'bg-accent text-white shadow-sm' : 'text-text-muted hover:bg-muted hover:text-foreground')}>
+                <button key={item.key} type="button" aria-pressed={period === item.key} onClick={() => changePeriod(item.key)} className={cn('rounded-lg px-2.5 py-2 text-[11px] font-semibold transition-colors sm:px-3', period === item.key ? 'bg-accent text-white shadow-sm' : 'text-text-muted-foreground hover:bg-muted hover:text-foreground')}>
                   {item.label}
                 </button>
               ))}
@@ -259,7 +259,7 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
 
           <Panel title="Vendas por canal" subtitle={`Distribuição de receita no período`} icon={ShoppingBag}>
             {data.channelSeries.length === 0 ? (
-              <div className="flex h-[310px] flex-col items-center justify-center gap-3 text-center text-sm text-text-muted"><ShoppingBag className="h-8 w-8 opacity-40" /><span>Nenhuma venda com canal informado.</span></div>
+              <div className="flex h-[310px] flex-col items-center justify-center gap-3 text-center text-sm text-text-muted-foreground"><ShoppingBag className="h-8 w-8 opacity-40" /><span>Nenhuma venda com canal informado.</span></div>
             ) : (
               <DynamicChart data={data.channelSeries} nameKey="name" valueKey="value" valueLabel="Receita" type="donut" allowedTypes={['donut']} height={310} currency />
             )}
@@ -274,8 +274,8 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
                   <li key={order.id}>
                     <button type="button" onClick={() => router.push(`/app/service-orders?os=${order.id}`)} className="flex w-full items-center gap-3 py-3 text-left transition hover:bg-muted/40">
                       <span className="rounded-lg bg-accent-soft p-2 text-accent"><ClipboardList className="h-4 w-4" /></span>
-                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{order.title}</span><span className="block truncate text-xs text-text-muted">{order.contactName}</span></span>
-                      <span className="text-right"><span className="block font-mono text-sm font-semibold">{brl(order.totalCents)}</span><span className="text-[10px] capitalize text-text-muted">{order.status.replace('_', ' ')}</span></span>
+                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{order.title}</span><span className="block truncate text-xs text-text-muted-foreground">{order.contactName}</span></span>
+                      <span className="text-right"><span className="block font-mono text-sm font-semibold">{brl(order.totalCents)}</span><span className="text-[10px] capitalize text-text-muted-foreground">{order.status.replace('_', ' ')}</span></span>
                     </button>
                   </li>
                 ))}
@@ -289,8 +289,8 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
                 {data.activities.slice(0, 6).map((activity) => (
                   <li key={activity.id} className="flex items-center gap-3 py-3">
                     <span className={cn('rounded-lg p-2', ACTIVITY_COLOR[activity.kind])}><Sparkles className="h-4 w-4" /></span>
-                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{activity.text}</span><span className="block truncate text-xs text-text-muted">{ACTIVITY_LABEL[activity.kind]}{activity.sub ? ` · ${activity.sub}` : ''}</span></span>
-                    <time className="shrink-0 text-[11px] text-text-muted">{formatActivityDate(activity.at)}</time>
+                    <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{activity.text}</span><span className="block truncate text-xs text-text-muted-foreground">{ACTIVITY_LABEL[activity.kind]}{activity.sub ? ` · ${activity.sub}` : ''}</span></span>
+                    <time className="shrink-0 text-[11px] text-text-muted-foreground">{formatActivityDate(activity.at)}</time>
                   </li>
                 ))}
               </ul>
@@ -303,5 +303,5 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
 }
 
 function EmptyState({ icon: Icon, text }: { icon: typeof ClipboardList; text: string }) {
-  return <div className="flex min-h-[190px] flex-col items-center justify-center gap-3 text-center text-sm text-text-muted"><Icon className="h-8 w-8 opacity-40" /><span>{text}</span></div>;
+  return <div className="flex min-h-[190px] flex-col items-center justify-center gap-3 text-center text-sm text-text-muted-foreground"><Icon className="h-8 w-8 opacity-40" /><span>{text}</span></div>;
 }

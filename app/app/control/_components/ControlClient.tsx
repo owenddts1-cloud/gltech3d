@@ -435,13 +435,13 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8.8rem)] bg-zinc-200 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden rounded-lg shadow-sm border border-zinc-400 dark:border-zinc-800 transition-all">
+    <div className="flex flex-col h-[calc(100vh-8.8rem)] bg-bg text-text overflow-hidden rounded-lg shadow-sm border border-border transition-all">
       
       {/* Title & Status Bar */}
-      <div className="flex items-center justify-between border-b border-zinc-400 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 py-2 shrink-0">
+      <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-2 shrink-0">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="text-emerald-500 h-5 w-5" />
-          <h1 className="text-sm font-bold tracking-tight text-zinc-800 dark:text-zinc-200">GLTech3D - Controle Financeiro.xlsx</h1>
+          <h1 className="text-sm font-bold tracking-tight text-text">GLTech3D - Controle Financeiro.xlsx</h1>
           {isDirty && !isAutosaving && (
             <span className="flex items-center gap-1 text-[11px] font-medium text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
               <AlertTriangle size={10} />
@@ -450,7 +450,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
           )}
           {/* Autosave silencioso: indicador discreto, sem banner escuro nem UI travada. */}
           {isAutosaving && !isSaving && (
-            <span className="flex items-center gap-1 text-[11px] font-medium text-zinc-400">
+            <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
               <Loader2 size={10} className="animate-spin" />
               Salvando…
             </span>
@@ -462,7 +462,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
             </span>
           )}
           {isSaving && (
-            <span className="flex items-center gap-1 text-[11px] font-medium text-zinc-400 bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded">
+            <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-surface-elevated border border-border px-2 py-0.5 rounded">
               <Loader2 size={10} className="animate-spin" />
               Salvando no banco...
             </span>
@@ -483,7 +483,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
           <button
             onClick={() => handleSave()}
             disabled={!isDirty || isSaving}
-            className="flex items-center gap-1.5 rounded bg-orange-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-orange-500 disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded bg-accent px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-40"
             title="Salvar alterações no banco de dados"
           >
             <Save size={12} />
@@ -493,7 +493,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
             <button
               onClick={handleRevert}
               disabled={isSaving}
-              className="flex items-center gap-1 rounded bg-zinc-200 dark:bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors border border-zinc-300 dark:border-zinc-700"
+              className="flex items-center gap-1 rounded bg-surface-elevated px-2.5 py-1 text-xs font-medium text-text hover:bg-surface transition-colors border border-border"
             >
               Descartar
             </button>
@@ -502,9 +502,9 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
       </div>
 
       {/* Excel Ribbon Menu */}
-      <div className="bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-400 dark:border-zinc-800 select-none shrink-0">
+      <div className="bg-surface border-b border-border select-none shrink-0">
         {/* Ribbon Tabs */}
-        <div className="flex bg-zinc-200 dark:bg-zinc-950 text-xs border-b border-zinc-400 dark:border-zinc-800 px-2">
+        <div className="flex bg-bg text-xs border-b border-border px-2">
           {["inicio", "inserir", "dados", "ajuda"].map((tabId) => {
             const labels: Record<string, string> = {
               inicio: "Página Inicial",
@@ -519,8 +519,8 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
                 onClick={() => setActiveMenuTab(tabId)}
                 className={`px-4 py-1.5 font-medium transition-colors border-t-2 ${
                   active
-                    ? "bg-zinc-100 dark:bg-zinc-900 text-orange-600 dark:text-orange-500 border-orange-500 font-semibold"
-                    : "text-zinc-500 dark:text-zinc-400 border-transparent hover:text-zinc-800 dark:hover:text-zinc-200"
+                    ? "bg-surface text-accent border-accent font-semibold"
+                    : "text-muted-foreground border-transparent hover:text-text"
                 }`}
               >
                 {labels[tabId]}
@@ -530,36 +530,36 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
         </div>
 
         {/* Ribbon Actions Panel */}
-        <div className="p-2 h-14 flex items-center gap-6 text-zinc-600 dark:text-zinc-300 text-xs">
+        <div className="p-2 h-14 flex items-center gap-6 text-muted-foreground text-xs">
           {activeMenuTab === "inicio" && (
             <>
               {/* Group: Histórico */}
-              <div className="flex items-center gap-2 border-r border-zinc-300 dark:border-zinc-800 pr-4">
+              <div className="flex items-center gap-2 border-r border-border pr-4">
                 <button
                   onClick={undo}
                   disabled={past.length === 0}
-                  className="flex flex-col items-center justify-center p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors w-16 disabled:opacity-40 disabled:hover:bg-transparent"
+                  className="flex flex-col items-center justify-center p-1 rounded hover:bg-surface-elevated text-text hover:text-text transition-colors w-16 disabled:opacity-40 disabled:hover:bg-transparent"
                   title="Desfazer (Ctrl+Z)"
                 >
-                  <Undo2 size={14} className="text-zinc-600 dark:text-zinc-400" />
+                  <Undo2 size={14} className="text-muted-foreground" />
                   <span className="text-[10px] mt-0.5">Desfazer</span>
                 </button>
                 <button
                   onClick={redo}
                   disabled={future.length === 0}
-                  className="flex flex-col items-center justify-center p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors w-16 disabled:opacity-40 disabled:hover:bg-transparent"
+                  className="flex flex-col items-center justify-center p-1 rounded hover:bg-surface-elevated text-text hover:text-text transition-colors w-16 disabled:opacity-40 disabled:hover:bg-transparent"
                   title="Refazer (Ctrl+Y)"
                 >
-                  <Redo2 size={14} className="text-zinc-600 dark:text-zinc-400" />
+                  <Redo2 size={14} className="text-muted-foreground" />
                   <span className="text-[10px] mt-0.5">Refazer</span>
                 </button>
               </div>
 
               {/* Group: Ações Rápidas */}
-              <div className="flex items-center gap-2 border-r border-zinc-300 dark:border-zinc-800 pr-4">
+              <div className="flex items-center gap-2 border-r border-border pr-4">
                 <button
                   onClick={handleAddRow}
-                  className="flex flex-col items-center justify-center p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors w-16"
+                  className="flex flex-col items-center justify-center p-1 rounded hover:bg-surface-elevated text-text hover:text-text transition-colors w-16"
                   title="Inserir nova linha na tabela"
                 >
                   <Plus size={14} className="text-emerald-600 dark:text-emerald-500" />
@@ -569,7 +569,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
                 <button
                   onClick={handleDeleteRow}
                   disabled={!selectedRowId}
-                  className="flex flex-col items-center justify-center p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors w-16 disabled:opacity-40 disabled:hover:bg-transparent"
+                  className="flex flex-col items-center justify-center p-1 rounded hover:bg-surface-elevated text-text hover:text-text transition-colors w-16 disabled:opacity-40 disabled:hover:bg-transparent"
                   title="Excluir linha selecionada"
                 >
                   <Trash2 size={14} className="text-rose-600 dark:text-red-500" />
@@ -579,35 +579,35 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
 
               {/* Group: Exportar (o antigo "Salvar DB" saiu — o salvamento fica só no
                   botão do topo + autosave). Agora é um menu com CSV / XLSX / PDF. */}
-              <div className="flex items-center gap-2 border-r border-zinc-300 dark:border-zinc-800 pr-4">
+              <div className="flex items-center gap-2 border-r border-border pr-4">
                 <div className="relative">
                   <button
                     onClick={() => setExportMenuOpen(o => !o)}
-                    className="export-menu-btn flex flex-col items-center justify-center p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors w-16"
+                    className="export-menu-btn flex flex-col items-center justify-center p-1 rounded hover:bg-surface-elevated text-text hover:text-text transition-colors w-16"
                     title="Exportar a planilha (CSV, Excel ou PDF)"
                   >
                     <Download size={14} className="text-blue-500 dark:text-blue-400" />
                     <span className="text-[10px] mt-0.5 flex items-center gap-0.5">Exportar<ChevronDown size={9} /></span>
                   </button>
                   {exportMenuOpen && (
-                    <div className="export-menu-pop absolute left-0 top-full mt-1 z-50 w-44 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl py-1 text-left">
+                    <div className="export-menu-pop absolute left-0 top-full mt-1 z-50 w-44 rounded-md border border-border bg-surface shadow-xl py-1 text-left">
                       <button
                         onClick={() => handleExport("pdf")}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-text hover:bg-surface-elevated transition-colors"
                       >
                         <FileText size={13} className="text-red-500" />
                         <span>PDF (2 páginas)</span>
                       </button>
                       <button
                         onClick={() => handleExport("xlsx")}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-text hover:bg-surface-elevated transition-colors"
                       >
                         <FileXlsx size={13} className="text-emerald-600" />
                         <span>Excel (.xlsx)</span>
                       </button>
                       <button
                         onClick={() => handleExport("csv")}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-text hover:bg-surface-elevated transition-colors"
                       >
                         <Download size={13} className="text-blue-500" />
                         <span>CSV</span>
@@ -618,7 +618,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
               </div>
 
               {/* Grid status helper */}
-              <div className="text-[10px] text-zinc-500 dark:text-zinc-400 flex flex-col justify-center font-medium">
+              <div className="text-[10px] text-muted-foreground flex flex-col justify-center font-medium">
                 <span>Dica: Clique duas vezes em qualquer célula para editá-la.</span>
                 <span>Use setas, Tab ou Enter para navegar.</span>
               </div>
@@ -629,14 +629,14 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleAddTab}
-                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800"
+                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-surface-elevated transition-colors text-xs text-text border border-border"
               >
                 <Plus size={14} className="text-emerald-500" />
                 <span>Criar Nova Planilha (Aba)</span>
               </button>
               <button
                 onClick={handleAddColumn}
-                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800"
+                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-surface-elevated transition-colors text-xs text-text border border-border"
               >
                 <Plus size={14} className="text-blue-500" />
                 <span>Adicionar Coluna</span>
@@ -648,21 +648,21 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleExport("pdf")}
-                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800"
+                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-surface-elevated transition-colors text-xs text-text border border-border"
               >
                 <FileText size={14} className="text-red-500" />
                 <span>Exportar PDF</span>
               </button>
               <button
                 onClick={() => handleExport("xlsx")}
-                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800"
+                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-surface-elevated transition-colors text-xs text-text border border-border"
               >
                 <FileXlsx size={14} className="text-emerald-600" />
                 <span>Exportar Excel</span>
               </button>
               <button
                 onClick={() => handleExport("csv")}
-                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800"
+                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-surface-elevated transition-colors text-xs text-text border border-border"
               >
                 <Download size={14} className="text-blue-400" />
                 <span>Exportar CSV</span>
@@ -670,7 +670,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
               <button
                 onClick={handleSync}
                 disabled={isSyncing}
-                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-800 disabled:opacity-40"
+                className="flex items-center gap-1.5 px-3 py-1 rounded hover:bg-surface-elevated transition-colors text-xs text-text border border-border disabled:opacity-40"
               >
                 <RefreshCw size={14} className={`text-cyan-500 ${isSyncing ? "animate-spin" : ""}`} />
                 <span>Sincronizar módulos</span>
@@ -679,7 +679,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
           )}
 
           {activeMenuTab === "ajuda" && (
-            <div className="flex items-center gap-4 text-[11px] text-zinc-400">
+            <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
               <p>
                 <strong>Planilha Financeira:</strong> Lançamentos alimentam os gráficos e painéis da aba <strong>Dashboard</strong>.
               </p>
@@ -692,7 +692,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
       </div>
 
       {/* Spreadsheet Tabs Selector (Excel Style but positioned at the TOP for quick accessibility) */}
-      <div className="flex items-center justify-between border-b border-zinc-400 dark:border-zinc-800 bg-zinc-100/70 dark:bg-zinc-900/90 px-2 py-1 select-none text-xs shrink-0">
+      <div className="flex items-center justify-between border-b border-border bg-surface px-2 py-1 select-none text-xs shrink-0">
         <div className="flex items-center overflow-x-auto scrollbar-none">
           {tabs.map((tab) => {
             const active = activeTab === tab.id;
@@ -700,10 +700,10 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative px-4 py-1 border-r border-zinc-400 dark:border-zinc-800 font-medium transition-all flex items-center gap-1.5 ${
+                className={`relative px-4 py-1 border-r border-border font-medium transition-all flex items-center gap-1.5 ${
                   active
-                    ? "bg-white dark:bg-zinc-950 text-orange-600 dark:text-orange-500 font-semibold border-b-2 border-b-orange-500 shadow-sm"
-                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200"
+                    ? "bg-surface text-accent font-semibold border-b-2 border-b-accent shadow-sm"
+                    : "text-muted-foreground hover:bg-surface-elevated hover:text-text"
                 }`}
               >
                 <span className="truncate">{tab.name}</span>
@@ -713,7 +713,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
 
           <button
             onClick={handleAddTab}
-            className="p-1.5 ml-1 text-zinc-500 dark:text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 transition-colors rounded hover:bg-zinc-200 dark:hover:bg-zinc-800"
+            className="p-1.5 ml-1 text-muted-foreground hover:text-text transition-colors rounded hover:bg-surface-elevated"
             title="Criar nova aba de planilha"
           >
             <Plus size={14} />
@@ -769,7 +769,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
             >
               <div className="w-full h-full flex flex-col p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs text-zinc-400">
+                  <div className="text-xs text-muted-foreground">
                     Aba de rascunho local: <strong>{tabs.find(t => t.id === activeTab)?.name}</strong>
                   </div>
                   <button
@@ -788,29 +788,29 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
                   </button>
                 </div>
                 {/* Render a simple custom layout */}
-                <div className="flex-1 overflow-auto border border-zinc-300 dark:border-zinc-800 rounded bg-white dark:bg-zinc-900/50">
-                  <table className="min-w-full divide-y divide-zinc-300 dark:divide-zinc-800 text-[11px]">
-                    <thead className="bg-zinc-100 dark:bg-zinc-950 sticky top-0 z-10">
+                <div className="flex-1 overflow-auto border border-border rounded bg-surface">
+                  <table className="min-w-full divide-y divide-border text-[11px]">
+                    <thead className="bg-surface-elevated sticky top-0 z-10">
                       <tr>
-                        <th className="px-2 py-1.5 text-center text-zinc-400 dark:text-zinc-500 font-bold border-r border-zinc-300 dark:border-zinc-800 w-10 bg-zinc-100 dark:bg-zinc-950"></th>
+                        <th className="px-2 py-1.5 text-center text-muted-foreground font-bold border-r border-border w-10 bg-surface-elevated"></th>
                         {Array.from({ length: 10 }).map((_, i) => (
-                          <th key={i} className="px-3 py-1.5 text-center font-semibold text-zinc-600 dark:text-zinc-400 border-r border-zinc-300 dark:border-zinc-800 uppercase w-32">
+                          <th key={i} className="px-3 py-1.5 text-center font-semibold text-muted-foreground border-r border-border uppercase w-32">
                             {String.fromCharCode(65 + i)}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-400 dark:divide-zinc-800">
+                    <tbody className="divide-y divide-border">
                       {Array.from({ length: 50 }).map((_, rowIndex) => (
-                        <tr key={rowIndex} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/25 bg-white dark:bg-transparent">
-                          <td className="px-2 py-1 text-center font-semibold text-zinc-500 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-950 border-r border-zinc-400 dark:border-zinc-800 select-none">
+                        <tr key={rowIndex} className="hover:bg-surface-elevated bg-surface">
+                          <td className="px-2 py-1 text-center font-semibold text-muted-foreground bg-surface-elevated border-r border-border select-none">
                             {rowIndex + 1}
                           </td>
                           {Array.from({ length: 10 }).map((_, colIndex) => {
                             const grid = customSheetsData[activeTab] || [];
                             const val = grid[rowIndex]?.[colIndex] || "";
                             return (
-                              <td key={colIndex} className="p-0 border-r border-zinc-400 dark:border-zinc-800 relative">
+                              <td key={colIndex} className="p-0 border-r border-border relative">
                                 <input
                                   type="text"
                                   value={val}
@@ -825,7 +825,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
                                       [activeTab]: updatedGrid
                                     }));
                                   }}
-                                  className="w-full bg-transparent px-2 py-1 text-zinc-800 dark:text-zinc-200 outline-none focus:bg-zinc-50 dark:focus:bg-zinc-950 focus:ring-1 focus:ring-orange-500"
+                                  className="w-full bg-transparent px-2 py-1 text-text outline-none focus:bg-surface-elevated focus:ring-1 focus:ring-accent"
                                 />
                               </td>
                             );
@@ -842,7 +842,7 @@ export function ControlClient({ initialRecords }: ControlClientProps) {
       </div>
  
       {/* Status Bar Footer */}
-      <div className="flex items-center justify-end border-t border-zinc-400 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 px-4 py-1.5 select-none text-[10px] text-zinc-500 dark:text-zinc-400 shrink-0 font-medium">
+      <div className="flex items-center justify-end border-t border-border bg-surface px-4 py-1.5 select-none text-[10px] text-muted-foreground shrink-0 font-medium">
         <span>Total de lançamentos: {records.length}</span>
       </div>
 

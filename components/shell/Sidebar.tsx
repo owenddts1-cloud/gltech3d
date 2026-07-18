@@ -143,8 +143,8 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         className={cn(
           "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors z-10",
           active
-            ? "text-primary font-semibold"
-            : "text-muted-foreground hover:text-foreground",
+            ? "text-sidebar-text-active font-semibold"
+            : "text-sidebar hover:text-sidebar-text-active",
           collapsed && "justify-center px-2",
           opts?.nested && !collapsed && "ml-3 pl-4",
         )}
@@ -152,7 +152,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         {active && (
           <motion.div
             layoutId="sidebar-active-pill"
-            className="absolute inset-0 bg-primary/10 border-l-2 border-primary rounded-r-md -z-10"
+            className="absolute inset-0 bg-accent/10 border-l-2 border-accent rounded-r-md -z-10"
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
           />
         )}
@@ -182,14 +182,14 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           className={cn(
             "relative flex items-center justify-center rounded-md px-2 py-2 text-sm transition-colors z-10",
             groupActive
-              ? "text-primary"
-              : "text-muted-foreground hover:text-foreground",
+              ? "text-sidebar-text-active"
+              : "text-sidebar hover:text-sidebar-text-active",
           )}
         >
           {groupActive && (
             <motion.div
               layoutId="sidebar-active-pill"
-              className="absolute inset-0 bg-primary/10 border-l-2 border-primary rounded-r-md -z-10"
+              className="absolute inset-0 bg-accent/10 border-l-2 border-accent rounded-r-md -z-10"
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
@@ -206,8 +206,8 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           onClick={() => setOpen((s) => ({ ...s, [group.key]: !isOpen }))}
           aria-expanded={isOpen}
           className={cn(
-            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors text-muted-foreground hover:text-foreground",
-            groupActive && "text-foreground font-medium",
+            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors text-sidebar hover:text-sidebar-text-active",
+            groupActive && "text-sidebar-text-active font-medium",
           )}
         >
           <Icon size={18} weight={groupActive ? "fill" : "regular"} aria-hidden className="shrink-0" />
@@ -219,7 +219,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           />
         </button>
         {isOpen && (
-          <div className="mt-0.5 space-y-0.5 border-l border-zinc-400 dark:border-zinc-850 pl-1">
+          <div className="mt-0.5 space-y-0.5 border-l border-sidebar-border pl-1">
             {children.map((c) => renderLeaf(c, { nested: true }))}
           </div>
         )}
@@ -232,11 +232,11 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       layout="position"
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
-        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-[#fef2e0] dark:bg-zinc-950 border-zinc-400 dark:border-zinc-850 shadow-lg",
+        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-sidebar border-sidebar-border shadow-lg",
         collapsed ? "w-16" : "w-60",
       )}
     >
-      <div className={cn("flex items-center border-b border-zinc-400 dark:border-zinc-850 px-4 h-14", collapsed ? "justify-center" : "justify-start")}>
+      <div className={cn("flex items-center border-b border-sidebar-border px-4 h-14", collapsed ? "justify-center" : "justify-start")}>
         <Logo collapsed={collapsed} />
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-2 scrollbar-none" aria-label="Navegação principal">
@@ -248,12 +248,12 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       </nav>
       
       {/* Conta (fixada magneticamente no rodapé, isolada da navegação) */}
-      <div className="space-y-1 border-t border-zinc-400 dark:border-zinc-800/60 p-2 bg-zinc-200/50 dark:bg-zinc-950/20">
-        <div className={cn("mb-1 flex items-center gap-3 rounded-lg bg-white/80 dark:bg-zinc-900/40 border border-zinc-400 dark:border-zinc-800/30 p-2", collapsed && "justify-center bg-transparent border-none p-1")}>
+      <div className="space-y-1 border-t border-sidebar-border p-2 bg-sidebar">
+        <div className={cn("mb-1 flex items-center gap-3 rounded-lg bg-sidebar-elevated border border-sidebar-border p-2", collapsed && "justify-center bg-transparent border-none p-1")}>
           {/* Avatar com borda gradiente ativa */}
           <div className="relative shrink-0 flex items-center justify-center">
             <div className="absolute inset-0 bg-gradient-to-tr from-orange-600 via-amber-500 to-emerald-500 rounded-full animate-spin-slow opacity-90 p-[1.5px]" />
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-zinc-950 text-[10px] font-bold text-zinc-100 border border-zinc-900 z-10 m-[1.5px]">
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-sidebar text-[10px] font-bold text-sidebar-text-active border border-sidebar-border z-10 m-[1.5px]">
               {user.avatar_url ? (
                 <img src={user.avatar_url} alt={user.full_name || "User Avatar"} className="h-full w-full rounded-full object-cover" />
               ) : (
@@ -261,20 +261,20 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
               )}
             </div>
             {/* Status dot */}
-            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950 z-20" />
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-sidebar z-20" />
           </div>
           
           {!collapsed && (
             <>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-xs font-semibold text-zinc-800 dark:text-zinc-100 leading-tight">
+                <div className="truncate text-xs font-semibold text-sidebar-text-active leading-tight">
                   {user.full_name || user.email.split("@")[0]}
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="truncate text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                  <span className="truncate text-[10px] text-sidebar font-medium">
                     {activeOrg?.name || "Workspace"}
                   </span>
-                  <span className="flex items-center gap-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-500 text-[8px] font-bold px-1 py-0.2 rounded uppercase border border-orange-500/20 tracking-wider">
+                  <span className="flex items-center gap-0.5 bg-accent/10 text-accent text-[8px] font-bold px-1 py-0.2 rounded uppercase border border-accent/20 tracking-wider">
                     <Lightning size={6} weight="fill" />
                     PRO
                   </span>
@@ -288,7 +288,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
                 aria-label="Sair"
                 whileHover={{ rotate: 15, scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
-                className="rounded-md p-1.5 text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-500 shrink-0"
+                className="rounded-md p-1.5 text-sidebar transition-colors hover:bg-red-500/10 hover:text-red-500 shrink-0"
               >
                 <SignOut size={15} weight="bold" />
               </motion.button>
@@ -300,7 +300,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           href="/"
           title={collapsed ? "Voltar à Landing" : undefined}
           className={cn(
-            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800/35 hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors",
+            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-sidebar hover:bg-sidebar-hover hover:text-sidebar-text-active transition-colors",
             collapsed && "justify-center px-2",
           )}
         >
@@ -313,7 +313,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           onClick={() => startTransition(() => toggleSidebar(collapsed))}
           disabled={isPending}
           className={cn(
-            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800/35 hover:text-zinc-950 dark:hover:text-zinc-100 transition-colors",
+            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-sidebar hover:bg-sidebar-hover hover:text-sidebar-text-active transition-colors",
             collapsed && "justify-center px-2",
           )}
           aria-label={collapsed ? "Expandir sidebar" : "Recolher sidebar"}

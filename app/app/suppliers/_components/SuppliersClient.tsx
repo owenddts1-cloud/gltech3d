@@ -201,8 +201,8 @@ export function SuppliersClient({ data }: { data: SuppliersData }) {
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} layout="vertical" margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
-                      <XAxis type="number" tick={{ fontSize: 9, fill: "var(--color-text-muted)" }} tickFormatter={(v) => `R$${v.toFixed(2)}`} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 9, fill: "var(--color-text-muted)" }} axisLine={false} tickLine={false} width={80} />
+                      <XAxis type="number" tick={{ fontSize: 9, fill: "var(--color-text-muted-foreground)" }} tickFormatter={(v) => `R$${v.toFixed(2)}`} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 9, fill: "var(--color-text-muted-foreground)" }} axisLine={false} tickLine={false} width={80} />
                       <RechartsTooltip
                         content={({ active, payload }) => {
                           if (active && payload && payload.length && payload[0]) {

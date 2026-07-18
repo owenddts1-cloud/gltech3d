@@ -46,9 +46,9 @@ export function PrintingDetails({ filename, progress, timeRemaining, filament, s
     <div className="mt-4 space-y-3">
       <div className="flex items-start gap-3">
         {/* Placeholder geométrico da peça (camadas até o progresso) */}
-        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-zinc-700/60 bg-zinc-900/60">
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-elevated">
           <div
-            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-orange-500/80 to-amber-400/40 transition-[height] duration-700 ease-out"
+            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-accent to-accent-hover transition-[height] duration-700 ease-out"
             style={{ height: `${Math.min(100, Math.max(0, progress))}%` }}
           />
           <div
@@ -63,15 +63,15 @@ export function PrintingDetails({ filename, progress, timeRemaining, filament, s
 
         {/* Progresso + ETA */}
         <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex justify-between text-xs font-semibold text-zinc-200">
+          <div className="flex justify-between text-xs font-semibold text-text">
             <span className="truncate max-w-[140px]">{filename}</span>
             <span className="tabular-nums">{Math.round(progress)}%</span>
           </div>
-          <div className="w-full overflow-hidden rounded-full bg-zinc-800 h-2">
-            <div className="h-full bg-orange-500 transition-all duration-500" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+          <div className="w-full overflow-hidden rounded-full bg-surface-elevated h-2">
+            <div className="h-full bg-accent transition-all duration-500" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
           </div>
-          <div className="flex items-center justify-between text-[10px] text-zinc-400">
-            <span className="flex items-center gap-1 font-mono tabular-nums text-zinc-300">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1 font-mono tabular-nums text-text">
               <Clock size={12} /> ETA {fmtEta(eta)}
             </span>
             {filament && (
@@ -90,7 +90,7 @@ export function PrintingDetails({ filename, progress, timeRemaining, filament, s
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-[10px] font-semibold text-orange-300 transition-colors hover:bg-orange-500/20"
+            className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-soft px-2 py-1 text-[10px] font-semibold text-accent transition-colors hover:bg-accent/20"
             title="Ver detalhes da OS"
           >
             <ClipboardText size={12} weight="fill" />
@@ -100,7 +100,7 @@ export function PrintingDetails({ filename, progress, timeRemaining, filament, s
             type="button"
             onClick={() => onAssign(null)}
             aria-label="Desvincular OS"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-text"
           >
             <X size={12} weight="bold" />
           </button>
@@ -109,11 +109,11 @@ export function PrintingDetails({ filename, progress, timeRemaining, filament, s
         <select
           value=""
           onChange={(e) => e.target.value && onAssign(e.target.value)}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] text-zinc-300 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          className="w-full rounded-lg border border-border bg-surface-elevated px-2 py-1 text-[10px] text-text focus:outline-none focus:ring-1 focus:ring-accent"
         >
-          <option value="" className="bg-zinc-950">Vincular Ordem de Serviço…</option>
+          <option value="" className="bg-surface">Vincular Ordem de Serviço…</option>
           {serviceOrders.map((so) => (
-            <option key={so.id} value={so.id} className="bg-zinc-950">
+            <option key={so.id} value={so.id} className="bg-surface">
               {so.title}{so.contactName ? ` — ${so.contactName}` : ""}
             </option>
           ))}

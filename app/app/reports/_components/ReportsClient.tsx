@@ -170,7 +170,7 @@ export function ReportsClient({ data, breakdowns }: { data: ReportsData; breakdo
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard label="Faturamento" icon={Receipt} iconCls="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
           value={brl(kpis.revenue)} pill={<TrendPill pct={kpis.revenueTrend} />} sub="OS concluídas no período" />
-        <KpiCard label="Filamento" icon={Printer} iconCls="bg-orange-500/10 text-orange-600 dark:text-orange-400"
+        <KpiCard label="Filamento" icon={Printer} iconCls="bg-accent-soft text-accent"
           value={`${kpis.filamentKg.toFixed(1)} kg`} pill={<TrendPill pct={kpis.filamentTrend} />} sub="consumo por telemetria" />
         <KpiCard label="OS Concluídas" icon={ClipboardText} iconCls="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
           value={`${completion}%`} pill={<span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">{data.osConcluidas}/{data.osTotal}</span>}

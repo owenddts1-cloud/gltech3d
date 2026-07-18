@@ -108,11 +108,11 @@ interface DashboardClientProps {
 
 /** Aparência por status da impressora (ícone, cores, borda). */
 const PRINTER_STATUS_META: Record<PrinterStatus, { label: string; badge: string; border: string; Icon: typeof Printer; icon: string }> = {
-  printing:    { label: "Imprimindo",    badge: "bg-orange-500/10 text-orange-400 border-orange-500/20",   border: "border-l-orange-500",  Icon: Printer,     icon: "text-orange-400" },
+  printing:    { label: "Imprimindo",    badge: "bg-accent-soft text-accent border-accent/20",   border: "border-l-accent",  Icon: Printer,     icon: "text-accent" },
   idle:        { label: "Ociosa",        badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", border: "border-l-emerald-500", Icon: CheckCircle, icon: "text-emerald-400" },
   maintenance: { label: "Em manutenção", badge: "bg-amber-500/10 text-amber-400 border-amber-500/20",       border: "border-l-amber-500",   Icon: Wrench,      icon: "text-amber-400" },
   error:       { label: "Erro",          badge: "bg-red-500/10 text-red-400 border-red-500/20",             border: "border-l-red-500",     Icon: Warning,     icon: "text-red-400" },
-  offline:     { label: "Offline",       badge: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",          border: "border-l-zinc-600",    Icon: WifiSlash,   icon: "text-zinc-400" },
+  offline:     { label: "Offline",       badge: "bg-surface-elevated text-muted-foreground border-border",          border: "border-l-border-strong",    Icon: WifiSlash,   icon: "text-muted-foreground" },
 };
 const PRINTER_STATUS_ORDER: PrinterStatus[] = ["printing", "idle", "maintenance", "error", "offline"];
 
@@ -134,7 +134,7 @@ function SpotlightCard({ children, className, ...props }: { children: React.Reac
       onMouseEnter={() => setIsFocused(true)}
       onMouseLeave={() => setIsFocused(false)}
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-950/40 p-5 shadow-lg backdrop-blur-md transition-all duration-300",
+        "relative overflow-hidden rounded-2xl border border-border bg-surface p-5 shadow-lg backdrop-blur-md transition-all duration-300",
         className
       )}
       {...props}
@@ -494,26 +494,26 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       {/* Upper header */}
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
-            <Gauge className="text-orange-500" />
+          <h1 className="text-2xl font-bold tracking-tight text-text flex items-center gap-2">
+            <Gauge className="text-accent" />
             Dashboard de Telemetria & Produção
           </h1>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             Monitore suas impressoras 3D, controle o estoque de filamento e gerencie os custos reais de operação.
           </p>
         </div>
         <div className="flex gap-2">
           {printers.length === 0 && (
-            <Button onClick={initializeMockData} variant="outline" className="gap-2 border-zinc-850 hover:bg-zinc-900">
+            <Button onClick={initializeMockData} variant="outline" className="gap-2 border-border hover:bg-surface-elevated">
               <ArrowsClockwise className="h-4 w-4" />
               Carregar Demo Data
             </Button>
           )}
-          <Button onClick={() => setShowAddPrinter(true)} className="gap-2 bg-orange-600 hover:bg-orange-700 text-white font-medium">
+          <Button onClick={() => setShowAddPrinter(true)} className="gap-2 bg-accent hover:bg-accent-hover text-white font-medium">
             <Plus className="h-4 w-4" />
             Nova Máquina
           </Button>
-          <Button onClick={() => setShowAddFilament(true)} variant="outline" className="gap-2 border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300">
+          <Button onClick={() => setShowAddFilament(true)} variant="outline" className="gap-2 border-border bg-surface-elevated hover:bg-surface text-text">
             <Plus className="h-4 w-4" />
             Novo Filamento
           </Button>
@@ -525,16 +525,16 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         <SpotlightCard>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Máquinas</p>
-              <p className="text-2xl font-bold mt-1 text-zinc-100">{printers.length}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Máquinas</p>
+              <p className="text-2xl font-bold mt-1 text-text">{printers.length}</p>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[10px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
+                <span className="text-[10px] bg-accent-soft text-accent border border-accent/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
                   {printingCount} imprimindo
                 </span>
-                <span className="text-[10px] text-zinc-500">{maintenanceCount} em manutenção</span>
+                <span className="text-[10px] text-muted-foreground">{maintenanceCount} em manutenção</span>
               </div>
             </div>
-            <div className="p-3 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20 shadow-inner">
+            <div className="p-3 bg-accent-soft rounded-xl text-accent border border-accent/20 shadow-inner">
               <Printer size={20} />
             </div>
           </div>
@@ -543,13 +543,13 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         <SpotlightCard>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Estoque de Filamento</p>
-              <p className="text-2xl font-bold mt-1 text-zinc-100">{(filamentTotalGrams / 1000).toFixed(1)} kg</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Estoque de Filamento</p>
+              <p className="text-2xl font-bold mt-1 text-text">{(filamentTotalGrams / 1000).toFixed(1)} kg</p>
               <div className="flex items-center gap-1.5 mt-1">
                 <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
                   {filaments.length} bobinas
                 </span>
-                <span className="text-[10px] text-zinc-500">{lowStockFilaments > 0 ? `${lowStockFilaments} abaixo do mínimo` : "estoque ok"}</span>
+                <span className="text-[10px] text-muted-foreground">{lowStockFilaments > 0 ? `${lowStockFilaments} abaixo do mínimo` : "estoque ok"}</span>
               </div>
             </div>
             <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20 shadow-inner">
@@ -561,13 +561,13 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         <SpotlightCard>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Jobs Concluídos</p>
-              <p className="text-2xl font-bold mt-1 text-zinc-100">{printJobs.length}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Jobs Concluídos</p>
+              <p className="text-2xl font-bold mt-1 text-text">{printJobs.length}</p>
               <div className="flex items-center gap-1.5 mt-1">
                 <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
                   R$ {realCostAcc.toFixed(2)}
                 </span>
-                <span className="text-[10px] text-zinc-500">custo real produzido</span>
+                <span className="text-[10px] text-muted-foreground">custo real produzido</span>
               </div>
             </div>
             <div className="p-3 bg-cyan-500/10 rounded-xl text-cyan-400 border border-cyan-500/20 shadow-inner">
@@ -579,13 +579,13 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         <SpotlightCard>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Status do Hardware</p>
-              <p className="text-2xl font-bold mt-1 text-zinc-100">{Math.max(0, Math.min(100, healthScore))}%</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Status do Hardware</p>
+              <p className="text-2xl font-bold mt-1 text-text">{Math.max(0, Math.min(100, healthScore))}%</p>
               <div className="flex items-center gap-1.5 mt-1">
                 <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
                   {errorPrinters === 0 ? "100% Saudável" : `${errorPrinters} Erros`}
                 </span>
-                <span className="text-[10px] text-zinc-500">Farm telemetria</span>
+                <span className="text-[10px] text-muted-foreground">Farm telemetria</span>
               </div>
             </div>
             <div className="p-3 bg-amber-500/10 rounded-xl text-amber-500 border border-amber-500/20 shadow-inner">
@@ -600,13 +600,13 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Farm Control Card (Double wide) */}
-        <Card className="lg:col-span-2 p-6 border-zinc-800/60 bg-zinc-950/40 backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
+        <Card className="lg:col-span-2 p-6 border-border bg-surface backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-              <Printer className="text-orange-500" />
+            <h2 className="text-lg font-bold text-text flex items-center gap-2">
+              <Printer className="text-accent" />
               Fazenda de Impressão 3D
             </h2>
-            <Badge variant="secondary" className="bg-zinc-900 border-zinc-800 text-zinc-300">Telemetria Klipper ativa</Badge>
+            <Badge variant="secondary" className="bg-surface-elevated border-border text-text">Telemetria Klipper ativa</Badge>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
@@ -621,18 +621,18 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
               return (
                 <Card
                   key={printer.id}
-                  className={`p-4 border-zinc-800/60 relative overflow-hidden transition-all flex flex-col justify-between rounded-xl bg-zinc-950/20 border-l-4 ${meta.border}`}
+                  className={`p-4 border-border relative overflow-hidden transition-all flex flex-col justify-between rounded-xl bg-surface border-l-4 ${meta.border}`}
                 >
                   <div className="flex justify-between items-start gap-2">
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-sm text-zinc-100 flex items-center gap-1.5">
+                      <h3 className="font-semibold text-sm text-text flex items-center gap-1.5">
                         <StatusIcon size={14} className={meta.icon} /> {printer.name}
                       </h3>
-                      <p className="text-xs text-zinc-400 mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         Consumo: {printer.powerDraw}W · Depreciação: R$ {printer.depreciationPerHour}/h
                       </p>
                       {printer.networkUrl && (
-                        <p className="text-[10px] text-zinc-500 mt-0.5 truncate" title={printer.networkUrl}>IP: {printer.networkUrl}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 truncate" title={printer.networkUrl}>IP: {printer.networkUrl}</p>
                       )}
                     </div>
                     {/* Definir status à mão (Operando/Manutenção/…). */}
@@ -643,7 +643,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                       className={`shrink-0 cursor-pointer rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wider outline-none ${meta.badge}`}
                     >
                       {PRINTER_STATUS_ORDER.map((s) => (
-                        <option key={s} value={s} className="bg-zinc-900 text-zinc-100">{PRINTER_STATUS_META[s].label}</option>
+                        <option key={s} value={s} className="bg-surface-elevated text-text">{PRINTER_STATUS_META[s].label}</option>
                       ))}
                     </select>
                   </div>
@@ -659,15 +659,15 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                       onAssign={(osId) => assignOsToActiveJob(printer.id, osId)}
                     />
                   ) : (
-                    <div className="mt-4 flex flex-col items-center justify-center p-4 bg-zinc-900/30 rounded-md border border-zinc-800/40 text-center">
+                    <div className="mt-4 flex flex-col items-center justify-center p-4 bg-surface-elevated rounded-md border border-border text-center">
                       <StatusIcon className={`${meta.icon} h-6 w-6 mb-1`} />
-                      <p className="text-xs font-semibold text-zinc-200">
+                      <p className="text-xs font-semibold text-text">
                         {printer.status === "maintenance" ? "Em manutenção"
                           : printer.status === "error" ? "Falha na impressora"
                           : printer.status === "offline" ? "Offline"
                           : "Pronta para produção"}
                       </p>
-                      <p className="text-[10px] text-zinc-400">
+                      <p className="text-[10px] text-muted-foreground">
                         {printer.status === "maintenance" ? "Fora de operação para manutenção"
                           : printer.status === "error" ? "Verifique bico / telemetria"
                           : printer.status === "offline" ? "Sem comunicação com a máquina"
@@ -676,7 +676,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     </div>
                   )}
 
-                  <div className="mt-4 pt-2 border-t border-zinc-800/40 flex items-center justify-between text-[10px] text-zinc-400">
+                  <div className="mt-4 pt-2 border-t border-border flex items-center justify-between text-[10px] text-muted-foreground">
                     <span>Bico: {live?.nozzleTemp != null ? `${live.nozzleTemp}°C` : "—"}</span>
                     <span>Mesa: {live?.bedTemp != null ? `${live.bedTemp}°C` : "—"}</span>
                     <div className="flex items-center gap-1">
@@ -684,7 +684,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                         onClick={() => refreshLive(printer)}
                         disabled={pollingId === printer.id}
                         title={`Atualizar status por IP (modo: ${printer.pollMode ?? "browser"})`}
-                        className="text-zinc-400 hover:text-orange-400 transition-colors p-1 disabled:opacity-40"
+                        className="text-muted-foreground hover:text-accent transition-colors p-1 disabled:opacity-40"
                       >
                         <ArrowsClockwise size={12} className={pollingId === printer.id ? "animate-spin" : ""} />
                       </button>
@@ -701,37 +701,37 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
             })}
             
             {printers.length === 0 && (
-              <div className="col-span-2 flex flex-col items-center justify-center p-8 border border-dashed border-zinc-800 rounded-xl text-center">
-                <Printer className="h-10 w-10 text-zinc-500 mb-2" />
-                <p className="text-sm font-semibold text-zinc-200">Nenhuma impressora cadastrada</p>
-                <p className="text-xs text-zinc-400">Clique em Nova Máquina para cadastrar.</p>
+              <div className="col-span-2 flex flex-col items-center justify-center p-8 border border-dashed border-border rounded-xl text-center">
+                <Printer className="h-10 w-10 text-muted-foreground mb-2" />
+                <p className="text-sm font-semibold text-text">Nenhuma impressora cadastrada</p>
+                <p className="text-xs text-muted-foreground">Clique em Nova Máquina para cadastrar.</p>
               </div>
             )}
           </div>
         </Card>
 
         {/* Estoque de filamentos — por marca, com quantidade e soma por material */}
-        <Card className="p-6 border-zinc-800/60 bg-zinc-950/40 backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
+        <Card className="p-6 border-border bg-surface backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-              <Package className="text-orange-500" />
+            <h2 className="text-lg font-bold text-text flex items-center gap-2">
+              <Package className="text-accent" />
               Estoque de Filamentos
             </h2>
             <Badge variant="outline" className="border-emerald-500/20 text-emerald-400 bg-emerald-500/5 font-semibold">{(filamentTotalGrams / 1000).toFixed(1)} kg</Badge>
           </div>
 
           {filaments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-8 border border-dashed border-zinc-800 rounded-xl text-center">
-              <Package className="h-10 w-10 text-zinc-500 mb-2" />
-              <p className="text-sm font-semibold text-zinc-200">Estoque vazio</p>
-              <p className="text-xs text-zinc-400">Adicione rolos de filamento para começar.</p>
+            <div className="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded-xl text-center">
+              <Package className="h-10 w-10 text-muted-foreground mb-2" />
+              <p className="text-sm font-semibold text-text">Estoque vazio</p>
+              <p className="text-xs text-muted-foreground">Adicione rolos de filamento para começar.</p>
             </div>
           ) : (
             <>
               <div className="max-h-[340px] overflow-y-auto overflow-x-auto scrollbar-none">
                 <table className="w-full text-left text-[11px]">
-                  <thead className="text-zinc-500 uppercase tracking-wider text-[9px]">
-                    <tr className="border-b border-zinc-800/60">
+                  <thead className="text-muted-foreground uppercase tracking-wider text-[9px]">
+                    <tr className="border-b border-border">
                       <th className="py-2 pr-2">Marca</th>
                       <th className="py-2 px-2">Material</th>
                       <th className="py-2 px-2 text-right">Quantidade</th>
@@ -744,24 +744,24 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                       const pct = f.initialWeightGrams > 0 ? (f.weightGrams / f.initialWeightGrams) * 100 : 0;
                       const isLow = f.weightGrams < f.minWeightAlert;
                       return (
-                        <tr key={f.id} className="border-b border-zinc-800/30 hover:bg-zinc-900/35 transition-colors">
+                        <tr key={f.id} className="border-b border-border hover:bg-surface-elevated transition-colors">
                           <td className="py-2 pr-2">
                             <div className="flex items-center gap-2">
-                              <span className="h-3 w-3 shrink-0 rounded-full border border-zinc-800" style={{ backgroundColor: f.color }} />
-                              <span className="font-semibold text-zinc-100 truncate max-w-[130px]" title={f.name}>{f.name}</span>
+                              <span className="h-3 w-3 shrink-0 rounded-full border border-border" style={{ backgroundColor: f.color }} />
+                              <span className="font-semibold text-text truncate max-w-[130px]" title={f.name}>{f.name}</span>
                             </div>
                           </td>
-                          <td className="py-2 px-2 text-zinc-400">{f.material || "—"}</td>
+                          <td className="py-2 px-2 text-muted-foreground">{f.material || "—"}</td>
                           <td className="py-2 px-2 text-right">
-                            <div className={`font-bold tabular-nums ${isLow ? "text-red-400" : "text-zinc-100"}`}>{f.weightGrams} g</div>
-                            <div className="ml-auto mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-zinc-900">
+                            <div className={`font-bold tabular-nums ${isLow ? "text-red-400" : "text-text"}`}>{f.weightGrams} g</div>
+                            <div className="ml-auto mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-surface-elevated">
                               <div className={`h-full ${isLow ? "bg-red-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, pct)}%` }} />
                             </div>
                           </td>
-                          <td className="py-2 px-2 text-right text-zinc-400 tabular-nums">R$ {f.costPerGram}</td>
+                          <td className="py-2 px-2 text-right text-muted-foreground tabular-nums">R$ {f.costPerGram}</td>
                           <td className="py-2 pl-2 text-right whitespace-nowrap">
                             {isLow && <span className="mr-1 inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-red-500"><Warning size={9} />Baixo</span>}
-                            <button onClick={() => deleteFilament(f.id)} className="text-zinc-500 hover:text-red-500 transition-colors" title="Remover filamento"><Trash size={11} /></button>
+                            <button onClick={() => deleteFilament(f.id)} className="text-muted-foreground hover:text-red-500 transition-colors" title="Remover filamento"><Trash size={11} /></button>
                           </td>
                         </tr>
                       );
@@ -770,10 +770,10 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 </table>
               </div>
               {/* Soma por material (total PLA, PETG, ...) */}
-              <div className="flex flex-wrap gap-2 border-t border-zinc-800/40 pt-3">
+              <div className="flex flex-wrap gap-2 border-t border-border pt-3">
                 {Object.entries(stockByMaterial).sort((a, b) => b[1] - a[1]).map(([mat, g]) => (
-                  <span key={mat} className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-1 text-[10px] text-zinc-300">
-                    <span className="font-bold text-zinc-100">{mat}</span> · {(g / 1000).toFixed(g >= 1000 ? 1 : 2)} kg
+                  <span key={mat} className="rounded-lg border border-border bg-surface-elevated px-2 py-1 text-[10px] text-text">
+                    <span className="font-bold text-text">{mat}</span> · {(g / 1000).toFixed(g >= 1000 ? 1 : 2)} kg
                   </span>
                 ))}
               </div>
@@ -784,12 +784,12 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Telemetry simulator panel */}
-        <Card className="p-6 border-zinc-800/60 bg-zinc-950/40 backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
-          <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+        <Card className="p-6 border-border bg-surface backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
+          <h2 className="text-lg font-bold text-text flex items-center gap-2">
             <Play className="text-emerald-500" />
             Simulador de Telemetria (Klipper Webhook)
           </h2>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             Simule um evento de fim de impressão disparando o webhook de telemetria diretamente para o backend. 
             O robô calcula custos reais e deduz o estoque automaticamente.
           </p>
@@ -802,12 +802,12 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   id="sim_printer"
                   value={simPrinterId} 
                   onChange={(e) => setSimPrinterId(e.target.value)}
-                  className="w-full text-xs p-2 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  className="w-full text-xs p-2 rounded-md border border-border bg-surface-elevated text-text focus:outline-none focus:ring-1 focus:ring-accent"
                   required
                 >
-                  <option value="" className="bg-zinc-950">Selecione...</option>
+                  <option value="" className="bg-surface">Selecione...</option>
                   {printers.map((p) => (
-                    <option key={p.id} value={p.id} className="bg-zinc-950">{p.name} ({p.status})</option>
+                    <option key={p.id} value={p.id} className="bg-surface">{p.name} ({p.status})</option>
                   ))}
                 </select>
               </div>
@@ -818,12 +818,12 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   id="sim_filament"
                   value={simFilamentId} 
                   onChange={(e) => setSimFilamentId(e.target.value)}
-                  className="w-full text-xs p-2 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  className="w-full text-xs p-2 rounded-md border border-border bg-surface-elevated text-text focus:outline-none focus:ring-1 focus:ring-accent"
                   required
                 >
-                  <option value="" className="bg-zinc-950">Selecione...</option>
+                  <option value="" className="bg-surface">Selecione...</option>
                   {filaments.map((f) => (
-                    <option key={f.id} value={f.id} className="bg-zinc-950">{f.name} ({f.weightGrams}g)</option>
+                    <option key={f.id} value={f.id} className="bg-surface">{f.name} ({f.weightGrams}g)</option>
                   ))}
                 </select>
               </div>
@@ -838,7 +838,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   value={simWeight} 
                   onChange={(e) => setSimWeight(Number(e.target.value))}
                   min={1}
-                  className="bg-zinc-900 border-zinc-800 text-zinc-200 focus:ring-orange-500 focus:border-orange-500"
+                  className="bg-surface-elevated border-border text-text focus:ring-accent focus:border-accent"
                   required
                 />
               </div>
@@ -851,7 +851,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   value={simTime} 
                   onChange={(e) => setSimTime(Number(e.target.value))}
                   min={1}
-                  className="bg-zinc-900 border-zinc-800 text-zinc-200 focus:ring-orange-500 focus:border-orange-500"
+                  className="bg-surface-elevated border-border text-text focus:ring-accent focus:border-accent"
                   required
                 />
               </div>
@@ -865,7 +865,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   value={kEnergy} 
                   onChange={(e) => setKEnergy(Number(e.target.value))}
                   min={0.01}
-                  className="bg-zinc-900 border-zinc-800 text-zinc-200 focus:ring-orange-500 focus:border-orange-500"
+                  className="bg-surface-elevated border-border text-text focus:ring-accent focus:border-accent"
                   required
                 />
               </div>
@@ -878,7 +878,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 type="text" 
                 value={simFilename} 
                 onChange={(e) => setSimFilename(e.target.value)}
-                className="bg-zinc-900 border-zinc-800 text-zinc-200 focus:ring-orange-500 focus:border-orange-500"
+                className="bg-surface-elevated border-border text-text focus:ring-accent focus:border-accent"
                 required
               />
             </div>
@@ -889,11 +889,11 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 id="sim_os"
                 value={simServiceOrderId}
                 onChange={(e) => setSimServiceOrderId(e.target.value)}
-                className="w-full text-xs p-2 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                className="w-full text-xs p-2 rounded-md border border-border bg-surface-elevated text-text focus:outline-none focus:ring-1 focus:ring-accent"
               >
-                <option value="" className="bg-zinc-950">Sem OS vinculada</option>
+                <option value="" className="bg-surface">Sem OS vinculada</option>
                 {serviceOrders.map((so) => (
-                  <option key={so.id} value={so.id} className="bg-zinc-950">
+                  <option key={so.id} value={so.id} className="bg-surface">
                     {so.title}{so.contactName ? ` — ${so.contactName}` : ""}
                   </option>
                 ))}
@@ -907,44 +907,44 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         </Card>
 
         {/* Cost log and History feed */}
-        <Card className="p-6 border-zinc-800/60 bg-zinc-950/40 backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
-          <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-            <ChartBar className="text-orange-500" />
+        <Card className="p-6 border-border bg-surface backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
+          <h2 className="text-lg font-bold text-text flex items-center gap-2">
+            <ChartBar className="text-accent" />
             Histórico Recente e Custo Real
           </h2>
           
           <div className="space-y-3 overflow-y-auto max-h-[350px] pr-1 flex-1 scrollbar-none">
             {printJobs.map((job) => (
-              <Card key={job.id} className="p-3 bg-zinc-900/10 border-zinc-800/40 hover:border-zinc-800 transition-colors rounded-xl">
+              <Card key={job.id} className="p-3 bg-surface border-border hover:border-border-strong transition-colors rounded-xl">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="font-semibold text-xs text-zinc-100 truncate max-w-[200px]">{job.filename}</h4>
-                    <p className="text-[10px] text-zinc-450 mt-0.5">
+                    <h4 className="font-semibold text-xs text-text truncate max-w-[200px]">{job.filename}</h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
                       Impressora: {job.printerName} | Filamento: {job.filamentName}
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-[10px] border-zinc-850 text-zinc-400 bg-zinc-900/50">
+                  <Badge variant="outline" className="text-[10px] border-border text-muted-foreground bg-surface-elevated">
                     {new Date(job.completedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </Badge>
                 </div>
 
                 {job.costs && (
-                  <div className="mt-3 grid grid-cols-4 gap-2 pt-2 border-t border-zinc-850 text-[10px]">
+                  <div className="mt-3 grid grid-cols-4 gap-2 pt-2 border-t border-border text-[10px]">
                     <div>
-                      <p className="text-zinc-450">Material</p>
-                      <p className="font-medium text-zinc-200">R$ {job.costs.materialCost.toFixed(2)}</p>
+                      <p className="text-muted-foreground">Material</p>
+                      <p className="font-medium text-text">R$ {job.costs.materialCost.toFixed(2)}</p>
                     </div>
                     <div>
-                      <p className="text-zinc-450">Energia</p>
-                      <p className="font-medium text-zinc-200">R$ {job.costs.energyCost.toFixed(2)}</p>
+                      <p className="text-muted-foreground">Energia</p>
+                      <p className="font-medium text-text">R$ {job.costs.energyCost.toFixed(2)}</p>
                     </div>
                     <div>
-                      <p className="text-zinc-450">Depreciação</p>
-                      <p className="font-medium text-zinc-200">R$ {job.costs.depreciationCost.toFixed(2)}</p>
+                      <p className="text-muted-foreground">Depreciação</p>
+                      <p className="font-medium text-text">R$ {job.costs.depreciationCost.toFixed(2)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-orange-500 font-bold">Total</p>
-                      <p className="font-bold text-zinc-100">R$ {job.costs.totalCost.toFixed(2)}</p>
+                      <p className="text-accent font-bold">Total</p>
+                      <p className="font-bold text-text">R$ {job.costs.totalCost.toFixed(2)}</p>
                     </div>
                   </div>
                 )}
@@ -952,10 +952,10 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
             ))}
 
             {printJobs.length === 0 && (
-              <div className="flex flex-col items-center justify-center p-12 border border-dashed border-zinc-800 rounded-xl text-center">
-                <Info className="h-8 w-8 text-zinc-500 mb-2" />
-                <p className="text-xs text-zinc-400">Nenhum trabalho finalizado no histórico.</p>
-                <p className="text-[10px] text-zinc-500">Dispare uma simulação ao lado para registrar custos.</p>
+              <div className="flex flex-col items-center justify-center p-12 border border-dashed border-border rounded-xl text-center">
+                <Info className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-xs text-muted-foreground">Nenhum trabalho finalizado no histórico.</p>
+                <p className="text-[10px] text-muted-foreground">Dispare uma simulação ao lado para registrar custos.</p>
               </div>
             )}
           </div>
@@ -965,8 +965,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       {/* Add Printer Modal */}
       {showAddPrinter && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <Card className="max-w-md w-full p-6 space-y-4 bg-zinc-950 border border-zinc-800 shadow-2xl rounded-2xl">
-            <h3 className="font-bold text-lg text-zinc-100">Adicionar Nova Impressora 3D</h3>
+          <Card className="max-w-md w-full p-6 space-y-4 bg-surface border border-border shadow-2xl rounded-2xl">
+            <h3 className="font-bold text-lg text-text">Adicionar Nova Impressora 3D</h3>
             
             <div className="space-y-4">
               <div className="space-y-2">
@@ -976,7 +976,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   placeholder="ex: Ender 3 V3, Voron 2.4" 
                   value={newPrinter.name}
                   onChange={(e) => setNewPrinter({...newPrinter, name: e.target.value})}
-                  className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                  className="bg-surface-elevated border-border text-text"
                 />
               </div>
 
@@ -988,7 +988,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     type="number" 
                     value={newPrinter.powerDraw}
                     onChange={(e) => setNewPrinter({...newPrinter, powerDraw: Number(e.target.value)})}
-                    className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                    className="bg-surface-elevated border-border text-text"
                   />
                 </div>
                 <div className="space-y-2">
@@ -999,7 +999,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     step="0.05"
                     value={newPrinter.depreciationPerHour}
                     onChange={(e) => setNewPrinter({...newPrinter, depreciationPerHour: Number(e.target.value)})}
-                    className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                    className="bg-surface-elevated border-border text-text"
                   />
                 </div>
               </div>
@@ -1012,7 +1012,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   placeholder="ex: http://192.168.0.50:7125 (Moonraker) ou http://192.168.0.50 (OctoPrint)"
                   value={newPrinter.networkUrl}
                   onChange={(e) => setNewPrinter({ ...newPrinter, networkUrl: e.target.value })}
-                  className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                  className="bg-surface-elevated border-border text-text"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1022,7 +1022,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     id="printer_pollmode"
                     value={newPrinter.pollMode}
                     onChange={(e) => setNewPrinter({ ...newPrinter, pollMode: e.target.value as "browser" | "server" | "off" })}
-                    className="flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 text-sm text-zinc-200 outline-none"
+                    className="flex h-10 w-full rounded-md border border-border bg-surface-elevated px-3 text-sm text-text outline-none"
                   >
                     <option value="browser">Navegador (LAN)</option>
                     <option value="server">Servidor (IP público)</option>
@@ -1036,18 +1036,18 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     placeholder="só p/ OctoPrint"
                     value={newPrinter.apiKey}
                     onChange={(e) => setNewPrinter({ ...newPrinter, apiKey: e.target.value })}
-                    className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                    className="bg-surface-elevated border-border text-text"
                   />
                 </div>
               </div>
-              <p className="text-[10px] text-zinc-500">
+              <p className="text-[10px] text-muted-foreground">
                 Moonraker não precisa de key. Na LAN, use &quot;Navegador&quot; e habilite CORS no Moonraker (cors_domains). Detalhes em docs/printer-telemetry.md.
               </p>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="ghost" onClick={() => setShowAddPrinter(false)} className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900">Cancelar</Button>
-              <Button onClick={addPrinter} className="bg-orange-600 hover:bg-orange-700 text-white">Cadastrar Máquina</Button>
+              <Button variant="ghost" onClick={() => setShowAddPrinter(false)} className="text-muted-foreground hover:text-text hover:bg-surface-elevated">Cancelar</Button>
+              <Button onClick={addPrinter} className="bg-accent hover:bg-accent-hover text-white">Cadastrar Máquina</Button>
             </div>
           </Card>
         </div>
@@ -1056,8 +1056,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       {/* Add Filament Modal */}
       {showAddFilament && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <Card className="max-w-md w-full p-6 space-y-4 bg-zinc-950 border border-zinc-800 shadow-2xl rounded-2xl">
-            <h3 className="font-bold text-lg text-zinc-100">Adicionar Carretel de Filamento</h3>
+          <Card className="max-w-md w-full p-6 space-y-4 bg-surface border border-border shadow-2xl rounded-2xl">
+            <h3 className="font-bold text-lg text-text">Adicionar Carretel de Filamento</h3>
             
             <div className="space-y-4">
               <div className="space-y-2">
@@ -1067,7 +1067,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   placeholder="ex: PLA Premium Red" 
                   value={newFilament.name}
                   onChange={(e) => setNewFilament({...newFilament, name: e.target.value})}
-                  className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                  className="bg-surface-elevated border-border text-text"
                 />
               </div>
 
@@ -1078,12 +1078,12 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     id="fil_mat"
                     value={newFilament.material}
                     onChange={(e) => setNewFilament({...newFilament, material: e.target.value})}
-                    className="w-full text-xs p-2.5 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    className="w-full text-xs p-2.5 rounded-md border border-border bg-surface-elevated text-text focus:outline-none focus:ring-1 focus:ring-accent"
                   >
-                    <option value="PLA" className="bg-zinc-950">PLA</option>
-                    <option value="ABS" className="bg-zinc-950">ABS</option>
-                    <option value="PETG" className="bg-zinc-950">PETG</option>
-                    <option value="FLEX" className="bg-zinc-950">FLEX</option>
+                    <option value="PLA" className="bg-surface">PLA</option>
+                    <option value="ABS" className="bg-surface">ABS</option>
+                    <option value="PETG" className="bg-surface">PETG</option>
+                    <option value="FLEX" className="bg-surface">FLEX</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -1093,7 +1093,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     type="color" 
                     value={newFilament.color}
                     onChange={(e) => setNewFilament({...newFilament, color: e.target.value})}
-                    className="h-10 p-1 cursor-pointer bg-zinc-900 border-zinc-800"
+                    className="h-10 p-1 cursor-pointer bg-surface-elevated border-border"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1103,7 +1103,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     placeholder="GLTech"
                     value={newFilament.supplier}
                     onChange={(e) => setNewFilament({...newFilament, supplier: e.target.value})}
-                    className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                    className="bg-surface-elevated border-border text-text"
                   />
                 </div>
               </div>
@@ -1116,7 +1116,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     type="number" 
                     value={newFilament.initialWeightGrams}
                     onChange={(e) => setNewFilament({...newFilament, initialWeightGrams: Number(e.target.value), weightGrams: Number(e.target.value)})}
-                    className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                    className="bg-surface-elevated border-border text-text"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1127,7 +1127,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     step="0.01"
                     value={newFilament.costPerGram}
                     onChange={(e) => setNewFilament({...newFilament, costPerGram: Number(e.target.value)})}
-                    className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                    className="bg-surface-elevated border-border text-text"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1137,15 +1137,15 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                     type="number" 
                     value={newFilament.minWeightAlert}
                     onChange={(e) => setNewFilament({...newFilament, minWeightAlert: Number(e.target.value)})}
-                    className="bg-zinc-900 border-zinc-800 text-zinc-200"
+                    className="bg-surface-elevated border-border text-text"
                   />
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="ghost" onClick={() => setShowAddFilament(false)} className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900">Cancelar</Button>
-              <Button onClick={addFilament} className="bg-orange-600 hover:bg-orange-700 text-white">Adicionar Insumo</Button>
+              <Button variant="ghost" onClick={() => setShowAddFilament(false)} className="text-muted-foreground hover:text-text hover:bg-surface-elevated">Cancelar</Button>
+              <Button onClick={addFilament} className="bg-accent hover:bg-accent-hover text-white">Adicionar Insumo</Button>
             </div>
           </Card>
         </div>

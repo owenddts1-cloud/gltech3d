@@ -13,7 +13,7 @@ import { PALETTES, type PaletteId } from "@/app/design/lib/tokens";
 export type ResolvedMode = "light" | "dark";
 
 export const PALETTE_IDS = Object.keys(PALETTES) as PaletteId[];
-export const DEFAULT_PALETTE: PaletteId = "clay";
+export const DEFAULT_PALETTE: PaletteId = "electric";
 export const PALETTE_STORAGE_KEY = "gltech-palette";
 
 const SCALE_STOPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] as const;
@@ -23,7 +23,8 @@ export function paletteVars(id: PaletteId, mode: ResolvedMode): Record<string, s
   const n = mode === "light" ? p.neutralLight : p.neutralDark;
   const s = mode === "light" ? p.surfaces.light : p.surfaces.dark;
   const st = mode === "light" ? p.states.light : p.states.dark;
-  const a = p.accent;
+  // Acento pode variar por modo (ex.: Elétrico = roxo no claro, ciano no escuro).
+  const a = mode === "dark" ? (p.accentDark ?? p.accent) : p.accent;
 
   const vars: Record<string, string> = {
     "--color-bg": s.bg,

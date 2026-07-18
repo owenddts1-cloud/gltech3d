@@ -2,7 +2,7 @@
 // "Soft-tech / calmo" — neutros desaturados (greige/warm-gray), accent não-saturado.
 // 5-Constraint Rule applied: Shape, Color (exact hex), Typography, Motion, Layout.
 
-export type PaletteId = "sage" | "clay" | "mist" | "plum" | "olive";
+export type PaletteId = "sage" | "clay" | "mist" | "plum" | "olive" | "electric" | "roxo" | "ciano";
 export type TypoId = "bricolage-jakarta" | "fraunces-manrope" | "atkinson" | "source-plex";
 export type DensityId = "aerada" | "equilibrada" | "compacta";
 export type ThemeId = "light" | "dark";
@@ -24,6 +24,8 @@ export type PaletteDef = {
   name: string;
   description: string;
   accent: ColorScale;
+  /** Acento específico do modo escuro. Ausente = usa `accent` nos dois modos. */
+  accentDark?: ColorScale;
   // Greige/warm-gray neutrals — explicitly NOT slate/zinc.
   neutralLight: ColorScale;
   neutralDark: ColorScale;
@@ -35,9 +37,78 @@ export type PaletteDef = {
   };
 };
 
+// ─── Shared cool foundation (paletas Elétrico/Roxo/Ciano) ────────────────────
+// Chrome frio das referências: off-white no claro, grafite no escuro. O accent
+// (roxo/ciano) é a única coisa que muda entre essas três.
+
+const PURPLE: ColorScale = {
+  50: "#f5f0ff", 100: "#ece0ff", 200: "#d6bbff", 300: "#b98cff",
+  400: "#9a55ff", 500: "#8324ff", 600: "#6e00f5", 700: "#5b00cc",
+  800: "#4a00a3", 900: "#3c0480", 950: "#24004d",
+};
+const CYAN: ColorScale = {
+  50: "#e6f4ff", 100: "#cce9ff", 200: "#99d3ff", 300: "#66bdff",
+  400: "#33a4ff", 500: "#0084ff", 600: "#0069cc", 700: "#0050a0",
+  800: "#063c73", 900: "#06304d", 950: "#04223a",
+};
+const COOL_NEUTRAL_LIGHT: ColorScale = {
+  50: "#f8f9fe", 100: "#eef0f7", 200: "#e8eaf2", 300: "#d3d7e4",
+  400: "#a6adc4", 500: "#6c728f", 600: "#4b5170", 700: "#363b54",
+  800: "#24283b", 900: "#18182f", 950: "#0d0d1a",
+};
+const COOL_NEUTRAL_DARK: ColorScale = {
+  50: "#f4f5f8", 100: "#e2e4ea", 200: "#c0c4d0", 300: "#8a92a6",
+  400: "#5c6478", 500: "#40485a", 600: "#2d303e", 700: "#24262f",
+  800: "#20222a", 900: "#1a1c23", 950: "#121317",
+};
+const COOL_STATES = {
+  light: { success: "#16a34a", warning: "#d97706", error: "#dc2626", info: "#2563eb" },
+  dark:  { success: "#10b981", warning: "#f59e0b", error: "#f87171", info: "#38bdf8" },
+};
+// surfaceElevated no claro carrega o tom da marca ("Card de Destaque / Dicas").
+const COOL_SURFACES_PURPLE = {
+  light: { bg: "#f8f9fe", surface: "#ffffff", surfaceElevated: "#f4f0ff", text: "#18182f", textMuted: "#6c728f", border: "#e8eaf2" },
+  dark:  { bg: "#121317", surface: "#20222a", surfaceElevated: "#282b36", text: "#ffffff", textMuted: "#8a92a6", border: "#2d303e" },
+};
+const COOL_SURFACES_CYAN = {
+  light: { bg: "#f8f9fe", surface: "#ffffff", surfaceElevated: "#eaf3ff", text: "#18182f", textMuted: "#6c728f", border: "#e8eaf2" },
+  dark:  { bg: "#121317", surface: "#20222a", surfaceElevated: "#282b36", text: "#ffffff", textMuted: "#8a92a6", border: "#2d303e" },
+};
+
 // ─── Palettes ──────────────────────────────────────────────────────────────
 
 export const PALETTES: Record<PaletteId, PaletteDef> = {
+  electric: {
+    id: "electric",
+    name: "Elétrico",
+    description: "Roxo no claro, ciano no escuro. Vibrante e tech (referência).",
+    accent: PURPLE,
+    accentDark: CYAN,
+    neutralLight: COOL_NEUTRAL_LIGHT,
+    neutralDark: COOL_NEUTRAL_DARK,
+    states: COOL_STATES,
+    surfaces: COOL_SURFACES_PURPLE,
+  },
+  roxo: {
+    id: "roxo",
+    name: "Roxo",
+    description: "Roxo/púrpura vibrante nos dois modos.",
+    accent: PURPLE,
+    neutralLight: COOL_NEUTRAL_LIGHT,
+    neutralDark: COOL_NEUTRAL_DARK,
+    states: COOL_STATES,
+    surfaces: COOL_SURFACES_PURPLE,
+  },
+  ciano: {
+    id: "ciano",
+    name: "Ciano",
+    description: "Azul elétrico/ciano nos dois modos.",
+    accent: CYAN,
+    neutralLight: COOL_NEUTRAL_LIGHT,
+    neutralDark: COOL_NEUTRAL_DARK,
+    states: COOL_STATES,
+    surfaces: COOL_SURFACES_CYAN,
+  },
   sage: {
     id: "sage",
     name: "Sage",

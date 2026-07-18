@@ -110,7 +110,7 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi label="Ativos" value={String(kpis.totalAssets)} sub="itens cadastrados" icon={Toolbox} iconCls="bg-accent-soft text-accent" />
         <Kpi label="Patrimônio atual" value={brl(kpis.patrimonyCents)} sub="valor depreciado" icon={Receipt} iconCls="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
-        <Kpi label="Impressoras" value={String(kpis.printers)} sub="como ativo" icon={Printer} iconCls="bg-orange-500/10 text-orange-600 dark:text-orange-400" />
+        <Kpi label="Impressoras" value={String(kpis.printers)} sub="como ativo" icon={Printer} iconCls="bg-accent-soft text-accent" />
         <Kpi label="Em manutenção" value={String(kpis.maintenance)} sub="fora de operação" icon={Warning} iconCls={kpis.maintenance > 0 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground"} />
       </div>
 

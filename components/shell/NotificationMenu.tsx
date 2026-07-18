@@ -145,7 +145,7 @@ export function NotificationMenu() {
                       </span>
                       <span className="text-[10px] text-muted-foreground whitespace-nowrap">{n.time}</span>
                     </div>
-                    <p className="text-[11px] leading-relaxed text-text-muted">{n.description}</p>
+                    <p className="text-[11px] leading-relaxed text-text-muted-foreground">{n.description}</p>
                   </div>
 
                   {/* Hover Actions */}

@@ -30,6 +30,16 @@ const config: Config = {
           subtle: "var(--color-text-subtle)",
         },
 
+        // Sidebar — escura nos dois temas (tokens dedicados, fora do sistema de paletas).
+        sidebar: {
+          DEFAULT: "var(--color-sidebar)",
+          elevated: "var(--color-sidebar-elevated)",
+          border: "var(--color-sidebar-border)",
+          text: "var(--color-sidebar-text)",
+          "text-active": "var(--color-sidebar-text-active)",
+          hover: "var(--color-sidebar-hover)",
+        },
+
         // Accent — Sage scale
         accent: {
           DEFAULT: "var(--color-accent)",

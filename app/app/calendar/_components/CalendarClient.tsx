@@ -367,7 +367,7 @@ export function CalendarClient({ initialOrders, initialEvents, initialSales = []
       <header className="relative overflow-hidden rounded-2xl border border-border bg-surface-elevated p-6 backdrop-blur-md">
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500 border border-orange-500/20 shadow-inner">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent border border-accent/20 shadow-inner">
               <CalendarIcon size={26} />
             </div>
             <div>
@@ -395,7 +395,7 @@ export function CalendarClient({ initialOrders, initialEvents, initialSales = []
                   {viewMode === mode && (
                     <motion.div
                       layoutId="calendar-view-pill"
-                      className="absolute inset-0 bg-orange-600 rounded-lg -z-0"
+                      className="absolute inset-0 bg-accent rounded-lg -z-0"
                       transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />
                   )}
@@ -607,7 +607,7 @@ export function CalendarClient({ initialOrders, initialEvents, initialSales = []
                           className={cn(
                             "relative p-2.5 flex flex-col justify-between hover:bg-muted transition-colors cursor-pointer overflow-hidden group",
                             isCurrentMonth ? "text-foreground bg-muted" : "text-muted-foreground bg-muted opacity-40",
-                            isToday(day) ? "ring-1 ring-orange-500/50 z-10" : ""
+                            isToday(day) ? "ring-1 ring-accent/50 z-10" : ""
                           )}
                         >
                           {/* Workload Indicator line at top */}
@@ -630,13 +630,13 @@ export function CalendarClient({ initialOrders, initialEvents, initialSales = []
                             <span
                               className={cn(
                                 "text-xs font-bold font-mono rounded-md h-6.5 w-6.5 flex items-center justify-center border border-transparent transition-all",
-                                isToday(day) ? "bg-orange-600 text-white font-extrabold shadow-md border-orange-500" : "text-muted-foreground group-hover:border-border"
+                                isToday(day) ? "bg-accent text-white font-extrabold shadow-md border-accent" : "text-muted-foreground group-hover:border-border"
                               )}
                             >
                               {format(day, "d")}
                             </span>
                             {isToday(day) && (
-                              <span className="text-[8px] uppercase tracking-wider text-orange-400 font-extrabold animate-pulse">Hoje</span>
+                              <span className="text-[8px] uppercase tracking-wider text-accent font-extrabold animate-pulse">Hoje</span>
                             )}
                           </div>
 
@@ -889,7 +889,7 @@ export function CalendarClient({ initialOrders, initialEvents, initialSales = []
             </Button>
             <Button
               size="sm"
-              className="rounded-xl text-xs font-semibold bg-orange-600 hover:bg-orange-700 text-white"
+              className="rounded-xl text-xs font-semibold bg-accent hover:bg-accent-hover text-white"
               onClick={handleAddEvent}
               disabled={!newTitle.trim()}
             >

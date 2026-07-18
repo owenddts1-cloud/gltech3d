@@ -32,7 +32,7 @@ const ThreeViewer = dynamicImport(() => import("./ThreeViewer"), {
   ssr: false,
   loading: () => (
     <div className="w-full h-[400px] flex flex-col items-center justify-center bg-surface/60 border border-border rounded-lg">
-      <ArrowsClockwise className="h-8 w-8 text-orange-500 animate-spin mb-2" />
+      <ArrowsClockwise className="h-8 w-8 text-accent animate-spin mb-2" />
       <p className="text-xs text-muted-foreground">Carregando renderizador WebGL/Three.js...</p>
     </div>
   )
@@ -365,7 +365,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Cube className="text-orange-500" />
+            <Cube className="text-accent" />
             Repositório de Modelos 3D
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -384,7 +384,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
           <Button 
             onClick={() => fileInputRef.current?.click()} 
             disabled={isParsing}
-            className="gap-2 bg-orange-600 hover:bg-orange-700 text-white font-medium"
+            className="gap-2 bg-accent hover:bg-accent-hover text-white font-medium"
           >
             <Plus className="h-4 w-4" />
             {isParsing ? "Analisando STL..." : "Adicionar Arquivo STL"}
@@ -427,7 +427,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                 <Button
                   onClick={() => openInspector(model)}
                   disabled={loadingInspector}
-                  className="flex-1 text-xs gap-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20 rounded-xl"
+                  className="flex-1 text-xs gap-1.5 bg-accent-soft hover:bg-accent/20 text-accent border border-accent/20 rounded-xl"
                 >
                   <Eye size={14} />
                   {loadingInspector ? "Carregando…" : "Inspecionar 3D"}
@@ -462,7 +462,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
             <div className="flex justify-between items-center pb-2 border-b border-border">
               <div>
                 <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
-                  <Sparkles className="text-orange-500 h-5 w-5" />
+                  <Sparkles className="text-accent h-5 w-5" />
                   {activeInspector.name}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -501,7 +501,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
               <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-5 flex flex-col justify-between overflow-y-auto">
                 <div className="space-y-4">
                   <h4 className="font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-1.5 border-b border-border pb-2">
-                    <Gear className="text-orange-500" />
+                    <Gear className="text-accent" />
                     Controles e Fatiamento
                   </h4>
 
@@ -509,10 +509,10 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                   <div className="space-y-1.5">
                     <Label htmlFor="slice-range" className="text-[11px] text-muted-foreground font-semibold flex items-center justify-between">
                       <span className="flex items-center gap-1">
-                        <Layers size={13} className="text-orange-500" />
+                        <Layers size={13} className="text-accent" />
                         Fatiar Altura (Z)
                       </span>
-                      <span className="text-orange-400 font-bold">{sliceHeightPercent}%</span>
+                      <span className="text-accent font-bold">{sliceHeightPercent}%</span>
                     </Label>
                     <input
                       id="slice-range"
@@ -521,7 +521,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                       max="100"
                       value={sliceHeightPercent}
                       onChange={(e) => setSliceHeightPercent(Number(e.target.value))}
-                      className="w-full accent-orange-500 bg-muted rounded-lg cursor-pointer h-1.5"
+                      className="w-full accent-accent bg-muted rounded-lg cursor-pointer h-1.5"
                     />
                   </div>
 
@@ -531,7 +531,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                       id="color-picker-select"
                       value={inspectorColor}
                       onChange={(e) => setInspectorColor(e.target.value)}
-                      className="w-full text-xs p-2 rounded-md border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-orange-500"
+                      className="w-full text-xs p-2 rounded-md border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
                     >
                       <option value="#3b82f6" className="bg-surface">Azul Elétrico</option>
                       <option value="#10b981" className="bg-surface">Verde Esmeralda</option>
@@ -545,7 +545,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                   {/* manual rotation controls */}
                   <div className="space-y-3 pt-2 border-t border-border">
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold block flex items-center gap-1">
-                      <RotateCw size={11} className="text-orange-500" />
+                      <RotateCw size={11} className="text-accent" />
                       Orientação Manual
                     </span>
 
@@ -602,7 +602,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                   {/* lighting settings */}
                   <div className="space-y-3 pt-2 border-t border-border">
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold block flex items-center gap-1">
-                      <Sun size={12} className="text-orange-500" />
+                      <Sun size={12} className="text-accent" />
                       Iluminação
                     </span>
 
@@ -650,7 +650,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                         type="checkbox" 
                         checked={inspectorWireframe}
                         onChange={(e) => setInspectorWireframe(e.target.checked)}
-                        className="rounded border-border text-orange-500 focus:ring-orange-500 h-4 w-4 cursor-pointer bg-surface"
+                        className="rounded border-border text-accent focus:ring-accent h-4 w-4 cursor-pointer bg-surface"
                       />
                     </div>
 
@@ -661,7 +661,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                         type="checkbox" 
                         checked={inspectorRotate}
                         onChange={(e) => setInspectorRotate(e.target.checked)}
-                        className="rounded border-border text-orange-500 focus:ring-orange-500 h-4 w-4 cursor-pointer bg-surface"
+                        className="rounded border-border text-accent focus:ring-accent h-4 w-4 cursor-pointer bg-surface"
                       />
                     </div>
                   </div>
@@ -669,7 +669,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
 
                 <div className="p-3 bg-surface/60 border border-border rounded-lg text-[10px] space-y-1.5 text-muted-foreground">
                   <p className="font-semibold text-foreground flex items-center gap-1">
-                    <Info size={12} className="text-orange-500" />
+                    <Info size={12} className="text-accent" />
                     Interação de Tela
                   </p>
                   <p>Arrastar com botão esquerdo para girar.</p>

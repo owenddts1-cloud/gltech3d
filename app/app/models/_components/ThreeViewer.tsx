@@ -188,7 +188,7 @@ export default function ThreeViewer({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full min-h-[400px] rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950/40"
+      className="w-full h-full min-h-[400px] rounded-lg overflow-hidden border border-border bg-zinc-950/40"
     />
   );
 }

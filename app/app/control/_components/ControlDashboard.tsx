@@ -127,7 +127,7 @@ export function ControlDashboard({ records }: ControlDashboardProps) {
 
   // Eixos e grid saem do tema: viram atributo de texto/stroke, onde var() resolve.
   const chartGridColor = "var(--color-border)";
-  const chartTextColor = "var(--color-text-muted)";
+  const chartTextColor = "var(--color-text-muted-foreground)";
 
   return (
     <div className="p-6 space-y-5 min-h-full">
