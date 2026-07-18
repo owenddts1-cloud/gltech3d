@@ -5277,3 +5277,213 @@ create index if not exists marketplace_orders_org_fulfillment_idx
   on public.marketplace_orders (organization_id, fulfillment_status, sold_at desc);
 create index if not exists marketplace_orders_org_payment_pending_idx
   on public.marketplace_orders (organization_id, payment_status) where payment_status <> 'pago';
+
+-- =============================================================================
+-- Catálogo + integridade de pedidos (migration 0055). Reconciliado no baseline
+-- para self-hosters. Idempotente. Requer pg_trgm (garantido abaixo, best-effort).
+-- =============================================================================
+do $$ begin create extension if not exists pg_trgm; exception when others then null; end $$;
+
+create table if not exists public.categories (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name text not null,
+  slug text not null,
+  sort_order numeric,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint categories_name_len check (char_length(name) between 1 and 120)
+);
+create unique index if not exists categories_org_slug_unique on public.categories (organization_id, slug);
+create index if not exists categories_org_idx on public.categories (organization_id);
+alter table public.categories enable row level security;
+drop policy if exists tenant_isolation_categories_all on public.categories;
+create policy tenant_isolation_categories_all on public.categories for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.categories from anon;
+drop trigger if exists trg_categories_audit on public.categories;
+create trigger trg_categories_audit after insert or update or delete on public.categories
+  for each row execute function public.fn_audit_log_row();
+drop trigger if exists trg_categories_updated_at on public.categories;
+create trigger trg_categories_updated_at before update on public.categories
+  for each row execute function public.fn_set_updated_at();
+
+alter table public.products add column if not exists category_id uuid references public.categories(id) on delete set null;
+create index if not exists products_org_category_id_idx on public.products (organization_id, category_id);
+insert into public.categories (organization_id, name, slug)
+select distinct p.organization_id, p.category, lower(regexp_replace(btrim(p.category), '[^a-zA-Z0-9À-ÿ]+', '-', 'g'))
+from public.products p where p.category is not null and btrim(p.category) <> ''
+on conflict (organization_id, slug) do nothing;
+update public.products p set category_id = c.id from public.categories c
+where c.organization_id = p.organization_id
+  and lower(regexp_replace(btrim(p.category), '[^a-zA-Z0-9À-ÿ]+', '-', 'g')) = c.slug and p.category_id is null;
+
+alter table public.service_orders add column if not exists code text;
+create or replace function public.fn_assign_os_code() returns trigger
+language plpgsql security definer set search_path to 'public', 'pg_temp' as $$
+declare v_next bigint;
+begin
+  if new.code is not null then return new; end if;
+  perform pg_advisory_xact_lock(hashtext(new.organization_id::text || ':os'));
+  select coalesce(max((regexp_replace(code, '\D', '', 'g'))::bigint), 299) + 1 into v_next
+  from public.service_orders where organization_id = new.organization_id and code ~ '^OS-\d+$';
+  new.code := 'OS-' || v_next;
+  return new;
+end $$;
+drop trigger if exists trg_os_code on public.service_orders;
+create trigger trg_os_code before insert on public.service_orders for each row execute function public.fn_assign_os_code();
+create unique index if not exists service_orders_org_code_unique on public.service_orders (organization_id, code) where code is not null;
+
+create or replace view public.v_orders_unified as
+  select mo.id, mo.organization_id, 'Venda'::text as type, mo.external_order_id as code,
+         mo.customer_name as client_name, mo.sold_at::timestamptz as date, mo.total_cents, mo.status
+  from public.marketplace_orders mo
+  union all
+  select so.id, so.organization_id, 'O.S.'::text as type, so.code, so.contact_name as client_name,
+         so.created_at as date, so.total_cents, so.status
+  from public.service_orders so;
+alter view public.v_orders_unified set (security_invoker = on);
+
+alter table public.marketplace_orders add column if not exists product_id uuid references public.products(id) on delete set null;
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='marketplace_orders' and column_name='qty') then
+    alter table public.marketplace_orders add column qty integer not null default 1;
+  end if;
+end $$;
+create index if not exists marketplace_orders_org_product_idx on public.marketplace_orders (organization_id, product_id) where product_id is not null;
+
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname='products_stock_nonneg') then alter table public.products add constraint products_stock_nonneg check (stock_qty >= 0); end if;
+  if not exists (select 1 from pg_constraint where conname='products_sold_nonneg') then alter table public.products add constraint products_sold_nonneg check (sold_qty >= 0); end if;
+  if not exists (select 1 from pg_constraint where conname='products_price_pos') then alter table public.products add constraint products_price_pos check (sale_price_cents is null or sale_price_cents > 0); end if;
+  if not exists (select 1 from pg_constraint where conname='products_grams_nonneg') then alter table public.products add constraint products_grams_nonneg check (filament_grams >= 0); end if;
+  if not exists (select 1 from pg_constraint where conname='products_margin_nonneg') then alter table public.products add constraint products_margin_nonneg check (margin_pct >= 0); end if;
+  if not exists (select 1 from pg_constraint where conname='mo_total_nonneg') then alter table public.marketplace_orders add constraint mo_total_nonneg check (total_cents >= 0); end if;
+  if not exists (select 1 from pg_constraint where conname='mo_qty_pos') then alter table public.marketplace_orders add constraint mo_qty_pos check (qty > 0); end if;
+  if not exists (select 1 from pg_constraint where conname='so_total_nonneg') then alter table public.service_orders add constraint so_total_nonneg check (total_cents >= 0); end if;
+  if not exists (select 1 from pg_constraint where conname='so_qty_pos') then alter table public.service_orders add constraint so_qty_pos check (qty > 0); end if;
+end $$;
+
+create or replace function public.fn_bump_product_sales() returns trigger
+language plpgsql security definer set search_path to 'public', 'pg_temp' as $$
+begin
+  if new.product_id is not null and new.status in ('pago', 'concluido')
+     and (tg_op = 'INSERT' or old.status is distinct from new.status) then
+    update public.products set sold_qty = sold_qty + coalesce(new.qty, 1),
+      stock_qty = greatest(0, stock_qty - coalesce(new.qty, 1)), updated_at = now()
+    where id = new.product_id and organization_id = new.organization_id;
+    perform public.emit_event('product.sold', 'product', new.product_id,
+      jsonb_build_object('marketplace_order_id', new.id, 'qty', coalesce(new.qty, 1), 'total_cents', new.total_cents),
+      '{}'::jsonb, new.organization_id);
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_bump_sales on public.marketplace_orders;
+create trigger trg_bump_sales after insert or update of status on public.marketplace_orders
+  for each row execute function public.fn_bump_product_sales();
+
+do $$ begin
+  create index if not exists products_org_name_trgm on public.products using gin (name public.gin_trgm_ops);
+exception when others then null; end $$;
+
+create or replace view public.v_products_costed as
+select p.id, p.organization_id, p.name, p.sale_price_cents, p.filament_grams, p.print_time_seconds, p.category_id,
+       c.name as category_name,
+       round(p.filament_grams * coalesce(f.cost_per_gram, 0), 2) as material_cost,
+       round((p.print_time_seconds / 3600.0) * (coalesce(pr.power_draw, 200) / 1000.0)
+         * coalesce((o.settings->>'kwh_rate')::numeric, 0.92), 2) as energy_cost
+from public.products p
+left join public.categories c on c.id = p.category_id
+left join public.filaments f on f.client_id = p.filament_client_id and f.organization_id = p.organization_id
+left join public.printers pr on pr.client_id = p.printer_client_id and pr.organization_id = p.organization_id
+left join public.organizations o on o.id = p.organization_id;
+
+-- =============================================================================
+-- Fundações de ML: print drift + histórico de custo de filamento (migration 0056).
+-- =============================================================================
+alter table public.print_jobs add column if not exists product_id uuid references public.products(id) on delete set null;
+alter table public.print_jobs add column if not exists estimated_time_seconds integer;
+alter table public.print_jobs add column if not exists estimated_weight_grams numeric;
+create index if not exists print_jobs_org_product_idx on public.print_jobs (organization_id, product_id) where product_id is not null;
+
+create or replace view public.v_print_drift as
+select pj.id, pj.organization_id, pj.product_id, pj.printer_client_id, pj.printer_name,
+  pj.filament_client_id, pj.filament_name, pj.filename, pj.completed_at,
+  pj.estimated_time_seconds, pj.print_time_seconds as actual_time_seconds,
+  pj.estimated_weight_grams, pj.weight_grams as actual_weight_grams,
+  case when coalesce(pj.estimated_time_seconds, 0) > 0 then round(pj.print_time_seconds::numeric / pj.estimated_time_seconds, 4) end as time_drift_ratio,
+  case when coalesce(pj.estimated_weight_grams, 0) > 0 then round((pj.weight_grams - pj.estimated_weight_grams) / pj.estimated_weight_grams, 4) end as weight_err_pct,
+  pj.material_cost, pj.energy_cost, pj.depreciation_cost, pj.total_cost
+from public.print_jobs pj;
+
+create table if not exists public.filament_cost_history (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  filament_id uuid not null references public.filaments(id) on delete cascade,
+  cost_per_gram numeric not null check (cost_per_gram >= 0),
+  recorded_at timestamptz not null default now()
+);
+create index if not exists filament_cost_hist_idx on public.filament_cost_history (organization_id, filament_id, recorded_at desc);
+alter table public.filament_cost_history enable row level security;
+drop policy if exists tenant_isolation_filament_cost_history_all on public.filament_cost_history;
+create policy tenant_isolation_filament_cost_history_all on public.filament_cost_history for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.filament_cost_history from anon;
+drop trigger if exists trg_filament_cost_history_audit on public.filament_cost_history;
+create trigger trg_filament_cost_history_audit after insert or update or delete on public.filament_cost_history
+  for each row execute function public.fn_audit_log_row();
+create or replace function public.fn_snapshot_filament_cost() returns trigger
+language plpgsql security definer set search_path to 'public', 'pg_temp' as $$
+begin
+  if tg_op = 'INSERT' or old.cost_per_gram is distinct from new.cost_per_gram then
+    insert into public.filament_cost_history (organization_id, filament_id, cost_per_gram)
+    values (new.organization_id, new.id, new.cost_per_gram);
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_filament_cost_hist on public.filaments;
+create trigger trg_filament_cost_hist after insert or update of cost_per_gram on public.filaments
+  for each row execute function public.fn_snapshot_filament_cost();
+
+-- =============================================================================
+-- Rollups analíticos (migration 0057). pg_cron é OPCIONAL — o agendamento é
+-- best-effort (self-host sem pg_cron não quebra; refresque as matviews via cron do SO).
+-- =============================================================================
+create materialized view if not exists public.mv_sales_daily as
+select organization_id, date_trunc('day', sold_at)::date as day, count(*) as orders,
+  sum(total_cents) as revenue_cents, sum(commission_cents) as commission_cents
+from public.marketplace_orders group by 1, 2;
+create unique index if not exists mv_sales_daily_pk on public.mv_sales_daily (organization_id, day);
+
+create or replace view public.v_sales_by_period as
+select organization_id, 'week'::text as grain, date_trunc('week', day)::date as bucket,
+  sum(orders) as orders, sum(revenue_cents) as revenue_cents, sum(commission_cents) as commission_cents
+from public.mv_sales_daily group by 1, 3
+union all select organization_id, 'month'::text, date_trunc('month', day)::date, sum(orders), sum(revenue_cents), sum(commission_cents) from public.mv_sales_daily group by 1, 3
+union all select organization_id, 'quarter'::text, date_trunc('quarter', day)::date, sum(orders), sum(revenue_cents), sum(commission_cents) from public.mv_sales_daily group by 1, 3
+union all select organization_id, 'semester'::text, (date_trunc('year', day) + interval '6 months' * floor((extract(month from day) - 1) / 6))::date, sum(orders), sum(revenue_cents), sum(commission_cents) from public.mv_sales_daily group by 1, 3
+union all select organization_id, 'year'::text, date_trunc('year', day)::date, sum(orders), sum(revenue_cents), sum(commission_cents) from public.mv_sales_daily group by 1, 3;
+
+create materialized view if not exists public.mv_print_costs_daily as
+select organization_id, date_trunc('day', completed_at)::date as day, count(*) as jobs,
+  sum(print_time_seconds) as total_print_seconds, sum(weight_grams) as total_weight_grams,
+  sum(material_cost) as total_material_cost, sum(energy_cost) as total_energy_cost, sum(total_cost) as total_cost
+from public.print_jobs where completed_at is not null group by 1, 2;
+create unique index if not exists mv_print_costs_daily_pk on public.mv_print_costs_daily (organization_id, day);
+
+-- Agendamento pg_cron protegido: falha silenciosa se a extensão não existir no self-host.
+do $$ begin
+  perform cron.unschedule('refresh_sales_daily');
+exception when others then null; end $$;
+do $$ begin
+  perform cron.schedule('refresh_sales_daily', '17 3 * * *', $q$refresh materialized view concurrently public.mv_sales_daily$q$);
+exception when others then null; end $$;
+do $$ begin
+  perform cron.unschedule('refresh_print_costs_daily');
+exception when others then null; end $$;
+do $$ begin
+  perform cron.schedule('refresh_print_costs_daily', '22 3 * * *', $q$refresh materialized view concurrently public.mv_print_costs_daily$q$);
+exception when others then null; end $$;
