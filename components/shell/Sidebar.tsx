@@ -152,7 +152,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         {active && (
           <motion.div
             layoutId="sidebar-active-pill"
-            className="absolute inset-0 bg-accent/10 border-l-2 border-accent rounded-r-md -z-10"
+            className="absolute inset-0 bg-sidebar-accent/15 border-l-2 border-sidebar-accent rounded-r-md -z-10"
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
           />
         )}
@@ -189,7 +189,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           {groupActive && (
             <motion.div
               layoutId="sidebar-active-pill"
-              className="absolute inset-0 bg-accent/10 border-l-2 border-accent rounded-r-md -z-10"
+              className="absolute inset-0 bg-sidebar-accent/15 border-l-2 border-sidebar-accent rounded-r-md -z-10"
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}

@@ -249,7 +249,7 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
           <MetricCard label="Estoque de produtos" value={brl(data.inventory.productsValueCents)} note={`${data.inventory.productsCount.toLocaleString('pt-BR')} unidades em estoque`} icon={Boxes} tone="orange" loading={pending} href="/app/products" />
           <MetricCard label="Estoque de filamentos" value={brl(data.inventory.filamentValueCents)} note={`${data.inventory.filamentSpools} rolos cadastrados`} icon={Package} tone="blue" loading={pending} href="/app/printers" />
           <MetricCard label="Lucro potencial" value={brl(data.inventory.potentialProfitCents)} note="Se todo o estoque for vendido" icon={ChartNoAxesCombined} tone="green" loading={pending} href="/app/products" />
-          <MetricCard label="Total investido" value={brl(data.inventory.investedCents)} note="Custo material em estoque" icon={PackageOpen} tone="amber" loading={pending} href="/app/inventory" />
+          <MetricCard label="Total investido" value={brl(data.inventory.investedCents)} note="Máquinas, filamentos, ferramentas e insumos" icon={PackageOpen} tone="amber" loading={pending} href="/app/inventory" />
         </section>
 
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">

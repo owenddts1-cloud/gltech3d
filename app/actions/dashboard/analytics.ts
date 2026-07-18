@@ -191,6 +191,11 @@ export async function fetchDashboardData(
   const productsRes = await supabase
     .from("products")
     .select("sale_price_cents, stock_qty, filament_grams, filament_client_id");
+  // Total Investido é ACUMULADO (todo o histórico), não do período: soma de tudo
+  // que foi comprado (máquinas, filamentos, ferramentas, insumos) na planilha de Controle.
+  const investRes = await supabase.from("financial_records").select("expense_cents");
+  const investedCents = ((investRes.data as Array<{ expense_cents: number | string | null }> | null) ?? [])
+    .reduce((s, r) => s + num(r.expense_cents), 0);
 
   const fin = (finRes.data as FinRow[] | null) ?? [];
   const os = (osRes.data as SoRow[] | null) ?? [];
@@ -263,7 +268,7 @@ export async function fetchDashboardData(
   const productMaterialCostCents = Math.round(productMaterialCostReais * 100);
   const filamentValueCents = Math.round(filamentValueReais * 100);
   const potentialProfitCents = Math.max(0, productsValueCents - productMaterialCostCents);
-  const investedCents = Math.max(0, productMaterialCostCents + filamentValueCents);
+  // `investedCents` já calculado acima a partir do gasto total (all-time) da planilha.
 
   const channels = new Map<string, number>();
   for (const r of salesCurrent) {

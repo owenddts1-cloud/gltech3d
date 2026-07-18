@@ -37,6 +37,7 @@ const config: Config = {
           border: "var(--color-sidebar-border)",
           text: "var(--color-sidebar-text)",
           "text-active": "var(--color-sidebar-text-active)",
+          accent: "var(--color-sidebar-accent)",
           hover: "var(--color-sidebar-hover)",
         },
 

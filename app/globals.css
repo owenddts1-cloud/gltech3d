@@ -27,14 +27,15 @@
   --color-border-grid: rgba(181, 175, 159, 0.6);
   --color-surface-glass: rgba(255, 255, 255, 0.85);
 
-  /* Sidebar — grafite escuro nos DOIS temas (contraste com a página clara).
-     `active` segue o acento da paleta (var), então muda com o PaletteSwitcher. */
-  --color-sidebar: #181824;
-  --color-sidebar-elevated: #242436;
-  --color-sidebar-border: #2a2a3c;
-  --color-sidebar-text: #8a92a6;
-  --color-sidebar-text-active: var(--color-accent);
-  --color-sidebar-hover: #242436;
+  /* Sidebar — grafite quente nos DOIS temas. Texto legível SEM hover; acento
+     laranja fixo (independente da paleta da página, a pedido). */
+  --color-sidebar: #1c1b26;
+  --color-sidebar-elevated: #272533;
+  --color-sidebar-border: #35333f;
+  --color-sidebar-text: #c7ccd6;
+  --color-sidebar-text-active: #ff9d5c;
+  --color-sidebar-accent: #ff8c42;
+  --color-sidebar-hover: #2b2937;
 
   /* Accent — Sage (11 stops) */
   --color-accent-50:  #f3f6f1;
@@ -174,12 +175,11 @@
   --color-border-grid: rgba(39, 39, 42, 0.4);
   --color-surface-glass: rgba(18, 18, 20, 0.7);
 
-  /* Sidebar (dark) — grafite levemente mais claro que o fundo. */
-  --color-sidebar: #1a1c23;
-  --color-sidebar-elevated: #22242c;
-  --color-sidebar-border: #2d303e;
-  --color-sidebar-text: #8a92a6;
-  --color-sidebar-hover: #282b36;
+  /* Sidebar (dark) — grafite quente, distinto do fundo #121317 p/ não sumir. */
+  --color-sidebar: #1f1d2a;
+  --color-sidebar-elevated: #2a2836;
+  --color-sidebar-border: #38364a;
+  --color-sidebar-hover: #2f2c3d;
 
   /* Accent — Cyber Amber / Vibrant Orange (#FF6B00) */
   --color-accent-50:  #fff7ed;
