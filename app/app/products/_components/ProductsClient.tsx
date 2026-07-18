@@ -9,14 +9,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Package, Plus, Trash, Cube } from "@/lib/ui/icons";
-import { createProduct, deleteProduct, type ProductView } from "@/app/actions/products/actions";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Package, Plus, Trash, Cube, PencilSimple, Storefront } from "@/lib/ui/icons";
+import {
+  createProduct, deleteProduct, updateProduct, type ProductView,
+} from "@/app/actions/products/actions";
+import type { ProductVariationGroup } from "@/lib/schemas/products-catalog";
+import VariationsEditor from "./VariationsEditor";
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 interface Lite { id: string; name: string }
 interface FilLite extends Lite { costPerGram: number }
+
+/** Shape shared by the create payload and the optimistic view builders. */
+interface FormPayload {
+  name: string;
+  /** Always a string: "" clears the category on edit (server maps "" → null). */
+  category: string;
+  filamentClientId: string | null;
+  filamentGrams: number;
+  printTimeMinutes: number;
+  printerClientId: string | null;
+  extraCost: number;
+  marginPct: number;
+  isPublished: boolean;
+  salePrice: number | null;
+  variations: ProductVariationGroup[];
+  observations: string;
+}
 
 export function ProductsClient({
   initialProducts, filaments, printers,
@@ -27,6 +50,7 @@ export function ProductsClient({
 }) {
   const [products, setProducts] = useState<ProductView[]>(initialProducts);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<ProductView | null>(null);
   const [, startTransition] = useTransition();
 
   const totals = useMemo(() => {
@@ -59,12 +83,13 @@ export function ProductsClient({
             </p>
           </div>
         </div>
-        <NewProductDialog
+        <ProductFormDialog
           open={open}
           onOpenChange={setOpen}
+          product={null}
           filaments={filaments}
           printers={printers}
-          onCreated={(p) => setProducts((prev) => [p, ...prev])}
+          onSaved={(p) => setProducts((prev) => [p, ...prev])}
         />
       </div>
 
@@ -84,15 +109,31 @@ export function ProductsClient({
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-semibold">{p.name}</h3>
-                  {p.category && <Badge variant="secondary" className="mt-1 text-[10px]">{p.category}</Badge>}
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    {p.category && <Badge variant="secondary" className="text-[10px]">{p.category}</Badge>}
+                    {p.isPublished && (
+                      <Badge variant="outline" className="gap-1 border-accent/40 text-[10px] text-accent">
+                        <Storefront size={11} aria-hidden /> Na landing
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <button
-                  onClick={() => onDelete(p.id)}
-                  className="opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-error"
-                  aria-label="Excluir produto"
-                >
-                  <Trash size={14} />
-                </button>
+                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    onClick={() => setEditing(p)}
+                    className="text-muted-foreground hover:text-accent"
+                    aria-label={`Editar ${p.name}`}
+                  >
+                    <PencilSimple size={14} />
+                  </button>
+                  <button
+                    onClick={() => onDelete(p.id)}
+                    className="text-muted-foreground hover:text-error"
+                    aria-label="Excluir produto"
+                  >
+                    <Trash size={14} />
+                  </button>
+                </div>
               </div>
 
               {/* Breakdown do custo (BOM) */}
@@ -123,6 +164,21 @@ export function ProductsClient({
           ))}
         </div>
       )}
+
+      {editing && (
+        <ProductFormDialog
+          key={editing.id}
+          open
+          onOpenChange={(v) => { if (!v) setEditing(null); }}
+          product={editing}
+          filaments={filaments}
+          printers={printers}
+          onSaved={(updated) => {
+            setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+            setEditing(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -136,54 +192,83 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function NewProductDialog({
-  open, onOpenChange, filaments, printers, onCreated,
+function ProductFormDialog({
+  open, onOpenChange, product, filaments, printers, onSaved,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Null = create; a ProductView = edit that product. */
+  product: ProductView | null;
   filaments: FilLite[];
   printers: Lite[];
-  onCreated: (p: ProductView) => void;
+  onSaved: (p: ProductView) => void;
 }) {
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [filamentId, setFilamentId] = useState("");
-  const [grams, setGrams] = useState("");
-  const [minutes, setMinutes] = useState("");
-  const [printerId, setPrinterId] = useState("");
-  const [extra, setExtra] = useState("");
-  const [margin, setMargin] = useState("100");
+  const isEdit = product !== null;
+  const [name, setName] = useState(product?.name ?? "");
+  const [category, setCategory] = useState(product?.category ?? "");
+  const [filamentId, setFilamentId] = useState(product?.filamentClientId ?? "");
+  const [grams, setGrams] = useState(product ? String(product.filamentGrams) : "");
+  const [minutes, setMinutes] = useState(
+    product ? String(Math.round(product.printTimeSeconds / 60)) : "",
+  );
+  const [printerId, setPrinterId] = useState(product?.printerClientId ?? "");
+  const [extra, setExtra] = useState(
+    product && product.extraCostTotal > 0 ? String(product.extraCostTotal) : "",
+  );
+  const [margin, setMargin] = useState(product ? String(product.marginPct) : "100");
+  const [salePrice, setSalePrice] = useState(
+    product?.salePriceCents != null ? String(product.salePriceCents / 100) : "",
+  );
+  const [published, setPublished] = useState(product?.isPublished ?? false);
+  const [variations, setVariations] = useState<ProductVariationGroup[]>(
+    product?.variations ?? [],
+  );
+  const [observations, setObservations] = useState(product?.observations ?? "");
   const [pending, startTransition] = useTransition();
 
   function reset() {
     setName(""); setCategory(""); setFilamentId(""); setGrams(""); setMinutes("");
     setPrinterId(""); setExtra(""); setMargin("100");
+    setSalePrice(""); setPublished(false); setVariations([]); setObservations("");
   }
 
   function submit() {
     if (!name.trim()) return toast.error("Informe o nome do produto");
-    const payload = {
+    const salePriceNum = salePrice.trim() ? Number(salePrice.replace(",", ".")) : null;
+    const payload: FormPayload = {
       name: name.trim(),
-      category: category.trim() || undefined,
+      category: category.trim(),
       filamentClientId: filamentId || null,
       filamentGrams: grams ? Number(grams.replace(",", ".")) : 0,
       printTimeMinutes: minutes ? Number(minutes.replace(",", ".")) : 0,
       printerClientId: printerId || null,
       extraCost: extra ? Number(extra.replace(",", ".")) : 0,
       marginPct: margin ? Number(margin.replace(",", ".")) : 100,
+      isPublished: published,
+      salePrice: salePriceNum,
+      // Groups without a name would fail Zod server-side; drop them silently.
+      variations: variations
+        .map((g) => ({ name: g.name.trim(), options: g.options }))
+        .filter((g) => g.name.length > 0),
+      observations: observations.trim(),
     };
     startTransition(async () => {
-      const res = await createProduct(payload);
+      const res = isEdit ? await updateProduct(product.id, payload) : await createProduct(payload);
       if (!res.ok) {
-        toast.error(res.error || "Erro ao criar produto");
+        toast.error(res.error || "Erro ao salvar produto");
+        // Publishing requires a price: mirror the server rule and drop the toggle.
+        if (payload.isPublished && (payload.salePrice == null || payload.salePrice <= 0)) {
+          setPublished(false);
+        }
         return;
       }
-      toast.success("Produto criado 🎉");
+      toast.success(isEdit ? "Produto atualizado" : "Produto criado 🎉");
       onOpenChange(false);
-      reset();
+      if (!isEdit) reset();
       // Refresh via full reload of computed pricing is simplest; do an optimistic
-      // insert with zeroed pricing until revalidation reflects the real numbers.
-      onCreated(buildOptimistic(payload, filaments));
+      // insert/merge with approximate pricing until revalidation reflects the
+      // real numbers.
+      onSaved(isEdit ? mergeOptimistic(product, payload, filaments) : buildOptimistic(payload, filaments));
     });
   }
 
@@ -191,11 +276,15 @@ function NewProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button><Plus aria-hidden /> Novo produto</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Novo produto</DialogTitle></DialogHeader>
+      {!isEdit && (
+        <DialogTrigger asChild>
+          <Button><Plus aria-hidden /> Novo produto</Button>
+        </DialogTrigger>
+      )}
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Editar produto" : "Novo produto"}</DialogTitle>
+        </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -245,10 +334,54 @@ function NewProductDialog({
               <Input id="p-margin" inputMode="decimal" value={margin} onChange={(e) => setMargin(e.target.value)} />
             </div>
           </div>
+
+          {/* ── Vitrine (landing) ─────────────────────────────────────── */}
+          <div className="space-y-3 border-t border-border pt-4">
+            <div className="grid grid-cols-2 items-end gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="p-price">Preço de venda (R$)</Label>
+                <Input
+                  id="p-price"
+                  inputMode="decimal"
+                  value={salePrice}
+                  onChange={(e) => setSalePrice(e.target.value)}
+                  placeholder="49,90"
+                />
+              </div>
+              <div className="flex h-9 items-center justify-between rounded-sm border border-border bg-surface px-3">
+                <Label htmlFor="p-pub" className="text-xs font-medium">Visível na landing</Label>
+                <Switch id="p-pub" checked={published} onCheckedChange={setPublished} />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Publicar na landing exige um preço de venda definido.
+            </p>
+
+            <div className="space-y-1.5">
+              <Label>Variações (vitrine)</Label>
+              <VariationsEditor value={variations} onChange={setVariations} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="p-obs">Observações (interno)</Label>
+              <Textarea
+                id="p-obs"
+                rows={3}
+                value={observations}
+                onChange={(e) => setObservations(e.target.value)}
+                placeholder="Anotações da produção, fornecedor, ajustes de slicer…"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Uso interno do CRM — nunca aparece na landing.
+              </p>
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={submit} disabled={pending}>{pending ? "Salvando…" : "Criar produto"}</Button>
+          <Button onClick={submit} disabled={pending}>
+            {pending ? "Salvando…" : isEdit ? "Salvar alterações" : "Criar produto"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -256,13 +389,7 @@ function NewProductDialog({
 }
 
 /** Optimistic card until the server revalidation returns computed pricing. */
-function buildOptimistic(
-  p: {
-    name: string; category?: string; filamentClientId: string | null; filamentGrams: number;
-    printTimeMinutes: number; printerClientId: string | null; extraCost: number; marginPct: number;
-  },
-  filaments: FilLite[],
-): ProductView {
+function buildOptimistic(p: FormPayload, filaments: FilLite[]): ProductView {
   const fil = filaments.find((f) => f.id === p.filamentClientId);
   const material = (fil?.costPerGram ?? 0) * p.filamentGrams;
   const extras = p.extraCost;
@@ -271,9 +398,9 @@ function buildOptimistic(
   return {
     id: crypto.randomUUID(),
     name: p.name,
-    category: p.category ?? null,
+    category: p.category || null,
     categoryId: null,
-    categoryName: p.category ?? null,
+    categoryName: p.category || null,
     description: null,
     images: [],
     filamentClientId: p.filamentClientId,
@@ -284,11 +411,46 @@ function buildOptimistic(
     extraCosts: extras > 0 ? [{ label: "Insumos", cost_cents: Math.round(extras * 100) }] : [],
     extraCostTotal: extras,
     marginPct: p.marginPct,
-    salePriceCents: null,
+    salePriceCents: p.salePrice == null ? null : Math.round(p.salePrice * 100),
+    isPublished: p.isPublished,
+    variations: p.variations,
+    observations: p.observations.trim() || null,
     pricing: {
       materialCost: Number(material.toFixed(2)),
       energyCost: 0,
       depreciationCost: 0,
+      extrasCost: extras,
+      totalCost,
+      suggestedPrice,
+      profit: Number((suggestedPrice - totalCost).toFixed(2)),
+    },
+  };
+}
+
+/**
+ * Optimistic merge for edits. Material/extras are recomputed; energy and
+ * depreciation are kept from the previous pricing (server recomputes on
+ * revalidation) so the card does not visually zero out.
+ */
+function mergeOptimistic(base: ProductView, p: FormPayload, filaments: FilLite[]): ProductView {
+  const fresh = buildOptimistic(p, filaments);
+  const material = fresh.pricing.materialCost;
+  const energy = base.pricing.energyCost;
+  const depreciation = base.pricing.depreciationCost;
+  const extras = p.extraCost;
+  const totalCost = Number((material + energy + depreciation + extras).toFixed(2));
+  const suggestedPrice = Number((totalCost * (1 + p.marginPct / 100)).toFixed(2));
+  return {
+    ...fresh,
+    id: base.id,
+    description: base.description,
+    images: base.images,
+    categoryId: base.categoryId,
+    categoryName: base.categoryName,
+    pricing: {
+      materialCost: material,
+      energyCost: energy,
+      depreciationCost: depreciation,
       extrasCost: extras,
       totalCost,
       suggestedPrice,

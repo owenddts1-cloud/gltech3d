@@ -5487,3 +5487,10 @@ exception when others then null; end $$;
 do $$ begin
   perform cron.schedule('refresh_print_costs_daily', '22 3 * * *', $q$refresh materialized view concurrently public.mv_print_costs_daily$q$);
 exception when others then null; end $$;
+
+-- =============================================================================
+-- Produtos: variações (grupos de atributos) + observações internas (migration 0059).
+-- =============================================================================
+alter table public.products
+  add column if not exists variations   jsonb not null default '[]'::jsonb,
+  add column if not exists observations text;

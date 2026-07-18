@@ -7,6 +7,7 @@ import Navbar from '@/components/marketing/Navbar';
 import Footer from '@/components/marketing/Footer';
 import ProductGallery from '@/components/marketing/ProductGallery';
 import ProductActions from './ProductActions';
+import VariationPicker from './VariationPicker';
 
 // O parâmetro chama-se `id` por herança da rota, mas hoje carrega o slug.
 // Aceitamos os dois: links antigos com uuid continuam abrindo.
@@ -59,15 +60,19 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white border border-[#E8E2D9] mb-8">
-              <div className="text-[10px] text-[#6B5E55] uppercase tracking-wider font-bold mb-3">Cores Disponíveis</div>
-              <div className="flex flex-wrap gap-2">
-                {product.colors.map((color) => (
-                  <span key={color} className="px-3 py-1.5 rounded-lg border border-[#E8E2D9] text-xs font-medium">
-                    {color}
-                  </span>
-                ))}
+            <div className="mb-8 space-y-4">
+              <div className="p-4 rounded-2xl bg-white border border-[#E8E2D9]">
+                <div className="text-[10px] text-[#6B5E55] uppercase tracking-wider font-bold mb-3">Cores Disponíveis</div>
+                <div className="flex flex-wrap gap-2">
+                  {product.colors.map((color) => (
+                    <span key={color} className="px-3 py-1.5 rounded-lg border border-[#E8E2D9] text-xs font-medium">
+                      {color}
+                    </span>
+                  ))}
+                </div>
               </div>
+
+              {product.variations.length > 0 && <VariationPicker groups={product.variations} />}
             </div>
 
             <ProductActions product={product} />

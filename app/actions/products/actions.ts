@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
-import { productCreateSchema, productPatchSchema } from "@/lib/schemas/products-catalog";
+import { productCreateSchema, productPatchSchema, type ProductVariationGroup } from "@/lib/schemas/products-catalog";
 import { computeProductPricing, type ProductPricingResult } from "@/lib/pricing/engine";
 import { revalidatePath } from "next/cache";
 
@@ -25,6 +25,9 @@ export interface ProductView {
   extraCostTotal: number; // reais
   marginPct: number;
   salePriceCents: number | null;
+  isPublished: boolean;
+  variations: ProductVariationGroup[];
+  observations: string | null;
   pricing: ProductPricingResult;
 }
 
@@ -33,6 +36,7 @@ interface ProdRow {
   images: unknown; filament_client_id: string | null; filament_grams: number | string;
   print_time_seconds: number | string; printer_client_id: string | null; extra_costs: unknown;
   margin_pct: number | string; sale_price_cents: number | string | null;
+  is_published: boolean | null; variations: unknown; observations: string | null;
 }
 interface FilRow { client_id: string; name: string; cost_per_gram: number | string }
 interface PrnRow { client_id: string; name: string; power_draw: number | string; depreciation_per_hour: number | string }
@@ -96,6 +100,9 @@ export async function fetchProductsData() {
       extraCostTotal: extraCents / 100,
       marginPct: num(r.margin_pct),
       salePriceCents: r.sale_price_cents == null ? null : num(r.sale_price_cents),
+      isPublished: Boolean(r.is_published),
+      variations: Array.isArray(r.variations) ? (r.variations as ProductVariationGroup[]) : [],
+      observations: r.observations ?? null,
       pricing,
     };
   });
@@ -125,6 +132,12 @@ export async function createProduct(raw: unknown) {
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
   const d = parsed.data;
 
+  const salePriceCents = d.salePrice == null ? null : Math.round(d.salePrice * 100);
+  // Publicar na landing exige preço (mesma regra do Landing Edit).
+  if (d.isPublished && (salePriceCents == null || salePriceCents <= 0)) {
+    return { ok: false as const, error: "Defina um preço de venda para publicar na landing." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.from("products").insert({
     organization_id: activeOrg.orgId,
@@ -139,11 +152,16 @@ export async function createProduct(raw: unknown) {
     printer_client_id: d.printerClientId ?? null,
     extra_costs: extrasFromReais(d.extraCost),
     margin_pct: d.marginPct,
+    sale_price_cents: salePriceCents,
+    is_published: d.isPublished ?? false,
+    variations: d.variations ?? [],
+    observations: d.observations || null,
     created_by: authUser.id,
   });
   if (error) return { ok: false as const, error: error.message };
 
   revalidatePath("/app/products");
+  revalidatePath("/");
   return { ok: true as const };
 }
 
@@ -169,8 +187,32 @@ export async function updateProduct(id: string, raw: unknown) {
   if (d.printerClientId !== undefined) patch.printer_client_id = d.printerClientId;
   if (d.extraCost !== undefined) patch.extra_costs = extrasFromReais(d.extraCost);
   if (d.marginPct !== undefined) patch.margin_pct = d.marginPct;
+  if (d.variations !== undefined) patch.variations = d.variations;
+  if (d.observations !== undefined) patch.observations = d.observations || null;
+  if (d.salePrice !== undefined) patch.sale_price_cents = d.salePrice == null ? null : Math.round(d.salePrice * 100);
 
   const supabase = await createClient();
+
+  // Publicar exige preço: usa o novo salePrice se veio, senão o preço atual do produto.
+  if (d.isPublished !== undefined) {
+    if (d.isPublished) {
+      let effectiveCents = d.salePrice == null ? null : Math.round(d.salePrice * 100);
+      if (effectiveCents == null) {
+        const { data: cur } = await supabase
+          .from("products")
+          .select("sale_price_cents")
+          .eq("organization_id", activeOrg.orgId)
+          .eq("id", id)
+          .single();
+        effectiveCents = (cur as { sale_price_cents: number | null } | null)?.sale_price_cents ?? null;
+      }
+      if (effectiveCents == null || effectiveCents <= 0) {
+        return { ok: false as const, error: "Defina um preço de venda para publicar na landing." };
+      }
+    }
+    patch.is_published = d.isPublished;
+  }
+
   const { error } = await supabase
     .from("products")
     .update(patch)
@@ -179,6 +221,7 @@ export async function updateProduct(id: string, raw: unknown) {
   if (error) return { ok: false as const, error: error.message };
 
   revalidatePath("/app/products");
+  revalidatePath("/");
   return { ok: true as const };
 }
 

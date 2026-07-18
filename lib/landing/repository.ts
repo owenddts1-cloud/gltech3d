@@ -30,6 +30,7 @@ import type {
   LandingSectionItem,
   LandingSettings,
   ProductLinks,
+  ProductVariationGroup,
 } from "@/lib/landing/types";
 
 export const LANDING_CACHE_TAG = "landing-catalog";
@@ -50,6 +51,8 @@ const PUBLIC_PRODUCT_COLUMNS = [
   "images",
   "videos",
   "colors",
+  // `variations` é dado de vitrine (0059); `observations` é interna e NUNCA entra aqui.
+  "variations",
   "links",
   "material",
   "dimensions",
@@ -71,6 +74,7 @@ interface ProductRow {
   images: unknown;
   videos: unknown;
   colors: unknown;
+  variations: unknown;
   links: unknown;
   material: string | null;
   dimensions: string | null;
@@ -101,6 +105,18 @@ function asLinks(value: unknown): ProductLinks {
   };
 }
 
+/** Grupos de variação do jsonb (0059). Grupo sem nome ou sem opções é descartado. */
+function asVariations(value: unknown): ProductVariationGroup[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((raw): raw is Record<string, unknown> => typeof raw === "object" && raw !== null)
+    .map((raw) => ({
+      name: typeof raw.name === "string" ? raw.name : "",
+      options: asStringArray(raw.options),
+    }))
+    .filter((g) => g.name.length > 0 && g.options.length > 0);
+}
+
 function isBestsellerRank(value: number | null): value is BestsellerRank {
   return value === 1 || value === 2 || value === 3;
 }
@@ -128,6 +144,7 @@ function toLandingProduct(row: ProductRow, fallbackLinks: ProductLinks): Landing
     material: row.material ?? "PLA Premium",
     dimensions: row.dimensions ?? "Sob consulta",
     colors: asStringArray(row.colors),
+    variations: asVariations(row.variations),
     // Link próprio do produto vence; o global da org preenche o resto.
     links: { ...fallbackLinks, ...ownLinks },
   };

@@ -7,6 +7,11 @@
  * seleciona colunas explicitamente justamente para isso.
  */
 
+import type { ProductVariationGroup } from "@/lib/schemas/products-catalog";
+
+// Re-export: componentes de marketing tipam variações sem importar o módulo Zod.
+export type { ProductVariationGroup };
+
 export interface ProductLinks {
   shopee?: string;
   mercadoLivre?: string;
@@ -39,6 +44,8 @@ export interface LandingProduct {
   material: string;
   dimensions: string;
   colors: string[];
+  /** Grupos de atributos da vitrine (migration 0059). `observations` NUNCA entra aqui. */
+  variations: ProductVariationGroup[];
   links: ProductLinks;
 }
 

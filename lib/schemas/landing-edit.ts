@@ -7,6 +7,7 @@
  * (ex.: "/images/Luminarias/Lua Cheia/luminarialuacheia1.png").
  */
 import { z } from "zod";
+import { productVariationGroupSchema } from "./products-catalog";
 
 /** Caminho de /public ou URL absoluta (Supabase Storage, quando houver upload). */
 const mediaPath = z
@@ -78,6 +79,9 @@ export const landingProductPatchSchema = z
     printerClientId: z.string().max(64).nullable(),
     extraCost: z.coerce.number().nonnegative().max(1_000_000),
     marginPct: z.coerce.number().min(0).max(100_000),
+    // Vitrine: grupos de atributos (migration 0059) + observação interna (fora da landing).
+    variations: z.array(productVariationGroupSchema).max(20),
+    observations: z.string().trim().max(2000).nullable(),
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: "Patch vazio." });

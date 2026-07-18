@@ -35,10 +35,14 @@ describe("Sidebar", () => {
     expect(link).toHaveAttribute("href", "/app/landing-edit");
   });
 
-  it("mantém os demais itens de topo", () => {
+  it("mantém Dashboard no topo e os grupos colapsáveis da navegação", () => {
     render(<Sidebar collapsed={false} />);
-    for (const label of ["Dashboard", "Impressoras & Filamentos", "Calculadora 3D", "Controle"]) {
-      expect(screen.getByRole("link", { name: new RegExp(label, "i") })).toBeInTheDocument();
+    // Dashboard segue como link direto de topo.
+    expect(screen.getByRole("link", { name: /Dashboard/i })).toBeInTheDocument();
+    // Itens reagrupados (Impressoras, Calculadora, Controle…) aparecem sob grupos
+    // colapsáveis renderizados como botões.
+    for (const group of ["Produção", "Vendas", "Clientes", "Financeiro", "Suprimentos"]) {
+      expect(screen.getByRole("button", { name: new RegExp(group, "i") })).toBeInTheDocument();
     }
   });
 

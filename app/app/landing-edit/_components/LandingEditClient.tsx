@@ -267,6 +267,8 @@ export default function LandingEditClient({
       isPublished: false,
       isTop: false,
       bestsellerRank: null,
+      variations: [],
+      observations: null,
       sortOrder: null,
       stockQty: 0,
       soldQty: 0,

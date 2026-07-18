@@ -45,6 +45,8 @@ export interface LandingProductAdmin {
   isPublished: boolean;
   isTop: boolean;
   bestsellerRank: number | null;
+  variations: { name: string; options: string[] }[];
+  observations: string | null;
   sortOrder: number | null;
   stockQty: number;
   soldQty: number;
@@ -141,6 +143,10 @@ export async function fetchLandingEditData() {
       isPublished: Boolean(row.is_published),
       isTop: Boolean(row.is_top),
       bestsellerRank: row.bestseller_rank == null ? null : num(row.bestseller_rank as number),
+      variations: Array.isArray(row.variations)
+        ? (row.variations as { name: string; options: string[] }[])
+        : [],
+      observations: (row.observations as string | null) ?? null,
       sortOrder: row.sort_order == null ? null : num(row.sort_order as number),
       stockQty: num(row.stock_qty as number),
       soldQty: num(row.sold_qty as number),
@@ -220,6 +226,8 @@ export async function updateLandingProduct(id: string, raw: unknown) {
   if (d.images !== undefined) patch.images = d.images;
   if (d.videos !== undefined) patch.videos = d.videos;
   if (d.links !== undefined) patch.links = d.links;
+  if (d.variations !== undefined) patch.variations = d.variations;
+  if (d.observations !== undefined) patch.observations = d.observations || null;
   if (d.isTop !== undefined) patch.is_top = d.isTop;
   if (d.stockQty !== undefined) patch.stock_qty = d.stockQty;
   if (d.soldQty !== undefined) patch.sold_qty = d.soldQty;

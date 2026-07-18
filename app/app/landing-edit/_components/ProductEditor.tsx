@@ -17,6 +17,7 @@ import { TriangleAlert } from 'lucide-react';
 import { computeProductPricing } from '@/lib/pricing/engine';
 import type { LandingProductAdmin, PlatformCommission } from '@/app/actions/landing/actions';
 import type { LandingProductPatch } from '@/lib/schemas/landing-edit';
+import VariationsEditor from '@/app/app/products/_components/VariationsEditor';
 import MediaGallery from './MediaGallery';
 
 const brl = (v: number): string =>
@@ -232,6 +233,20 @@ export default function ProductEditor({
             />
           </Field>
         </div>
+      </section>
+
+      <section>
+        <SectionTitle>Variações da vitrine</SectionTitle>
+        <p className="mb-2 text-[11px] text-muted-foreground">
+          Grupos de atributos exibidos na página pública da peça. Ex.: &quot;Tamanho&quot; com P,
+          M e G.
+        </p>
+        {/* Sem flush por tecla: o debounce do autosave cobre; o flush acontece
+            no blur dos outros campos, na troca de peça e no unmount. */}
+        <VariationsEditor
+          value={product.variations}
+          onChange={(variations) => onChange({ variations })}
+        />
       </section>
 
       <section>
@@ -463,6 +478,23 @@ export default function ProductEditor({
             </Field>
           ))}
         </div>
+      </section>
+
+      <section>
+        <SectionTitle>Observações (interno)</SectionTitle>
+        <Field
+          label="Anotações internas"
+          htmlFor="f-obs"
+          hint="Uso interno do CRM — nunca aparece na landing."
+        >
+          <Textarea
+            id="f-obs"
+            rows={3}
+            value={product.observations ?? ''}
+            onChange={(e) => onChange({ observations: e.target.value })}
+            onBlur={onBlurFlush}
+          />
+        </Field>
       </section>
     </div>
   );

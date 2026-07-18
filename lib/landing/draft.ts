@@ -53,6 +53,8 @@ export function adminToLandingProduct(
     material: p.material ?? 'PLA Premium',
     dimensions: p.dimensions ?? 'Sob consulta',
     colors: p.colors,
+    // Mesmo filtro do repository: grupo sem nome ou sem opções não vai à vitrine.
+    variations: p.variations.filter((g) => g.name.length > 0 && g.options.length > 0),
     links: { ...fallbackLinks, ...asLinks(p.links) },
   };
 }
