@@ -144,7 +144,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors z-10",
           active
             ? "text-sidebar-text-active font-semibold"
-            : "text-sidebar hover:text-sidebar-text-active",
+            : "text-sidebar-text hover:text-sidebar-text-active",
           collapsed && "justify-center px-2",
           opts?.nested && !collapsed && "ml-3 pl-4",
         )}
@@ -183,7 +183,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
             "relative flex items-center justify-center rounded-md px-2 py-2 text-sm transition-colors z-10",
             groupActive
               ? "text-sidebar-text-active"
-              : "text-sidebar hover:text-sidebar-text-active",
+              : "text-sidebar-text hover:text-sidebar-text-active",
           )}
         >
           {groupActive && (
@@ -206,7 +206,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           onClick={() => setOpen((s) => ({ ...s, [group.key]: !isOpen }))}
           aria-expanded={isOpen}
           className={cn(
-            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors text-sidebar hover:text-sidebar-text-active",
+            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors text-sidebar-text hover:text-sidebar-text-active",
             groupActive && "text-sidebar-text-active font-medium",
           )}
         >
@@ -271,7 +271,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
                   {user.full_name || user.email.split("@")[0]}
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="truncate text-[10px] text-sidebar font-medium">
+                  <span className="truncate text-[10px] text-sidebar-text font-medium">
                     {activeOrg?.name || "Workspace"}
                   </span>
                   <span className="flex items-center gap-0.5 bg-accent/10 text-accent text-[8px] font-bold px-1 py-0.2 rounded uppercase border border-accent/20 tracking-wider">
@@ -288,7 +288,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
                 aria-label="Sair"
                 whileHover={{ rotate: 15, scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
-                className="rounded-md p-1.5 text-sidebar transition-colors hover:bg-red-500/10 hover:text-red-500 shrink-0"
+                className="rounded-md p-1.5 text-sidebar-text transition-colors hover:bg-red-500/10 hover:text-red-500 shrink-0"
               >
                 <SignOut size={15} weight="bold" />
               </motion.button>
@@ -300,7 +300,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           href="/"
           title={collapsed ? "Voltar à Landing" : undefined}
           className={cn(
-            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-sidebar hover:bg-sidebar-hover hover:text-sidebar-text-active transition-colors",
+            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active transition-colors",
             collapsed && "justify-center px-2",
           )}
         >
@@ -313,7 +313,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
           onClick={() => startTransition(() => toggleSidebar(collapsed))}
           disabled={isPending}
           className={cn(
-            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-sidebar hover:bg-sidebar-hover hover:text-sidebar-text-active transition-colors",
+            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active transition-colors",
             collapsed && "justify-center px-2",
           )}
           aria-label={collapsed ? "Expandir sidebar" : "Recolher sidebar"}
