@@ -98,6 +98,28 @@ function renderSourceBadge(source: string) {
       </Badge>
     );
   }
+  if (s === "pendente") {
+    // Contato criado "na hora" (ex.: Outro cliente na Nova O.S.) — falta completar.
+    return (
+      <Badge variant="warning" className="gap-1">
+        Cadastro pendente
+      </Badge>
+    );
+  }
+  if (s === "controle") {
+    return (
+      <Badge variant="neutral" className="gap-1">
+        Controle
+      </Badge>
+    );
+  }
+  if (s === "landing" || s === "newsletter") {
+    return (
+      <Badge variant="info" className="gap-1 capitalize">
+        {s}
+      </Badge>
+    );
+  }
   return (
     <Badge variant="default" className="bg-pink-500/10 text-pink-600 dark:bg-pink-500/20 dark:text-pink-400">
       Instagram

@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { ChevronDown, Layers, LineChart as LineIcon } from "lucide-react";
+import { Layers, LineChart as LineIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Combobox } from "@/components/ui/combobox";
 import { useTheme } from "@/lib/theme";
 import {
   buildOption, resolveChartTokens, colorAt, CHART_TYPE_LABELS, isCategorical, SERIES_TYPES,
@@ -112,20 +113,14 @@ export function DynamicChart(props: DynamicChartProps) {
       {/* Controles */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          {/* Seletor de tipo (espelha o dropdown do Manequip) */}
-          <div className="relative">
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as ChartType)}
-              aria-label="Tipo de gráfico"
-              className="h-8 cursor-pointer appearance-none rounded-lg border border-border bg-surface pl-3 pr-7 text-xs font-semibold text-foreground outline-none hover:bg-muted focus:ring-2 focus:ring-accent/20"
-            >
-              {allowedTypes.map((t) => (
-                <option key={t} value={t}>{CHART_TYPE_LABELS[t]}</option>
-              ))}
-            </select>
-            <ChevronDown size={13} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          </div>
+          {/* Seletor de tipo — combobox com busca (padrão dos menus do CRM) */}
+          <Combobox
+            className="h-8 w-36 rounded-lg text-xs font-semibold"
+            value={type}
+            onChange={(v) => setType(v as ChartType)}
+            options={allowedTypes.map((t) => ({ value: t, label: CHART_TYPE_LABELS[t] }))}
+            searchPlaceholder="Tipo de gráfico…"
+          />
 
           {/* Empilhado / Agrupado */}
           {canStack && (

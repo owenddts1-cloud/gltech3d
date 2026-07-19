@@ -34,6 +34,8 @@ const SOURCE_OPTIONS = [
   { value: "manual", label: "Manual" },
   { value: "whatsapp", label: "WhatsApp" },
   { value: "nuvemshop", label: "Nuvemshop" },
+  { value: "controle", label: "Controle" },
+  { value: "pendente", label: "Cadastro pendente" },
 ];
 
 export function ContactsListClient({ defaultPipelineId }: { defaultPipelineId: string | null }) {

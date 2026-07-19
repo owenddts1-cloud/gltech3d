@@ -29,6 +29,7 @@ const EMPTY: DashboardData = {
   },
   channelSeries: [],
   activeOrders: [],
+  ordersOverview: [],
   salesSeries: [],
   osSeries: [],
   salesRows: [],

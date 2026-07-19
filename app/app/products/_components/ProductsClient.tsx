@@ -17,6 +17,7 @@ import {
 } from "@/app/actions/products/actions";
 import type { ProductVariationGroup } from "@/lib/schemas/products-catalog";
 import VariationsEditor from "./VariationsEditor";
+import { Combobox } from "@/components/ui/combobox";
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -272,7 +273,6 @@ function ProductFormDialog({
     });
   }
 
-  const selectCls = "flex h-9 w-full rounded-sm border border-border bg-surface px-3 text-sm";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -298,12 +298,16 @@ function ProductFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="p-fil">Filamento</Label>
-            <select id="p-fil" value={filamentId} onChange={(e) => setFilamentId(e.target.value)} className={selectCls}>
-              <option value="">— Selecione —</option>
-              {filaments.map((f) => (
-                <option key={f.id} value={f.id}>{f.name} (R$ {f.costPerGram.toFixed(3)}/g)</option>
-              ))}
-            </select>
+            <Combobox
+              id="p-fil"
+              value={filamentId}
+              onChange={setFilamentId}
+              options={[
+                { value: "", label: "— Selecione —" },
+                ...filaments.map((f) => ({ value: f.id, label: f.name, hint: `R$ ${f.costPerGram.toFixed(3)}/g` })),
+              ]}
+              searchPlaceholder="Buscar filamento…"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -317,12 +321,16 @@ function ProductFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="p-prn">Impressora (depreciação)</Label>
-            <select id="p-prn" value={printerId} onChange={(e) => setPrinterId(e.target.value)} className={selectCls}>
-              <option value="">— Selecione —</option>
-              {printers.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+            <Combobox
+              id="p-prn"
+              value={printerId}
+              onChange={setPrinterId}
+              options={[
+                { value: "", label: "— Selecione —" },
+                ...printers.map((p) => ({ value: p.id, label: p.name })),
+              ]}
+              searchPlaceholder="Buscar impressora…"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

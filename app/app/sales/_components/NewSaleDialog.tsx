@@ -21,13 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { createSale } from "@/app/actions/sales/actions";
 import { SALES_PLATFORMS, SALES_STATUSES, type SaleRow } from "@/lib/sales/config";
 import { STATUS_LABEL } from "../_lib/view-model";
@@ -94,18 +88,12 @@ export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, onCre
           {!fixedPlatform && (
             <div className="space-y-1.5">
               <Label>Canal</Label>
-              <Select value={platform} onValueChange={setPlatform}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SALES_PLATFORMS.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={platform}
+                onChange={setPlatform}
+                options={SALES_PLATFORMS.map((p) => ({ value: p, label: p }))}
+                searchPlaceholder="Buscar canal…"
+              />
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
@@ -137,18 +125,12 @@ export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, onCre
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SALES_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {STATUS_LABEL[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={status}
+                onChange={setStatus}
+                options={SALES_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] ?? s }))}
+                searchPlaceholder="Buscar status…"
+              />
             </div>
           </div>
           <div className="space-y-1.5">

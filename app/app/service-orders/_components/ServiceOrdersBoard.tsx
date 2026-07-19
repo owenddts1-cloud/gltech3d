@@ -26,7 +26,42 @@ import {
   createServiceOrder, updateServiceOrderStatus, updateServiceOrder, deleteServiceOrder,
   type ServiceOrderView,
 } from "@/app/actions/service-orders/actions";
+import { quickCreateContact } from "@/app/actions/contacts/actions";
 import { SO_STATUSES, type SoStatus, type SoPriority } from "@/lib/schemas/service-orders";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+
+type ContactLite = { id: string; name: string | null };
+
+/** Opções do combobox de cliente ("Sem cliente" + contatos ordenados). */
+function contactOptions(contacts: ContactLite[]): ComboboxOption[] {
+  return [
+    { value: "", label: "— Sem cliente —" },
+    ...contacts
+      .map((c) => ({ value: c.id, label: c.name || "(sem nome)" }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR")),
+  ];
+}
+
+/** allowCreate do combobox de cliente: cria contato com cadastro PENDENTE. */
+function clientAllowCreate(onCreated: (c: ContactLite) => void) {
+  return {
+    label: (q: string) => `Adicionar "${q}" como novo cliente`,
+    onCreate: async (name: string): Promise<ComboboxOption | null> => {
+      const res = await quickCreateContact({ name });
+      if (!res.ok) {
+        toast.error(res.error);
+        return null;
+      }
+      if (!res.existed) {
+        toast.success("Cliente criado com cadastro pendente — complete depois em Contatos.");
+        onCreated({ id: res.contact.id, name: res.contact.name });
+      }
+      return { value: res.contact.id, label: res.contact.name };
+    },
+  };
+}
+
+type OrderBy = "posicao" | "valor" | "sla" | "recente";
 
 const COLUMNS: { id: SoStatus; label: string; accent: string; bgClass: string; borderClass: string; dotClass: string }[] = [
   { id: "orcamento", label: "Orçamento", accent: "#EAB308", bgClass: "bg-amber-500/[0.02] dark:bg-amber-500/[0.01]", borderClass: "border-amber-500/10 hover:border-amber-500/20", dotClass: "bg-amber-500" },
@@ -65,6 +100,8 @@ interface Props {
 
 export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props) {
   const [orders, setOrders] = useState<ServiceOrderView[]>(initialOrders);
+  // Lista viva de contatos: o "Outro cliente" (allowCreate) acrescenta aqui.
+  const [contactList, setContactList] = useState<ContactLite[]>(contacts);
   const [, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,6 +109,10 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
   const [priorityFilter, setPriorityFilter] = useState<"todas" | SoPriority>("todas");
   const [clientFilter, setClientFilter] = useState<string>("todos");
   const [riskOnly, setRiskOnly] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [minValue, setMinValue] = useState("");
+  const [orderBy, setOrderBy] = useState<OrderBy>("posicao");
   // Detalhe/edição de uma O.S.
   const [detailOrder, setDetailOrder] = useState<ServiceOrderView | null>(null);
   // Prefill vindo do simulador de Projetos ("Copiar e Gerar OS"). Antes o
@@ -109,32 +150,47 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
     return Array.from(set).sort();
   }, [orders]);
 
-  // Filtros: busca (título/cliente) + prioridade + cliente + SLA em risco.
+  // Filtros: busca (título/cliente) + prioridade + cliente + SLA em risco +
+  // período (createdAt) + valor mínimo.
   const filteredOrders = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
+    const minCents = minValue.trim() ? Math.round(Number(minValue.replace(",", ".")) * 100) : null;
     return orders.filter((o) => {
       if (term && !(o.title.toLowerCase().includes(term) || (o.contactName?.toLowerCase().includes(term)))) return false;
       if (priorityFilter !== "todas" && o.priority !== priorityFilter) return false;
       if (clientFilter !== "todos" && o.contactName !== clientFilter) return false;
+      if (dateFrom && o.createdAt.slice(0, 10) < dateFrom) return false;
+      if (dateTo && o.createdAt.slice(0, 10) > dateTo) return false;
+      if (minCents !== null && !Number.isNaN(minCents) && o.totalCents < minCents) return false;
       if (riskOnly) {
         const info = slaInfo(o.slaDueAt, o.status);
         if (!(info?.tone.includes("rose") || info?.tone.includes("amber"))) return false;
       }
       return true;
     });
-  }, [orders, searchTerm, priorityFilter, clientFilter, riskOnly]);
+  }, [orders, searchTerm, priorityFilter, clientFilter, riskOnly, dateFrom, dateTo, minValue]);
 
-  // Group by status
+  // Group by status, ordenando dentro da coluna conforme o "Ordenar por".
   const byStatus = useMemo(() => {
     const map = Object.fromEntries(SO_STATUSES.map((s) => [s, [] as ServiceOrderView[]])) as Record<SoStatus, ServiceOrderView[]>;
     for (const o of filteredOrders) {
       map[o.status].push(o);
     }
+    const cmp: Record<OrderBy, (a: ServiceOrderView, b: ServiceOrderView) => number> = {
+      posicao: (a, b) => a.position - b.position,
+      valor: (a, b) => b.totalCents - a.totalCents,
+      sla: (a, b) => {
+        const da = a.slaDueAt ? new Date(a.slaDueAt).getTime() : Infinity;
+        const db = b.slaDueAt ? new Date(b.slaDueAt).getTime() : Infinity;
+        return da - db;
+      },
+      recente: (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    };
     for (const k of Object.keys(map) as SoStatus[]) {
-      map[k].sort((a, b) => a.position - b.position);
+      map[k].sort(cmp[orderBy]);
     }
     return map;
-  }, [filteredOrders]);
+  }, [filteredOrders, orderBy]);
 
   // Calculate sum totals per column
   const columnTotals = useMemo(() => {
@@ -217,7 +273,8 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
                 setDialogOpen(v);
                 if (!v) setPrefill(null); // fechou: não reaproveita o prefill
               }}
-              contacts={contacts}
+              contacts={contactList}
+              onContactCreated={(c) => setContactList((prev) => [...prev, c])}
               prefill={prefill}
               onCreated={(o) => setOrders((prev) => [o, ...prev])}
             />
@@ -275,24 +332,52 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
       {/* ─── Filtros ─── */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Filtros:</span>
-        <select
+        <Combobox
+          className="h-8 w-40 rounded-lg text-xs"
           value={priorityFilter}
-          onChange={(e) => setPriorityFilter(e.target.value as "todas" | SoPriority)}
-          className="h-8 rounded-lg border border-border bg-surface px-2.5 text-xs outline-none focus:ring-2 focus:ring-accent/20"
-        >
-          <option value="todas">Toda prioridade</option>
-          <option value="alta">Alta</option>
-          <option value="media">Média</option>
-          <option value="baixa">Baixa</option>
-        </select>
-        <select
+          onChange={(v) => setPriorityFilter(v as "todas" | SoPriority)}
+          options={[
+            { value: "todas", label: "Toda prioridade" },
+            { value: "alta", label: "Alta" },
+            { value: "media", label: "Média" },
+            { value: "baixa", label: "Baixa" },
+          ]}
+          searchPlaceholder="Buscar prioridade…"
+        />
+        <Combobox
+          className="h-8 w-44 rounded-lg text-xs"
           value={clientFilter}
-          onChange={(e) => setClientFilter(e.target.value)}
-          className="h-8 max-w-[180px] rounded-lg border border-border bg-surface px-2.5 text-xs outline-none focus:ring-2 focus:ring-accent/20"
-        >
-          <option value="todos">Todos os clientes</option>
-          {clientOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+          onChange={(v) => setClientFilter(v)}
+          options={[
+            { value: "todos", label: "Todos os clientes" },
+            ...clientOptions.map((c) => ({ value: c, label: c })),
+          ]}
+          searchPlaceholder="Buscar cliente…"
+        />
+        <label className="flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2 text-xs text-muted-foreground">
+          De
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} aria-label="Criadas a partir de" className="bg-transparent text-xs text-text outline-none" />
+        </label>
+        <label className="flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2 text-xs text-muted-foreground">
+          Até
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} aria-label="Criadas até" className="bg-transparent text-xs text-text outline-none" />
+        </label>
+        <label className="flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2 text-xs text-muted-foreground">
+          ≥ R$
+          <input inputMode="decimal" value={minValue} onChange={(e) => setMinValue(e.target.value)} placeholder="0" aria-label="Valor mínimo" className="w-14 bg-transparent text-xs text-text outline-none" />
+        </label>
+        <Combobox
+          className="h-8 w-40 rounded-lg text-xs"
+          value={orderBy}
+          onChange={(v) => setOrderBy(v as OrderBy)}
+          options={[
+            { value: "posicao", label: "Ordem manual" },
+            { value: "valor", label: "Maior valor" },
+            { value: "sla", label: "Prazo (SLA)" },
+            { value: "recente", label: "Mais recente" },
+          ]}
+          searchPlaceholder="Ordenar por…"
+        />
         <button
           type="button"
           onClick={() => setRiskOnly((v) => !v)}
@@ -301,10 +386,13 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
         >
           <Warning size={13} /> Só em risco
         </button>
-        {(priorityFilter !== "todas" || clientFilter !== "todos" || riskOnly || searchTerm) && (
+        {(priorityFilter !== "todas" || clientFilter !== "todos" || riskOnly || searchTerm || dateFrom || dateTo || minValue || orderBy !== "posicao") && (
           <button
             type="button"
-            onClick={() => { setPriorityFilter("todas"); setClientFilter("todos"); setRiskOnly(false); setSearchTerm(""); }}
+            onClick={() => {
+              setPriorityFilter("todas"); setClientFilter("todos"); setRiskOnly(false); setSearchTerm("");
+              setDateFrom(""); setDateTo(""); setMinValue(""); setOrderBy("posicao");
+            }}
             className="h-8 rounded-lg px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
           >
             Limpar
@@ -477,7 +565,8 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
       {/* Detalhe / edição de uma O.S. */}
       <OsEditDialog
         order={detailOrder}
-        contacts={contacts}
+        contacts={contactList}
+        onContactCreated={(c) => setContactList((prev) => [...prev, c])}
         onOpenChange={(v) => { if (!v) setDetailOrder(null); }}
         onSaved={(patched) => {
           setOrders((prev) => prev.map((o) => (o.id === patched.id ? patched : o)));
@@ -489,10 +578,11 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
 }
 
 function OsEditDialog({
-  order, contacts, onOpenChange, onSaved,
+  order, contacts, onContactCreated, onOpenChange, onSaved,
 }: {
   order: ServiceOrderView | null;
-  contacts: Array<{ id: string; name: string | null }>;
+  contacts: ContactLite[];
+  onContactCreated: (c: ContactLite) => void;
   onOpenChange: (v: boolean) => void;
   onSaved: (o: ServiceOrderView) => void;
 }) {
@@ -571,11 +661,15 @@ function OsEditDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ed-contact">Cliente</Label>
-            <select id="ed-contact" value={f.contactId} onChange={(e) => setF((p) => ({ ...p, contactId: e.target.value }))}
-              className="flex h-9 w-full rounded-lg border border-border bg-surface px-3 text-xs outline-hidden focus:ring-2 focus:ring-accent/20">
-              <option value="">{f.contactName ? `${f.contactName} (não vinculado)` : "— Sem cliente —"}</option>
-              {contacts.map((c) => <option key={c.id} value={c.id}>{c.name || "(sem nome)"}</option>)}
-            </select>
+            <Combobox
+              id="ed-contact"
+              className="h-9 rounded-lg text-xs"
+              value={f.contactId}
+              onChange={(v) => setF((p) => ({ ...p, contactId: v }))}
+              options={contactOptions(contacts)}
+              searchPlaceholder="Buscar cliente…"
+              allowCreate={clientAllowCreate(onContactCreated)}
+            />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
@@ -635,11 +729,12 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
 }
 
 function NewOsDialog({
-  open, onOpenChange, contacts, prefill, onCreated,
+  open, onOpenChange, contacts, onContactCreated, prefill, onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  contacts: Array<{ id: string; name: string | null }>;
+  contacts: ContactLite[];
+  onContactCreated: (c: ContactLite) => void;
   prefill?: { title?: string; notes?: string; total?: number } | null;
   onCreated: (o: ServiceOrderView) => void;
 }) {
@@ -726,18 +821,17 @@ function NewOsDialog({
             <Input id="os-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: 10x Chaveiro Personalizado Banguela" className="h-9 rounded-lg" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="os-contact">Cliente Vinculado</Label>
-            <select
+            <Label htmlFor="os-contact">Cliente</Label>
+            <Combobox
               id="os-contact"
+              className="h-9 rounded-lg text-xs"
               value={contactId}
-              onChange={(e) => setContactId(e.target.value)}
-              className="flex h-9 w-full rounded-lg border border-border bg-surface px-3 text-xs outline-hidden focus:ring-2 focus:ring-accent/20"
-            >
-              <option value="">— Sem cliente —</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>{c.name || "(sem nome)"}</option>
-              ))}
-            </select>
+              onChange={(v) => setContactId(v)}
+              options={contactOptions(contacts)}
+              placeholder="— Sem cliente —"
+              searchPlaceholder="Buscar ou digitar novo cliente…"
+              allowCreate={clientAllowCreate(onContactCreated)}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

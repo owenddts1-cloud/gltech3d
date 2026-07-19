@@ -69,6 +69,19 @@ export interface ActiveOrderRow {
   slaDueAt: string | null;
 }
 
+/** Visão completa de O.S. p/ a seção com abas (andamento/atrasadas/concluídas). */
+export interface OrderOverviewRow {
+  id: string;
+  code: string | null;
+  title: string;
+  contactName: string;
+  status: string;
+  totalCents: number;
+  slaDueAt: string | null;
+  concludedAt: string | null;
+  createdAt: string;
+}
+
 export interface DashboardData {
   period: Period;
   welcomeName: string;
@@ -91,6 +104,8 @@ export interface DashboardData {
   channelSeries: { name: string; value: number; cents: number }[];
   /** O.S. em andamento (status ≠ concluido), independente do período. */
   activeOrders: ActiveOrderRow[];
+  /** TODAS as O.S. — a seção com abas classifica e pagina no cliente. */
+  ordersOverview: OrderOverviewRow[];
   /** Gráfico 1 — faturamento vs. despesa por bucket. */
   salesSeries: { label: string; faturamento: number; despesa: number; lucro: number }[];
   /** Gráfico 2 — O.S. criadas vs. concluídas por bucket. */
@@ -125,6 +140,8 @@ interface SoRow {
   updated_at: string | null;
   /** Só existe depois da migration 0043 — undefined em banco sem ela. */
   concluded_at?: string | null;
+  /** Código legível "OS-300" — só existe depois da migration 0055. */
+  code?: string | null;
 }
 
 interface ProductStockRow {
@@ -412,12 +429,27 @@ export async function fetchDashboardData(
       return da - db;
     });
 
+  // Visão completa (todas as O.S.) — a seção com abas do Dashboard classifica
+  // em andamento/atrasadas/concluídas e pagina no cliente.
+  const ordersOverview: OrderOverviewRow[] = os.map((o) => ({
+    id: o.id,
+    code: o.code ?? null,
+    title: o.title ?? "Sem título",
+    contactName: o.contact_name || moBySo.get(o.id)?.customerName || "—",
+    status: o.status,
+    totalCents: num(o.total_cents),
+    slaDueAt: o.sla_due_at,
+    concludedAt: o.concluded_at ?? (o.status === "concluido" ? o.updated_at ?? null : null),
+    createdAt: o.created_at,
+  }));
+
   return {
     ok: true,
     data: {
       period,
       welcomeName: authUser.email?.split("@")[0] || "equipe GLTech3D",
       activeOrders,
+      ordersOverview,
       kpis: {
         faturamentoCents: { value: faturamentoAtual, changePct: pctChange(faturamentoAtual, faturamentoPrev) },
         pedidosConcluidos: { value: concluidasAtual, changePct: pctChange(concluidasAtual, concluidasPrev) },

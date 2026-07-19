@@ -25,6 +25,16 @@ import { DynamicChart } from '@/components/charts/DynamicChart';
 import { cn } from '@/lib/utils';
 import { fetchDashboardData, type ActivityRow, type DashboardData } from '@/app/actions/dashboard/analytics';
 import { PERIOD_LABEL, type Period } from '@/lib/dashboard/period';
+import { OrdersOverviewPanel } from './OrdersOverviewPanel';
+
+const OS_STAGE_LABEL: Record<string, string> = {
+  orcamento: 'Orçamento',
+  aprovado: 'Aprovado',
+  em_producao: 'Em produção',
+  pos_processamento: 'Pós-processo',
+  pronto_entrega: 'Pronto p/ entrega',
+  concluido: 'Concluído',
+};
 
 const brl = (cents: number, fractionDigits = 2) =>
   (cents / 100).toLocaleString('pt-BR', {
@@ -203,6 +213,13 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
   // Séries reais para os sparklines dos KPIs (só onde temos o dado por bucket).
   const sparkRevenue = data.salesSeries.map((d) => d.faturamento);
   const sparkProfit = data.salesSeries.map((d) => d.lucro);
+  // Distribuição da esteira de O.S. — alimenta o gráfico "O.S. por etapa".
+  const osStageSeries = Object.entries(
+    data.ordersOverview.reduce<Record<string, number>>((acc, o) => {
+      acc[o.status] = (acc[o.status] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).map(([status, value]) => ({ name: OS_STAGE_LABEL[status] ?? status, value }));
 
   return (
     <main className="min-h-full bg-bg px-4 py-5 md:px-8 md:py-7">
@@ -255,32 +272,32 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
 
         <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
           <Panel title="Receita × Custo × Lucro" subtitle={`Visão ${periodLabel}`} icon={ChartNoAxesCombined}>
-            <DynamicChart data={lineData} series={[{ key: 'faturamento', name: 'Receita', color: '#f97316' }, { key: 'despesa', name: 'Custo', color: '#ef4444' }, { key: 'lucro', name: 'Lucro', color: '#10b981' }]} type="line" allowedTypes={['line', 'area', 'bar']} height={310} valueFormat={brlChart} />
+            <DynamicChart data={lineData} series={[{ key: 'faturamento', name: 'Receita', color: '#f97316' }, { key: 'despesa', name: 'Custo', color: '#ef4444' }, { key: 'lucro', name: 'Lucro', color: '#10b981' }]} type="line" height={310} valueFormat={brlChart} />
           </Panel>
 
           <Panel title="Vendas por canal" subtitle={`Distribuição de receita no período`} icon={ShoppingBag}>
             {data.channelSeries.length === 0 ? (
               <div className="flex h-[310px] flex-col items-center justify-center gap-3 text-center text-sm text-text-muted-foreground"><ShoppingBag className="h-8 w-8 opacity-40" /><span>Nenhuma venda com canal informado.</span></div>
             ) : (
-              <DynamicChart data={data.channelSeries} nameKey="name" valueKey="value" valueLabel="Receita" type="donut" allowedTypes={['donut']} height={310} currency />
+              <DynamicChart data={data.channelSeries} nameKey="name" valueKey="value" valueLabel="Receita" type="donut" height={310} currency />
             )}
           </Panel>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <Panel title="O.S. em andamento" subtitle="Prioridade operacional da oficina" icon={ClipboardList}>
-            {data.activeOrders.length === 0 ? <EmptyState icon={ClipboardList} text="Nenhuma O.S. em andamento." /> : (
-              <ul className="divide-y divide-border/70">
-                {data.activeOrders.slice(0, 6).map((order) => (
-                  <li key={order.id}>
-                    <button type="button" onClick={() => router.push(`/app/service-orders?os=${order.id}`)} className="flex w-full items-center gap-3 py-3 text-left transition hover:bg-muted/40">
-                      <span className="rounded-lg bg-accent-soft p-2 text-accent"><ClipboardList className="h-4 w-4" /></span>
-                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{order.title}</span><span className="block truncate text-xs text-text-muted-foreground">{order.contactName}</span></span>
-                      <span className="text-right"><span className="block font-mono text-sm font-semibold">{brl(order.totalCents)}</span><span className="text-[10px] capitalize text-text-muted-foreground">{order.status.replace('_', ' ')}</span></span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <Panel title="Ordens de Serviço" subtitle="Andamento, atrasadas e concluídas — automático" icon={ClipboardList}>
+            {data.ordersOverview.length === 0 ? (
+              <EmptyState icon={ClipboardList} text="Nenhuma O.S. registrada." />
+            ) : (
+              <OrdersOverviewPanel orders={data.ordersOverview} />
+            )}
+          </Panel>
+
+          <Panel title="O.S. por etapa" subtitle="Distribuição atual da esteira" icon={ClipboardList}>
+            {osStageSeries.length === 0 ? (
+              <EmptyState icon={ClipboardList} text="Sem O.S. para o gráfico." />
+            ) : (
+              <DynamicChart data={osStageSeries} nameKey="name" valueKey="value" valueLabel="O.S." type="donut" height={260} />
             )}
           </Panel>
 
