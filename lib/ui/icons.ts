@@ -108,6 +108,8 @@ export {
   CaretRight,
   ArrowRight,
   ArrowLeft,
+  ArrowUpRight,
+  ArrowDownRight,
   SignOut,
   Bell,
   TrendUp,

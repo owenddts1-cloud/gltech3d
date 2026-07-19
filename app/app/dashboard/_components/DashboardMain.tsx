@@ -4,21 +4,23 @@ import { useState, useTransition, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  // Ícones canônicos Phosphor (ADR-05) — consistente com o resto do CRM.
+  // Aliases mantêm os nomes usados no arquivo sem editar cada uso.
   ArrowDownRight,
   ArrowUpRight,
-  Boxes,
-  CalendarDays,
-  ChartNoAxesCombined,
-  ClipboardList,
+  Cube as Boxes,
+  CalendarBlank as CalendarDays,
+  ChartLineUp as ChartNoAxesCombined,
+  ClipboardText as ClipboardList,
   Package,
-  PackageOpen,
+  Coins as PackageOpen,
   Plus,
-  ReceiptText,
-  Search,
-  ShoppingBag,
-  Sparkles,
-  WalletCards,
-} from 'lucide-react';
+  Receipt as ReceiptText,
+  MagnifyingGlass as Search,
+  ShoppingCart as ShoppingBag,
+  Sparkle as Sparkles,
+  Wallet as WalletCards,
+} from '@/lib/ui/icons';
 import { DynamicChart } from '@/components/charts/DynamicChart';
 import { cn } from '@/lib/utils';
 import { fetchDashboardData, type ActivityRow, type DashboardData } from '@/app/actions/dashboard/analytics';
@@ -128,8 +130,7 @@ function MetricCard({
     amber: 'text-amber-500/60',
   };
   const card = (
-    <article className="group relative h-full overflow-hidden rounded-2xl border border-border/80 bg-surface/85 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg">
-      <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-accent/5 blur-2xl transition-opacity group-hover:opacity-100" />
+    <article className="group relative h-full overflow-hidden rounded-2xl border border-border/80 bg-surface p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg">
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-text-muted-foreground">{label}</p>
@@ -164,7 +165,7 @@ function MetricCard({
 
 function Panel({ title, subtitle, icon: Icon, children, className }: { title: string; subtitle?: string; icon?: typeof ChartNoAxesCombined; children: ReactNode; className?: string }) {
   return (
-    <section className={cn('rounded-2xl border border-border/80 bg-surface/85 p-5 shadow-sm backdrop-blur-sm md:p-6', className)}>
+    <section className={cn('rounded-2xl border border-border/80 bg-surface p-5 shadow-sm md:p-6', className)}>
       <div className="mb-5 flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           {Icon && <span className="rounded-lg bg-accent-soft p-2 text-accent"><Icon className="h-4 w-4" /></span>}
@@ -204,7 +205,7 @@ export default function DashboardMain({ initial }: { initial: DashboardData }) {
   const sparkProfit = data.salesSeries.map((d) => d.lucro);
 
   return (
-    <main className="min-h-full bg-[radial-gradient(circle_at_82%_0%,rgba(234,88,12,0.09),transparent_28%),radial-gradient(circle_at_10%_12%,rgba(16,185,129,0.05),transparent_25%)] px-4 py-5 md:px-8 md:py-7">
+    <main className="min-h-full bg-bg px-4 py-5 md:px-8 md:py-7">
       <div className="mx-auto max-w-[1500px] space-y-6">
         <header className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>

@@ -82,10 +82,10 @@ function AnatomyBar({ label, pct, color, value }: { label: string; pct: number; 
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-neutral-300 font-medium">{label}</span>
-        <span className="text-white font-bold tabular-nums">R$ {fmt(value)} <span className="text-neutral-400 font-normal">({pct.toFixed(1)}%)</span></span>
+        <span className="text-muted-foreground font-medium">{label}</span>
+        <span className="text-text font-bold tabular-nums">R$ {fmt(value)} <span className="text-muted-foreground font-normal">({pct.toFixed(1)}%)</span></span>
       </div>
-      <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden">
+      <div className="h-2 w-full rounded-full bg-surface-elevated overflow-hidden">
         <motion.div
           className="h-full rounded-full"
           style={{ background: color }}
@@ -292,23 +292,18 @@ export function Calculadora3DClient({ initialData }: Props) {
 
         {/* ─── RIGHT: Output Card (Dark Glassmorphic) ────────── */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          <Card className="flex-1 p-6 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950
-                           border-neutral-800/60 shadow-2xl shadow-emerald-900/10 overflow-hidden relative">
-            {/* Subtle glow */}
-            <div className="absolute -top-20 -right-20 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-
+          <Card className="flex-1 p-6 bg-surface border-border overflow-hidden relative">
             <div className="relative z-10 space-y-5">
               {/* Big price */}
-              <div className="text-center pb-4 border-b border-white/10">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-400 font-semibold mb-1">Preço Sugerido Unitário</p>
+              <div className="text-center pb-4 border-b border-border">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-1">Preço Sugerido Unitário</p>
                 <AnimatePresence mode="wait">
                   <motion.p
                     key={outputs.precoSugerido}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="text-4xl font-black text-white tabular-nums"
+                    className="text-4xl font-black text-text tabular-nums"
                   >
                     R$ {fmt(outputs.precoSugerido)}
                   </motion.p>
@@ -320,7 +315,7 @@ export function Calculadora3DClient({ initialData }: Props) {
 
               {/* Anatomy */}
               <div>
-                <p className="text-[10px] uppercase tracking-[0.15em] text-neutral-400 font-semibold mb-3">Anatomia do Custo</p>
+                <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-semibold mb-3">Anatomia do Custo</p>
                 <div className="space-y-2.5">
                   <AnatomyBar label="Filamento" pct={outputs.pctFilamento} color="#10b981" value={outputs.custoFilamento} />
                   <AnatomyBar label="Energia" pct={outputs.pctEnergia} color="#3b82f6" value={outputs.custoEnergia} />
@@ -331,7 +326,7 @@ export function Calculadora3DClient({ initialData }: Props) {
               </div>
 
               {/* Summary Grid */}
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/10">
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                 <SummaryCell label="Custo unitário" value={`R$ ${fmt(outputs.custoTotalUnitario)}`} />
                 <SummaryCell label="Preço unitário" value={`R$ ${fmt(outputs.precoSugerido)}`} accent />
                 <SummaryCell label={`Custo lote (${inputs.quantidade}un)`} value={`R$ ${fmt(outputs.custoLote)}`} />
@@ -362,9 +357,9 @@ export function Calculadora3DClient({ initialData }: Props) {
 // ─── Summary Cell ───────────────────────────────────────────────
 function SummaryCell({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="p-2.5 rounded-lg bg-white/5 border border-white/5">
-      <p className="text-[10px] text-neutral-400 font-medium mb-0.5">{label}</p>
-      <p className={`text-sm font-bold tabular-nums ${accent ? "text-emerald-400" : "text-white"}`}>{value}</p>
+    <div className="p-2.5 rounded-lg bg-surface-elevated border border-border">
+      <p className="text-[10px] text-muted-foreground font-medium mb-0.5">{label}</p>
+      <p className={`text-sm font-bold tabular-nums ${accent ? "text-success-fg" : "text-text"}`}>{value}</p>
     </div>
   );
 }
