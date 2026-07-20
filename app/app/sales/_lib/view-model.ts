@@ -153,9 +153,12 @@ export function computeKpis(rows: SaleRow[]): SalesKpis {
   const active = activeRows(rows);
   const totalCents = active.reduce((s, r) => s + r.totalCents, 0);
   const commissionCents = active.reduce((s, r) => s + r.commissionCents, 0);
+  // E5: custo de produção das vendas com produto vinculado entra no líquido.
+  const costCents = active.reduce((s, r) => s + (r.costCents ?? 0), 0);
   return {
     totalCents,
-    netCents: totalCents - commissionCents,
+    netCents: totalCents - commissionCents - costCents,
+    costCents,
     count: active.length,
     avgTicketCents: active.length ? Math.round(totalCents / active.length) : 0,
   };
@@ -202,7 +205,7 @@ export function sparkSeries(rows: SaleRow[], range: DateRange, buckets = 12): Sp
     const t = Date.parse(`${r.soldAt}T12:00:00Z`);
     const idx = Math.min(buckets - 1, Math.max(0, Math.floor(((t - start) / span) * buckets)));
     series.total[idx] = (series.total[idx] ?? 0) + r.totalCents;
-    series.net[idx] = (series.net[idx] ?? 0) + (r.totalCents - r.commissionCents);
+    series.net[idx] = (series.net[idx] ?? 0) + (r.totalCents - r.commissionCents - (r.costCents ?? 0));
     series.count[idx] = (series.count[idx] ?? 0) + 1;
   }
   for (let i = 0; i < buckets; i++) {
@@ -268,11 +271,12 @@ export function buildCsv(
   const esc = (s: string): string => `"${s.replace(/"/g, '""')}"`;
   const money = (cents: number): string => (cents / 100).toFixed(2).replace(".", ",");
   const lines: string[] = [
-    ["Nº", "Data", "Cliente", "Canal", "Produção", "Pagamento", "Comissão (R$)", "Total (R$)", "Observações"]
+    ["Nº", "Data", "Cliente", "Canal", "Produção", "Pagamento", "Produto", "Custo (R$)", "Comissão (R$)", "Total (R$)", "Lucro (R$)", "Observações"]
       .map(esc)
       .join(sep),
   ];
   rows.forEach((r) => {
+    const profitCents = r.totalCents - r.commissionCents - (r.costCents ?? 0);
     lines.push(
       [
         esc(orderCode(r)),
@@ -281,8 +285,11 @@ export function buildCsv(
         esc(r.platform),
         esc(labels.fulfillment[r.fulfillmentStatus]),
         esc(labels.payment[r.paymentStatus]),
+        esc(r.productName ?? ""),
+        r.costCents == null ? "" : money(r.costCents),
         money(r.commissionCents),
         money(r.totalCents),
+        money(profitCents),
         esc(r.notes ?? ""),
       ].join(sep),
     );

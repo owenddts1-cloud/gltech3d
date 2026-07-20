@@ -23,17 +23,24 @@ import {
 } from "@/components/ui/dialog";
 import { Combobox } from "@/components/ui/combobox";
 import { createSale } from "@/app/actions/sales/actions";
-import { SALES_PLATFORMS, SALES_STATUSES, type SaleRow } from "@/lib/sales/config";
+import {
+  SALES_PLATFORMS,
+  SALES_STATUSES,
+  type SaleProductOption,
+  type SaleRow,
+} from "@/lib/sales/config";
 import { STATUS_LABEL } from "../_lib/view-model";
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   fixedPlatform?: string;
+  /** Catálogo p/ vincular produto (custo/margem reais — E5). */
+  productOptions?: SaleProductOption[];
   onCreated: (s: SaleRow) => void;
 }
 
-export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, onCreated }: Props) {
+export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, productOptions = [], onCreated }: Props) {
   const [platform, setPlatform] = useState(fixedPlatform ?? "Shopee");
   const [customer, setCustomer] = useState("");
   const [status, setStatus] = useState("pago");
@@ -41,6 +48,8 @@ export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, onCre
   const [commission, setCommission] = useState("");
   const [soldAt, setSoldAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [productId, setProductId] = useState("");
+  const [qty, setQty] = useState("1");
   const [saving, setSaving] = useState(false);
 
   async function submit() {
@@ -57,6 +66,8 @@ export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, onCre
       commission: commission ? Number(commission.replace(",", ".")) : 0,
       soldAt,
       notes,
+      productId: productId || null,
+      qty: Number(qty) || 1,
     });
     setSaving(false);
     if (!r.ok) {
@@ -69,6 +80,8 @@ export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, onCre
     setTotal("");
     setCommission("");
     setNotes("");
+    setProductId("");
+    setQty("1");
     onOpenChange(false);
   }
 
@@ -133,6 +146,31 @@ export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, onCre
               />
             </div>
           </div>
+          {/* Produto do catálogo (opcional) — liga o custo real da engine à venda. */}
+          {productOptions.length > 0 && (
+            <div className="grid grid-cols-[1fr_84px] gap-3">
+              <div className="space-y-1.5">
+                <Label>Produto (opcional)</Label>
+                <Combobox
+                  value={productId}
+                  onChange={setProductId}
+                  options={[
+                    { value: "", label: "— Sem produto —" },
+                    ...productOptions.map((p) => ({
+                      value: p.id,
+                      label: p.name,
+                      hint: `custo ${(p.unitCostCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/un`,
+                    })),
+                  ]}
+                  searchPlaceholder="Buscar produto…"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="s-qty">Qtd</Label>
+                <Input id="s-qty" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} />
+              </div>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="s-cust">Cliente (opcional)</Label>
             <Input

@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { deleteSale } from "@/app/actions/sales/actions";
-import { type SaleRow } from "@/lib/sales/config";
+import { type SaleProductOption, type SaleRow } from "@/lib/sales/config";
 import { FULFILLMENT_LABEL, PAYMENT_LABEL } from "@/lib/sales/config";
 import NewSaleDialog from "./NewSaleDialog";
 import SalesHeader, { type HeaderStats } from "./SalesHeader";
@@ -53,6 +53,8 @@ interface Props {
   subtitle: string;
   initialSales: SaleRow[];
   byPlatform: { platform: string; totalCents: number; count: number }[];
+  /** Catálogo p/ vincular produto às vendas (custo/margem reais — E5). */
+  productOptions?: SaleProductOption[];
   /** Slot opcional acima dos KPIs (ex.: status da integração Shopee). */
   banner?: React.ReactNode;
 }
@@ -91,6 +93,7 @@ export default function SalesClient({
   subtitle,
   initialSales,
   byPlatform,
+  productOptions = [],
   banner,
 }: Props) {
   const [sales, setSales] = useState(initialSales);
@@ -254,6 +257,7 @@ export default function SalesClient({
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             fixedPlatform={platform}
+            productOptions={productOptions}
             onCreated={(s) => setSales((prev) => [s, ...prev])}
           />
         }
@@ -273,7 +277,8 @@ export default function SalesClient({
       <SalesKpis kpis={kpis} deltas={deltas} spark={spark} monthNetCents={monthNetCents} />
 
       <CostsStrip
-        commissionCents={kpis.totalCents - kpis.netCents}
+        commissionCents={kpis.totalCents - kpis.netCents - kpis.costCents}
+        productCostCents={kpis.costCents}
         totalCents={kpis.totalCents}
         netCents={kpis.netCents}
       />
@@ -306,7 +311,12 @@ export default function SalesClient({
         <SalesTimelineView rows={filtered} onOpenSale={handleOpenSale} />
       )}
 
-      <SaleDrawer sale={selectedSale} onClose={closeDrawer} onPatch={handleSalePatch} />
+      <SaleDrawer
+        sale={selectedSale}
+        onClose={closeDrawer}
+        onPatch={handleSalePatch}
+        productOptions={productOptions}
+      />
 
       {/* Breakdown por canal — só na visão geral (dados vêm do servidor). */}
       {!platform && byPlatform.length > 0 && (

@@ -72,13 +72,30 @@ export interface SaleRow {
   boardPosition: number | null;
   totalCents: number;
   commissionCents: number;
+  /** Produto do catálogo ligado à venda (0055) — habilita custo/margem reais. */
+  productId: string | null;
+  productName: string | null;
+  qty: number;
+  /** Custo de produção TOTAL da venda (unitário × qty), em cents. Null sem produto. */
+  costCents: number | null;
   soldAt: string;
   notes: string | null;
 }
 
+/** Opção de produto p/ vincular a vendas (combobox) — custo unitário da engine. */
+export interface SaleProductOption {
+  id: string;
+  name: string;
+  unitCostCents: number;
+  suggestedPriceCents: number;
+}
+
 export interface SalesKpis {
   totalCents: number;
+  /** Líquido REAL: total − comissões − custos de produção conhecidos (E5). */
   netCents: number;
+  /** Soma dos custos de produção das vendas com produto vinculado. */
+  costCents: number;
   count: number;
   avgTicketCents: number;
 }

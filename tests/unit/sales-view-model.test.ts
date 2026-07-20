@@ -29,6 +29,10 @@ function sale(patch: Partial<SaleRow>): SaleRow {
     boardPosition: null,
     totalCents: 10_000,
     commissionCents: 1_000,
+    productId: null,
+    productName: null,
+    qty: 1,
+    costCents: null,
     soldAt: TODAY,
     notes: null,
     ...patch,
@@ -88,6 +92,17 @@ describe("kpis & deltas", () => {
     expect(k.netCents).toBe(9_000);
     expect(k.count).toBe(1);
     expect(k.avgTicketCents).toBe(10_000);
+  });
+
+  it("subtracts linked-product production cost from the net (E5)", () => {
+    const k = computeKpis([
+      sale({ costCents: 2_500, productId: "p1", productName: "Peça", qty: 1 }),
+      sale({ id: "b", costCents: null }),
+    ]);
+    // total 20.000 − comissões 2.000 − custo 2.500 = 15.500
+    expect(k.totalCents).toBe(20_000);
+    expect(k.costCents).toBe(2_500);
+    expect(k.netCents).toBe(15_500);
   });
 
   it("deltaPct returns null without a previous baseline", () => {

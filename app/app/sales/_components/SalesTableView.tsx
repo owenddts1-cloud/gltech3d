@@ -123,7 +123,25 @@ export default function SalesTableView({
         header: "Total",
         value: (r) => r.totalCents,
         align: "right",
-        cell: (r) => <span className="font-mono font-medium">{brl(r.totalCents)}</span>,
+        cell: (r) => {
+          // E5: custo/margem reais quando a venda tem produto vinculado.
+          if (r.costCents == null) {
+            return <span className="font-mono font-medium">{brl(r.totalCents)}</span>;
+          }
+          const profit = r.totalCents - r.commissionCents - r.costCents;
+          const pct = r.totalCents > 0 ? Math.round((profit / r.totalCents) * 100) : 0;
+          return (
+            <span className="inline-flex flex-col items-end leading-tight">
+              <span className="font-mono font-medium">{brl(r.totalCents)}</span>
+              <span className="text-[10px] text-muted-foreground">
+                custo {brl(r.costCents)} ·{" "}
+                <span className={profit >= 0 ? "text-emerald-500" : "text-error-fg"}>
+                  {profit >= 0 ? "+" : ""}{brl(profit)} ({pct}%)
+                </span>
+              </span>
+            </span>
+          );
+        },
       },
       {
         key: "acoes",

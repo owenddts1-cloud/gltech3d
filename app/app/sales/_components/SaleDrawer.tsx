@@ -50,9 +50,11 @@ import {
   PAYMENT_LABEL,
   SALES_PLATFORMS,
   type SalePayment,
+  type SaleProductOption,
   type SaleRow,
 } from "@/lib/sales/config";
 import { brl, orderCode } from "../_lib/view-model";
+import { Combobox } from "@/components/ui/combobox";
 
 interface Props {
   /** Null = drawer closed. */
@@ -60,6 +62,8 @@ interface Props {
   onClose: () => void;
   /** Applies a partial patch to one sale in the parent state (optimistic + rollback). */
   onPatch: (id: string, patch: Partial<SaleRow>) => void;
+  /** Catálogo p/ vincular produto (custo/margem reais — E5). */
+  productOptions?: SaleProductOption[];
 }
 
 const PAYMENT_VARIANT: Record<SalePayment, "success" | "warning" | "error"> = {
@@ -91,7 +95,7 @@ function pickSnapshot(sale: SaleRow, patch: Partial<SaleRow>): Partial<SaleRow> 
   return snapshot;
 }
 
-export default function SaleDrawer({ sale, onClose, onPatch }: Props) {
+export default function SaleDrawer({ sale, onClose, onPatch, productOptions = [] }: Props) {
   return (
     <Sheet
       open={sale !== null}
@@ -105,7 +109,7 @@ export default function SaleDrawer({ sale, onClose, onPatch }: Props) {
           className="flex w-full flex-col gap-0 overflow-hidden border-border bg-surface p-0 sm:max-w-lg"
         >
           {/* Key by id: reopening with another sale resets drafts cleanly. */}
-          <SaleDrawerBody key={sale.id} sale={sale} onPatch={onPatch} />
+          <SaleDrawerBody key={sale.id} sale={sale} onPatch={onPatch} productOptions={productOptions} />
         </SheetContent>
       )}
     </Sheet>
@@ -115,9 +119,11 @@ export default function SaleDrawer({ sale, onClose, onPatch }: Props) {
 function SaleDrawerBody({
   sale,
   onPatch,
+  productOptions,
 }: {
   sale: SaleRow;
   onPatch: (id: string, patch: Partial<SaleRow>) => void;
+  productOptions: SaleProductOption[];
 }) {
   const [notesDraft, setNotesDraft] = useState(sale.notes ?? "");
   const [editing, setEditing] = useState(false);
@@ -132,7 +138,9 @@ function SaleDrawerBody({
   const cancelled = sale.fulfillmentStatus === "cancelada";
   const currentIdx = KANBAN_STAGES.indexOf(sale.fulfillmentStatus);
   const nextStage = cancelled ? undefined : KANBAN_STAGES[currentIdx + 1];
-  const netCents = sale.totalCents - sale.commissionCents;
+  // Líquido REAL (E5): total − comissão − custo de produção (quando conhecido).
+  const netCents = sale.totalCents - sale.commissionCents - (sale.costCents ?? 0);
+  const marginPct = sale.totalCents > 0 ? (netCents / sale.totalCents) * 100 : null;
 
   /** Optimistic patch + persist + rollback with toast on failure. */
   function persist(patch: Partial<SaleRow>, server: Record<string, unknown>, okMsg?: string) {
@@ -146,6 +154,21 @@ function SaleDrawerBody({
         toast.success(okMsg);
       }
     });
+  }
+
+  /** Vincula/desvincula produto (e qty) — custo recalculado do catálogo. */
+  function linkProduct(nextProductId: string, nextQty: number) {
+    const info = nextProductId ? productOptions.find((p) => p.id === nextProductId) : undefined;
+    persist(
+      {
+        productId: nextProductId || null,
+        productName: info?.name ?? null,
+        qty: nextQty,
+        costCents: info ? info.unitCostCents * nextQty : null,
+      },
+      { productId: nextProductId || null, qty: nextQty },
+      info ? `Produto vinculado — custo ${brl(info.unitCostCents * nextQty)}.` : "Produto desvinculado.",
+    );
   }
 
   function togglePayment() {
@@ -381,6 +404,44 @@ function SaleDrawerBody({
               </Button>
             </div>
 
+            {/* Produto do catálogo — vínculo que dá o custo/margem reais (E5). */}
+            {productOptions.length > 0 && (
+              <div className="space-y-2 rounded-xl border border-border p-3">
+                <div className="grid grid-cols-[1fr_72px] items-end gap-2">
+                  <div className="space-y-1.5">
+                    <Label>Produto</Label>
+                    <Combobox
+                      className="h-9 text-xs"
+                      value={sale.productId ?? ""}
+                      onChange={(v) => linkProduct(v, sale.qty)}
+                      options={[
+                        { value: "", label: "— Sem produto —" },
+                        ...productOptions.map((p) => ({
+                          value: p.id,
+                          label: p.name,
+                          hint: `custo ${brl(p.unitCostCents)}/un`,
+                        })),
+                      ]}
+                      searchPlaceholder="Buscar produto…"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="d-qty">Qtd</Label>
+                    <Input
+                      id="d-qty"
+                      inputMode="numeric"
+                      defaultValue={String(sale.qty)}
+                      onBlur={(e) => {
+                        const q = Math.max(1, Number(e.target.value) || 1);
+                        if (q !== sale.qty) linkProduct(sale.productId ?? "", q);
+                      }}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between gap-2 rounded-xl border border-border p-3">
               <span className="text-xs text-muted-foreground">Frete</span>
               {/* Static for now — shipping ownership per-order is a later stage. */}
@@ -417,8 +478,16 @@ function SaleDrawerBody({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Custo de produção</span>
-                {/* E5: per-order cost/margin computation lands in stage E5. */}
-                <span className="font-mono text-muted-foreground">{brl(0)} · —</span>
+                {sale.costCents != null ? (
+                  <span className="font-mono">
+                    − {brl(sale.costCents)}
+                    {sale.productName ? (
+                      <span className="ml-1 text-muted-foreground">· {sale.qty}× {sale.productName}</span>
+                    ) : null}
+                  </span>
+                ) : (
+                  <span className="font-mono text-muted-foreground">— vincule um produto</span>
+                )}
               </div>
               <div className="flex items-center justify-between border-t border-border pt-2">
                 <span className="font-medium">Total</span>
@@ -426,7 +495,14 @@ function SaleDrawerBody({
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-medium">Lucro Líquido</span>
-                <span className="font-mono font-semibold text-emerald-500">{brl(netCents)}</span>
+                <span className={`font-mono font-semibold ${netCents >= 0 ? "text-emerald-500" : "text-error-fg"}`}>
+                  {brl(netCents)}
+                  {marginPct !== null && sale.costCents != null && (
+                    <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+                      ({marginPct.toFixed(1).replace(".", ",")}%)
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
           </TabsContent>
@@ -436,7 +512,9 @@ function SaleDrawerBody({
                 arrive when sales link to products/quantities (future stage). */}
             <div className="rounded-xl border border-border p-3">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium">1 item</span>
+                <span className="text-xs font-medium">
+                  {sale.productName ? `${sale.qty}× ${sale.productName}` : "1 item"}
+                </span>
                 <span className="font-mono text-xs font-semibold">{brl(sale.totalCents)}</span>
               </div>
               {sale.notes ? (

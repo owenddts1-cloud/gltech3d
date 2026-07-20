@@ -12,6 +12,7 @@ export default async function SalesPage() {
       subtitle="Todos os canais num só painel. Lance pedidos manualmente por enquanto."
       initialSales={r.ok ? r.sales : []}
       byPlatform={r.ok ? r.byPlatform : []}
+      productOptions={r.ok ? r.productOptions : []}
     />
   );
 }

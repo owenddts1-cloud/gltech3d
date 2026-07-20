@@ -43,7 +43,7 @@ export default function SalesKpis({ kpis, deltas, spark, monthNetCents }: Props)
         value={brl(kpis.netCents)}
         delta={deltas.net}
         data={spark.net}
-        hint="Receita menos taxas"
+        hint="Receita menos taxas e custo de produção"
       >
         {/* Meta do mês — barra de progresso sobre MONTH_GOAL_CENTS */}
         <div className="mt-3">
@@ -134,25 +134,26 @@ function DeltaChip({ delta }: { delta: number | null }) {
   );
 }
 
-/** Thin "Custos & Taxas" strip. Frete/custo por pedido chegam no estágio E5. */
+/** Thin "Custos & Taxas" strip — custo de produção real (E5) via produto vinculado. */
 export function CostsStrip({
   commissionCents,
+  productCostCents,
   totalCents,
   netCents,
 }: {
   commissionCents: number;
+  /** Soma dos custos de produção das vendas com produto vinculado. */
+  productCostCents: number;
   totalCents: number;
   netCents: number;
 }) {
-  // E5: custo por pedido e frete absorvido entram aqui (hoje fixos em zero).
-  const freightCents = 0;
-  const costCents = commissionCents + freightCents;
+  const totalCostCents = commissionCents + productCostCents;
   const marginPct = totalCents > 0 ? (netCents / totalCents) * 100 : null;
 
   const parts = [
     `Taxas ${brl(commissionCents)}`,
-    `Frete absorvido ${brl(freightCents)}`,
-    `Custo total ${brl(costCents)}`,
+    `Custo produção ${brl(productCostCents)}`,
+    `Custo total ${brl(totalCostCents)}`,
     marginPct !== null ? `Margem ${pctBR(marginPct)}` : null,
   ].filter((p): p is string => p !== null);
 
