@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { motion } from "motion/react";
 import {
-  Kanban, Users, UsersThree, Gear, CaretDoubleLeft, CaretDoubleRight, CaretDown,
+  Users, UsersThree, Gear, CaretDoubleLeft, CaretDoubleRight, CaretDown,
   Inbox, ScalesSimple, Robot, PlugsConnected, House,
   Gauge, Printer, Ruler, ClipboardText, Sparkle, ShoppingCart, Package, Cube,
   CalendarBlank, ChartLineUp, Toolbox, Handshake, AddressBook, Calculator, Coins,
@@ -80,7 +80,9 @@ const NAV: NavEntry[] = [
     children: [
       { href: "/app/inbox", label: "Inbox", icon: Inbox },
       { href: "/app/connections", label: "Conexões", icon: PlugsConnected, healthDot: true },
-      { href: "/app/kanban", label: "Kanban", icon: Kanban },
+      // "Kanban" (funil de leads genérico /app/pipelines) escondido do menu a
+      // pedido do usuário — ele já usa o Kanban de Vendas (/app/sales). Rota
+      // continua existindo, só não aparece na navegação.
       { href: "/app/contacts", label: "Contatos", icon: Users },
       { href: "/app/team", label: "Equipe", icon: UsersThree },
       { href: "/app/lgpd/requests", label: "LGPD", icon: ScalesSimple, permission: "lgpd.execute_redact" },

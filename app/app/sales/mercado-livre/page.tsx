@@ -13,6 +13,8 @@ export default async function Page() {
       subtitle="Pedidos e faturamento no Mercado Livre."
       initialSales={r.ok ? r.sales : []}
       byPlatform={[]}
+      productOptions={r.ok ? r.productOptions : []}
+      contactOptions={r.ok ? r.contactOptions : []}
     />
   );
 }

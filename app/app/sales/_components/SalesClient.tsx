@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { deleteSale } from "@/app/actions/sales/actions";
+import type { ContactOption } from "@/app/actions/contacts/actions";
 import { type SaleProductOption, type SaleRow } from "@/lib/sales/config";
 import { FULFILLMENT_LABEL, PAYMENT_LABEL } from "@/lib/sales/config";
 import NewSaleDialog from "./NewSaleDialog";
@@ -55,6 +56,8 @@ interface Props {
   byPlatform: { platform: string; totalCents: number; count: number }[];
   /** Catálogo p/ vincular produto às vendas (custo/margem reais — E5). */
   productOptions?: SaleProductOption[];
+  /** Contatos da org — combobox de cliente com busca + "Outro cliente". */
+  contactOptions?: ContactOption[];
   /** Slot opcional acima dos KPIs (ex.: status da integração Shopee). */
   banner?: React.ReactNode;
 }
@@ -94,6 +97,7 @@ export default function SalesClient({
   initialSales,
   byPlatform,
   productOptions = [],
+  contactOptions = [],
   banner,
 }: Props) {
   const [sales, setSales] = useState(initialSales);
@@ -258,6 +262,7 @@ export default function SalesClient({
             onOpenChange={setDialogOpen}
             fixedPlatform={platform}
             productOptions={productOptions}
+            contactOptions={contactOptions}
             onCreated={(s) => setSales((prev) => [s, ...prev])}
           />
         }
@@ -316,6 +321,7 @@ export default function SalesClient({
         onClose={closeDrawer}
         onPatch={handleSalePatch}
         productOptions={productOptions}
+        contactOptions={contactOptions}
       />
 
       {/* Breakdown por canal — só na visão geral (dados vêm do servidor). */}

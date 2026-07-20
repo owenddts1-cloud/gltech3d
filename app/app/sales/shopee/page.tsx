@@ -15,6 +15,8 @@ export default async function Page() {
       subtitle="Pedidos e faturamento da sua loja na Shopee."
       initialSales={r.ok ? r.sales : []}
       byPlatform={[]}
+      productOptions={r.ok ? r.productOptions : []}
+      contactOptions={r.ok ? r.contactOptions : []}
       banner={<ShopeeStatusCard configured={status.ok && status.configured} />}
     />
   );

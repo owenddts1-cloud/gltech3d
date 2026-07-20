@@ -72,6 +72,8 @@ export interface SaleRow {
   boardPosition: number | null;
   totalCents: number;
   commissionCents: number;
+  /** Contato ligado à venda (0060) — FK real, não mais inferência por nome. */
+  contactId: string | null;
   /** Produto do catálogo ligado à venda (0055) — habilita custo/margem reais. */
   productId: string | null;
   productName: string | null;

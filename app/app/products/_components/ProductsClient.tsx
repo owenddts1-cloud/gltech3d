@@ -17,6 +17,7 @@ import {
 } from "@/app/actions/products/actions";
 import type { ProductVariationGroup } from "@/lib/schemas/products-catalog";
 import VariationsEditor from "./VariationsEditor";
+import { ProductImages } from "./ProductImages";
 import { Combobox } from "@/components/ui/combobox";
 
 const brl = (v: number) =>
@@ -40,6 +41,7 @@ interface FormPayload {
   salePrice: number | null;
   variations: ProductVariationGroup[];
   observations: string;
+  images: string[];
 }
 
 export function ProductsClient({
@@ -108,7 +110,16 @@ export function ProductsClient({
           {products.map((p) => (
             <div key={p.id} className="group card-hover flex flex-col rounded-xl border border-border bg-surface p-5">
               <div className="flex items-start justify-between gap-2">
-                <div>
+                <div className="flex min-w-0 items-start gap-2.5">
+                  {p.images[0] && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.images[0]}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-lg border border-border object-cover"
+                    />
+                  )}
+                  <div className="min-w-0">
                   <h3 className="text-sm font-semibold">{p.name}</h3>
                   <div className="mt-1 flex flex-wrap items-center gap-1">
                     {p.category && <Badge variant="secondary" className="text-[10px]">{p.category}</Badge>}
@@ -118,8 +129,9 @@ export function ProductsClient({
                       </Badge>
                     )}
                   </div>
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex shrink-0 items-center gap-1">
                   <button
                     onClick={() => setEditing(p)}
                     className="text-muted-foreground hover:text-accent"
@@ -225,12 +237,14 @@ function ProductFormDialog({
     product?.variations ?? [],
   );
   const [observations, setObservations] = useState(product?.observations ?? "");
+  const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [pending, startTransition] = useTransition();
 
   function reset() {
     setName(""); setCategory(""); setFilamentId(""); setGrams(""); setMinutes("");
     setPrinterId(""); setExtra(""); setMargin("100");
     setSalePrice(""); setPublished(false); setVariations([]); setObservations("");
+    setImages([]);
   }
 
   function submit() {
@@ -252,6 +266,7 @@ function ProductFormDialog({
         .map((g) => ({ name: g.name.trim(), options: g.options }))
         .filter((g) => g.name.length > 0),
       observations: observations.trim(),
+      images,
     };
     startTransition(async () => {
       const res = isEdit ? await updateProduct(product.id, payload) : await createProduct(payload);
@@ -286,6 +301,10 @@ function ProductFormDialog({
           <DialogTitle>{isEdit ? "Editar produto" : "Novo produto"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Fotos</Label>
+            <ProductImages images={images} onChange={setImages} />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="p-name">Nome</Label>
@@ -410,7 +429,7 @@ function buildOptimistic(p: FormPayload, filaments: FilLite[]): ProductView {
     categoryId: null,
     categoryName: p.category || null,
     description: null,
-    images: [],
+    images: p.images,
     filamentClientId: p.filamentClientId,
     filamentName: fil?.name ?? null,
     filamentGrams: p.filamentGrams,
@@ -452,7 +471,7 @@ function mergeOptimistic(base: ProductView, p: FormPayload, filaments: FilLite[]
     ...fresh,
     id: base.id,
     description: base.description,
-    images: base.images,
+    images: p.images,
     categoryId: base.categoryId,
     categoryName: base.categoryName,
     pricing: {

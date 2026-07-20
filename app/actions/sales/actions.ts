@@ -16,6 +16,7 @@ import {
   type SalesKpis,
 } from "@/lib/sales/config";
 import { computeProductPricing } from "@/lib/pricing/engine";
+import { fetchContactOptions } from "@/app/actions/contacts/actions";
 
 /**
  * Vendas de marketplace (migration 0048) — lançamento manual + agregação por
@@ -30,6 +31,8 @@ const createSchema = z.object({
   commission: z.coerce.number().nonnegative().max(10_000_000).optional().default(0),
   soldAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida."),
   notes: z.string().trim().max(2000).optional().default(""),
+  /** FK → contacts.id (migration 0060). Vínculo real, não mais por nome. */
+  contactId: z.string().uuid().nullable().optional(),
   /** FK → products.id (migration 0055). Enables sales bump trigger. */
   productId: z.string().uuid().nullable().optional(),
   qty: z.coerce.number().int().min(1).max(100_000).optional().default(1),
@@ -67,6 +70,7 @@ interface Row {
   board_position: number | string | null;
   total_cents: number | string;
   commission_cents: number | string;
+  contact_id: string | null;
   product_id: string | null;
   qty: number | string | null;
   sold_at: string;
@@ -75,7 +79,7 @@ interface Row {
 
 /** Colunas lidas de marketplace_orders — reusado em fetch/create/update. */
 const SALE_SELECT =
-  "id, platform, customer_name, status, fulfillment_status, payment_status, board_position, total_cents, commission_cents, product_id, qty, sold_at, notes";
+  "id, platform, customer_name, status, fulfillment_status, payment_status, board_position, total_cents, commission_cents, contact_id, product_id, qty, sold_at, notes";
 
 /** Custo unitário (engine de precificação) por produto do catálogo. */
 interface ProductCostInfo {
@@ -168,6 +172,7 @@ function toView(r: Row): SaleRow {
     boardPosition: r.board_position == null ? null : Number(r.board_position),
     totalCents: Number(r.total_cents),
     commissionCents: Number(r.commission_cents),
+    contactId: r.contact_id ?? null,
     productId: r.product_id ?? null,
     productName: null,
     qty: Math.max(1, Math.round(num(r.qty)) || 1),
@@ -190,9 +195,10 @@ export async function fetchSales(platform?: string) {
     query = query.eq("platform", platform);
   }
 
-  const [{ data, error }, costMap] = await Promise.all([
+  const [{ data, error }, costMap, contactsRes] = await Promise.all([
     query,
     buildProductCostMap(c.ctx.supabase, c.ctx.orgId),
+    fetchContactOptions(),
   ]);
   if (error) return { ok: false as const, error: error.message };
 
@@ -222,7 +228,10 @@ export async function fetchSales(platform?: string) {
     .map(([id, p]) => ({ id, name: p.name, unitCostCents: p.unitCostCents, suggestedPriceCents: p.suggestedPriceCents }))
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
-  return { ok: true as const, sales, kpis, byPlatform, productOptions };
+  // Opções p/ vincular cliente (combobox de Vendas): contatos reais da org.
+  const contactOptions = contactsRes.ok ? contactsRes.contacts : [];
+
+  return { ok: true as const, sales, kpis, byPlatform, productOptions, contactOptions };
 }
 
 export async function createSale(raw: unknown) {
@@ -246,6 +255,7 @@ export async function createSale(raw: unknown) {
       commission_cents: Math.round((d.commission ?? 0) * 100),
       sold_at: d.soldAt,
       notes: d.notes || null,
+      contact_id: d.contactId ?? null,
       product_id: d.productId ?? null,
       qty: d.qty ?? 1,
       fulfillment_status: d.fulfillmentStatus ?? "confirmada",
@@ -281,6 +291,7 @@ export async function updateSale(id: string, raw: unknown) {
   if (d.commission !== undefined) patch.commission_cents = Math.round(d.commission * 100);
   if (d.soldAt !== undefined) patch.sold_at = d.soldAt;
   if (d.notes !== undefined) patch.notes = d.notes || null;
+  if (d.contactId !== undefined) patch.contact_id = d.contactId;
   if (d.productId !== undefined) patch.product_id = d.productId;
   if (d.qty !== undefined) patch.qty = d.qty;
   if (d.fulfillmentStatus !== undefined) patch.fulfillment_status = d.fulfillmentStatus;

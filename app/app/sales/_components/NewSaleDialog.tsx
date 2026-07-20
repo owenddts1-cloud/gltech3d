@@ -22,7 +22,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Combobox } from "@/components/ui/combobox";
+import { ContactPicker } from "./ContactPicker";
 import { createSale } from "@/app/actions/sales/actions";
+import type { ContactOption } from "@/app/actions/contacts/actions";
 import {
   SALES_PLATFORMS,
   SALES_STATUSES,
@@ -31,17 +33,30 @@ import {
 } from "@/lib/sales/config";
 import { STATUS_LABEL } from "../_lib/view-model";
 
+const brl = (cents: number): string =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   fixedPlatform?: string;
   /** Catálogo p/ vincular produto (custo/margem reais — E5). */
   productOptions?: SaleProductOption[];
+  /** Contatos da org — combobox de cliente com busca + "Outro cliente". */
+  contactOptions?: ContactOption[];
   onCreated: (s: SaleRow) => void;
 }
 
-export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, productOptions = [], onCreated }: Props) {
+export default function NewSaleDialog({
+  open,
+  onOpenChange,
+  fixedPlatform,
+  productOptions = [],
+  contactOptions = [],
+  onCreated,
+}: Props) {
   const [platform, setPlatform] = useState(fixedPlatform ?? "Shopee");
+  const [contactId, setContactId] = useState("");
   const [customer, setCustomer] = useState("");
   const [status, setStatus] = useState("pago");
   const [total, setTotal] = useState("");
@@ -52,6 +67,14 @@ export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, produ
   const [qty, setQty] = useState("1");
   const [saving, setSaving] = useState(false);
 
+  // Lucro Estimado ao vivo: total − comissão − (custo do produto vinculado × qtd).
+  // Comissão continua sendo o campo real (taxa do canal) — isto é só um preview.
+  const totalCents = Math.round((Number(total.replace(",", ".")) || 0) * 100);
+  const commissionCents = Math.round((Number(commission.replace(",", ".")) || 0) * 100);
+  const selectedProduct = productOptions.find((p) => p.id === productId);
+  const productCostCents = selectedProduct ? selectedProduct.unitCostCents * (Number(qty) || 1) : 0;
+  const estimatedProfitCents = totalCents - commissionCents - productCostCents;
+
   async function submit() {
     if (!total.trim()) {
       toast.error("Informe o valor total.");
@@ -60,6 +83,7 @@ export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, produ
     setSaving(true);
     const r = await createSale({
       platform: fixedPlatform ?? platform,
+      contactId: contactId || null,
       customerName: customer,
       status,
       total: Number(total.replace(",", ".")),
@@ -76,6 +100,7 @@ export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, produ
     }
     onCreated(r.sale);
     toast.success("Venda lançada.");
+    setContactId("");
     setCustomer("");
     setTotal("");
     setCommission("");
@@ -172,18 +197,31 @@ export default function NewSaleDialog({ open, onOpenChange, fixedPlatform, produ
             </div>
           )}
           <div className="space-y-1.5">
-            <Label htmlFor="s-cust">Cliente (opcional)</Label>
-            <Input
+            <Label htmlFor="s-cust">Cliente</Label>
+            <ContactPicker
               id="s-cust"
-              value={customer}
-              onChange={(e) => setCustomer(e.target.value)}
-              placeholder="Nome do comprador"
+              contacts={contactOptions}
+              value={contactId}
+              onChange={(id, name) => {
+                setContactId(id);
+                setCustomer(name);
+              }}
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="s-notes">Observações (opcional)</Label>
             <Textarea id="s-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
+
+          {/* Preview ao vivo — não é gravado, só orienta antes de lançar. */}
+          {totalCents > 0 && (
+            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-elevated px-3 py-2 text-xs">
+              <span className="font-medium text-muted-foreground">Lucro Estimado</span>
+              <span className={`font-mono font-semibold ${estimatedProfitCents >= 0 ? "text-emerald-500" : "text-error-fg"}`}>
+                {brl(estimatedProfitCents)}
+              </span>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

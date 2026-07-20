@@ -13,6 +13,7 @@ export default async function SalesPage() {
       initialSales={r.ok ? r.sales : []}
       byPlatform={r.ok ? r.byPlatform : []}
       productOptions={r.ok ? r.productOptions : []}
+      contactOptions={r.ok ? r.contactOptions : []}
     />
   );
 }

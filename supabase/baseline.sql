@@ -5494,3 +5494,11 @@ exception when others then null; end $$;
 alter table public.products
   add column if not exists variations   jsonb not null default '[]'::jsonb,
   add column if not exists observations text;
+
+-- =============================================================================
+-- Vendas: contact_id (FK real, espelha service_orders) — migration 0060.
+-- =============================================================================
+alter table public.marketplace_orders
+  add column if not exists contact_id uuid references public.contacts(id) on delete set null;
+create index if not exists marketplace_orders_org_contact_idx
+  on public.marketplace_orders (organization_id, contact_id) where contact_id is not null;

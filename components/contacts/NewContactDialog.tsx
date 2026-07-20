@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -27,15 +27,25 @@ interface FormShape {
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Pré-preenche o nome (ex.: "Outro cliente" digitado num combobox de Vendas/O.S.). */
+  initialName?: string;
+  /** Chamado com o contato recém-criado — quem abriu o dialog pode selecioná-lo na hora. */
+  onCreated?: (contact: { id: string; name: string }) => void;
 }
 
-export function NewContactDialog({ open, onOpenChange }: Props) {
+export function NewContactDialog({ open, onOpenChange, initialName, onCreated }: Props) {
   const create = useCreateContact();
   const [serverError, setServerError] = useState<string | null>(null);
 
   const form = useForm<FormShape>({
-    defaultValues: { name: "", email: "", phone_number: "", cpf: "", tagsRaw: "" },
+    defaultValues: { name: initialName ?? "", email: "", phone_number: "", cpf: "", tagsRaw: "" },
   });
+
+  // Reabrir com um nome diferente (ex.: outro "Outro cliente" em Vendas) reseta o form.
+  useEffect(() => {
+    if (open) form.reset({ name: initialName ?? "", email: "", phone_number: "", cpf: "", tagsRaw: "" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialName]);
 
   async function onSubmit(values: FormShape) {
     setServerError(null);
@@ -59,8 +69,9 @@ export function NewContactDialog({ open, onOpenChange }: Props) {
     }
 
     try {
-      await create.mutateAsync(parsed.data as ContactCreate);
+      const res = await create.mutateAsync(parsed.data as ContactCreate);
       toast.success("Contato criado");
+      onCreated?.({ id: res.data.id, name: res.data.display_name || res.data.name || values.name?.trim() || "Sem nome" });
       form.reset();
       onOpenChange(false);
     } catch {

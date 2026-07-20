@@ -55,6 +55,8 @@ import {
 } from "@/lib/sales/config";
 import { brl, orderCode } from "../_lib/view-model";
 import { Combobox } from "@/components/ui/combobox";
+import { ContactPicker } from "./ContactPicker";
+import type { ContactOption } from "@/app/actions/contacts/actions";
 
 interface Props {
   /** Null = drawer closed. */
@@ -64,6 +66,8 @@ interface Props {
   onPatch: (id: string, patch: Partial<SaleRow>) => void;
   /** Catálogo p/ vincular produto (custo/margem reais — E5). */
   productOptions?: SaleProductOption[];
+  /** Contatos da org — combobox de cliente com busca + "Outro cliente". */
+  contactOptions?: ContactOption[];
 }
 
 const PAYMENT_VARIANT: Record<SalePayment, "success" | "warning" | "error"> = {
@@ -95,7 +99,7 @@ function pickSnapshot(sale: SaleRow, patch: Partial<SaleRow>): Partial<SaleRow> 
   return snapshot;
 }
 
-export default function SaleDrawer({ sale, onClose, onPatch, productOptions = [] }: Props) {
+export default function SaleDrawer({ sale, onClose, onPatch, productOptions = [], contactOptions = [] }: Props) {
   return (
     <Sheet
       open={sale !== null}
@@ -109,7 +113,13 @@ export default function SaleDrawer({ sale, onClose, onPatch, productOptions = []
           className="flex w-full flex-col gap-0 overflow-hidden border-border bg-surface p-0 sm:max-w-lg"
         >
           {/* Key by id: reopening with another sale resets drafts cleanly. */}
-          <SaleDrawerBody key={sale.id} sale={sale} onPatch={onPatch} productOptions={productOptions} />
+          <SaleDrawerBody
+            key={sale.id}
+            sale={sale}
+            onPatch={onPatch}
+            productOptions={productOptions}
+            contactOptions={contactOptions}
+          />
         </SheetContent>
       )}
     </Sheet>
@@ -120,20 +130,31 @@ function SaleDrawerBody({
   sale,
   onPatch,
   productOptions,
+  contactOptions,
 }: {
   sale: SaleRow;
   onPatch: (id: string, patch: Partial<SaleRow>) => void;
   productOptions: SaleProductOption[];
+  contactOptions: ContactOption[];
 }) {
   const [notesDraft, setNotesDraft] = useState(sale.notes ?? "");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => ({
+    contactId: sale.contactId ?? "",
     customer: sale.customerName ?? "",
     platform: sale.platform,
     total: centsToInput(sale.totalCents),
     commission: centsToInput(sale.commissionCents),
     soldAt: sale.soldAt,
   }));
+
+  // Lucro Estimado ao vivo no form de edição — mesma fórmula do E5/NewSaleDialog.
+  const editTotalCents = Math.round((Number(form.total.replace(",", ".")) || 0) * 100);
+  const editCommissionCents = Math.round((Number(form.commission.replace(",", ".")) || 0) * 100);
+  const editProductCostCents = sale.productId
+    ? (productOptions.find((p) => p.id === sale.productId)?.unitCostCents ?? 0) * sale.qty
+    : 0;
+  const editEstimatedProfitCents = editTotalCents - editCommissionCents - editProductCostCents;
 
   const cancelled = sale.fulfillmentStatus === "cancelada";
   const currentIdx = KANBAN_STAGES.indexOf(sale.fulfillmentStatus);
@@ -222,6 +243,7 @@ function SaleDrawerBody({
     }
     persist(
       {
+        contactId: form.contactId || null,
         customerName: form.customer.trim() || null,
         platform: form.platform,
         totalCents: Math.round(total * 100),
@@ -230,6 +252,7 @@ function SaleDrawerBody({
       },
       // updateSale expects money in REAIS (server converts to cents).
       {
+        contactId: form.contactId || null,
         customerName: form.customer,
         platform: form.platform,
         total,
@@ -315,11 +338,11 @@ function SaleDrawerBody({
             <p className="text-xs font-semibold">Editar venda</p>
             <div className="space-y-1.5">
               <Label htmlFor="d-cust">Cliente</Label>
-              <Input
+              <ContactPicker
                 id="d-cust"
-                value={form.customer}
-                onChange={(e) => setForm((f) => ({ ...f, customer: e.target.value }))}
-                placeholder="Nome do comprador"
+                contacts={contactOptions}
+                value={form.contactId}
+                onChange={(id, name) => setForm((f) => ({ ...f, contactId: id, customer: name }))}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -371,6 +394,18 @@ function SaleDrawerBody({
                 />
               </div>
             </div>
+            {/* Preview ao vivo — não é gravado, só orienta antes de salvar. */}
+            {editTotalCents > 0 && (
+              <div className="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-xs">
+                <span className="font-medium text-muted-foreground">Lucro Estimado</span>
+                <span
+                  className={`font-mono font-semibold ${editEstimatedProfitCents >= 0 ? "text-emerald-500" : "text-error-fg"}`}
+                >
+                  {brl(editEstimatedProfitCents)}
+                </span>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2">
               <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
                 Cancelar

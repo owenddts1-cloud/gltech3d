@@ -66,6 +66,7 @@ Migrations applied to Supabase project `rrydmwnporysaiysiztn` (sa-east-1, Postgr
 | `20260717220000` | `0057_analytics_rollups` | Materialized views diÃ¡rias e agregaÃ§Ãµes por perÃ­odo; pg_cron Ã© opcional. |
 | `20260717230000` | `0058_sales_fulfillment_payment` | Vendas ganham fulfillment_status (Confirmada→Entregue) + payment_status (Pendente/Pago/Estornado) + board_position para o Kanban. Aditivo; backfill do status legado; não apaga dados. |
 | `20260718000000` | `0059_product_variations_observations` | products += variations jsonb (grupos de atributos p/ vitrine) + observations text (nota interna, fora da landing). Aditivo. |
+| `20260718010000` | `0060_marketplace_orders_contact_id` | marketplace_orders += contact_id (FK → contacts, on delete set null), espelhando service_orders. Aditivo; corrige anti-pattern de inferência por nome. |
 
 ## Reproducibility
 

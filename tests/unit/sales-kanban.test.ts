@@ -19,6 +19,7 @@ function sale(patch: Partial<SaleRow>): SaleRow {
     boardPosition: null,
     totalCents: 10_000,
     commissionCents: 1_000,
+    contactId: null,
     productId: null,
     productName: null,
     qty: 1,
