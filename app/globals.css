@@ -30,12 +30,12 @@
   /* Sidebar — grafite QUENTE (tinta laranja) nos DOIS temas. Texto legível SEM
      hover (~9:1); acento laranja suave fixo, independente da paleta da página. */
   --color-sidebar: #221b14;
-  --color-sidebar-elevated: #2e241a;
-  --color-sidebar-border: #3d3023;
-  --color-sidebar-text: #d9d2c7;
+  --color-sidebar-elevated: #302518;
+  --color-sidebar-border: #453521;
+  --color-sidebar-text: #ece5da;
   --color-sidebar-text-active: #ffa25c;
   --color-sidebar-accent: #ff8c42;
-  --color-sidebar-hover: #2e241a;
+  --color-sidebar-hover: #322718;
 
   /* Accent — Sage (11 stops) */
   --color-accent-50:  #f3f6f1;
@@ -177,9 +177,9 @@
 
   /* Sidebar (dark) — grafite quente, distinto do fundo escuro p/ não sumir. */
   --color-sidebar: #251d15;
-  --color-sidebar-elevated: #31271c;
-  --color-sidebar-border: #423424;
-  --color-sidebar-hover: #33291d;
+  --color-sidebar-elevated: #342919;
+  --color-sidebar-border: #4a3a24;
+  --color-sidebar-hover: #372c1c;
 
   /* Accent — Cyber Amber / Vibrant Orange (#FF6B00) */
   --color-accent-50:  #fff7ed;
