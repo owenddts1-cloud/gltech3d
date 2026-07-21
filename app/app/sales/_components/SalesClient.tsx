@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { deleteSale } from "@/app/actions/sales/actions";
 import type { ContactOption } from "@/app/actions/contacts/actions";
+import type { SaleChannelOption } from "@/app/actions/sale-channels/actions";
 import { type SaleProductOption, type SaleRow } from "@/lib/sales/config";
 import { FULFILLMENT_LABEL, PAYMENT_LABEL } from "@/lib/sales/config";
 import NewSaleDialog from "./NewSaleDialog";
@@ -58,6 +59,8 @@ interface Props {
   productOptions?: SaleProductOption[];
   /** Contatos da org — combobox de cliente com busca + "Outro cliente". */
   contactOptions?: ContactOption[];
+  /** Canais de venda da org — combobox de canal com busca + "novo canal". */
+  channelOptions?: SaleChannelOption[];
   /** Slot opcional acima dos KPIs (ex.: status da integração Shopee). */
   banner?: React.ReactNode;
 }
@@ -98,9 +101,12 @@ export default function SalesClient({
   byPlatform,
   productOptions = [],
   contactOptions = [],
+  channelOptions: initialChannelOptions = [],
   banner,
 }: Props) {
   const [sales, setSales] = useState(initialSales);
+  // Lista viva de canais: o "novo canal" (allowCreate) acrescenta aqui.
+  const [channelOptions, setChannelOptions] = useState(initialChannelOptions);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filters, setFilters] = useState<SalesFilters>(DEFAULT_FILTERS);
   const [view, setView] = useState<ViewMode>("tabela");
@@ -177,6 +183,10 @@ export default function SalesClient({
 
   const handleOpenSale = useCallback((id: string) => setSelectedSaleId(id), []);
   const closeDrawer = useCallback(() => setSelectedSaleId(null), []);
+  const handleChannelCreated = useCallback(
+    (c: SaleChannelOption) => setChannelOptions((prev) => [...prev, c]),
+    [],
+  );
 
   // The drawer reads the live row from `sales`, so optimistic patches made in
   // any view (kanban move, drawer actions) render everywhere at once.
@@ -263,6 +273,8 @@ export default function SalesClient({
             fixedPlatform={platform}
             productOptions={productOptions}
             contactOptions={contactOptions}
+            channelOptions={channelOptions}
+            onChannelCreated={handleChannelCreated}
             onCreated={(s) => setSales((prev) => [s, ...prev])}
           />
         }
@@ -296,6 +308,7 @@ export default function SalesClient({
         density={density}
         onDensity={changeDensity}
         fixedPlatform={platform}
+        channelOptions={channelOptions}
       />
 
       {view === "tabela" && (
@@ -322,6 +335,8 @@ export default function SalesClient({
         onPatch={handleSalePatch}
         productOptions={productOptions}
         contactOptions={contactOptions}
+        channelOptions={channelOptions}
+        onChannelCreated={handleChannelCreated}
       />
 
       {/* Breakdown por canal — só na visão geral (dados vêm do servidor). */}

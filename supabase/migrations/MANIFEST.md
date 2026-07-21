@@ -67,6 +67,9 @@ Migrations applied to Supabase project `rrydmwnporysaiysiztn` (sa-east-1, Postgr
 | `20260717230000` | `0058_sales_fulfillment_payment` | Vendas ganham fulfillment_status (Confirmada→Entregue) + payment_status (Pendente/Pago/Estornado) + board_position para o Kanban. Aditivo; backfill do status legado; não apaga dados. |
 | `20260718000000` | `0059_product_variations_observations` | products += variations jsonb (grupos de atributos p/ vitrine) + observations text (nota interna, fora da landing). Aditivo. |
 | `20260718010000` | `0060_marketplace_orders_contact_id` | marketplace_orders += contact_id (FK → contacts, on delete set null), espelhando service_orders. Aditivo; corrige anti-pattern de inferência por nome. |
+| `20260721150000` | `0061_sale_channels_and_materials` | Catálogos compartilhados `sale_channels`/`materials` (mesmo molde de `categories`) — canal de venda e sugestões de material passam a ter fonte única entre O.S. e Vendas, com busca e cadastro de item novo via Combobox. Seed dos 7 canais e 3 materiais hoje hardcoded, para todas as orgs. Aditivo; não apaga dados. |
+| `20260721150100` | `0062_channel_id_and_platform_relax` | `service_orders.channel_id` e `marketplace_orders.channel_id` (FK → sale_channels, nullable, sem backfill). Relaxa o CHECK fechado de `marketplace_orders.platform` (7 valores fixos) — validação de canal passa a ser via `sale_channels` + UI, mantendo o texto snapshot `platform` intacto para o código existente. Aditivo. |
+| `20260721150200` | `0063_service_order_auto_sale` | Trigger `trg_service_order_auto_sale`: gera uma Venda (`marketplace_orders`) automaticamente quando a O.S. entra em `concluido` (DML local no trigger, sem HTTP — mesmo padrão de `fn_bump_product_sales`). Idempotente via `marketplace_orders_service_order_id_unique` (parcial) + `on conflict do nothing` — reabrir/reconcluir a O.S. não duplica a venda; reabrir não apaga a venda já gerada. |
 
 ## Reproducibility
 

@@ -19,6 +19,7 @@ export const serviceOrderCreateSchema = z.object({
   status: soStatusSchema.optional().default("orcamento"),
   priority: soPrioritySchema.optional().default("media"),
   material: z.string().trim().max(40).nullable().optional(),
+  channelId: z.string().uuid().nullable().optional(),
   /** Valor total em reais (convertido para cents na action). */
   total: z.coerce.number().nonnegative().max(10_000_000).optional().default(0),
   qty: z.coerce.number().int().min(1).max(100_000).optional().default(1),

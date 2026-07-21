@@ -17,10 +17,10 @@ import {
   PAYMENT_LABEL,
   SALES_FULFILLMENT,
   SALES_PAYMENT,
-  SALES_PLATFORMS,
   type SaleFulfillment,
   type SalePayment,
 } from "@/lib/sales/config";
+import type { SaleChannelOption } from "@/app/actions/sale-channels/actions";
 import { DATE_PRESETS, type Density, type SalesFilters, type ViewMode } from "../_lib/view-model";
 
 interface Props {
@@ -32,6 +32,8 @@ interface Props {
   onDensity: (d: Density) => void;
   /** Sub-tab pages fix the channel — hides the channel facet. */
   fixedPlatform?: string;
+  /** Canais de venda da org — alimenta a faceta "Canal". */
+  channelOptions?: SaleChannelOption[];
 }
 
 export default function SalesToolbar({
@@ -42,6 +44,7 @@ export default function SalesToolbar({
   density,
   onDensity,
   fixedPlatform,
+  channelOptions = [],
 }: Props) {
   const facetCount =
     (fixedPlatform ? 0 : filters.platforms.length) +
@@ -120,7 +123,7 @@ export default function SalesToolbar({
               {!fixedPlatform && (
                 <FacetGroup<string>
                   title="Canal"
-                  options={SALES_PLATFORMS.map((p) => ({ value: p, label: p }))}
+                  options={channelOptions.map((c) => ({ value: c.name, label: c.name }))}
                   selected={filters.platforms}
                   onChange={(platforms) => onFilters({ platforms })}
                 />

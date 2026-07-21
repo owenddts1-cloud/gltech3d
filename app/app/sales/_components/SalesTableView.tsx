@@ -7,7 +7,7 @@
  */
 
 import { useMemo } from "react";
-import { Trash } from "@/lib/ui/icons";
+import { PencilSimple, Trash } from "@/lib/ui/icons";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import DataTable, { type Column } from "@/app/app/dashboard/_components/DataTable";
@@ -149,14 +149,24 @@ export default function SalesTableView({
         value: () => "",
         noFilter: true,
         cell: (r) => (
-          <button
-            type="button"
-            aria-label="Excluir venda"
-            onClick={() => onDelete(r.id)}
-            className="rounded p-1 text-muted-foreground hover:text-error"
-          >
-            <Trash className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex items-center justify-end gap-1">
+            <button
+              type="button"
+              aria-label="Editar venda"
+              onClick={() => onOpenSale(r.id)}
+              className="rounded p-1 text-muted-foreground hover:text-accent"
+            >
+              <PencilSimple className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Excluir venda"
+              onClick={() => onDelete(r.id)}
+              className="rounded p-1 text-muted-foreground hover:text-error"
+            >
+              <Trash className="h-3.5 w-3.5" />
+            </button>
+          </div>
         ),
       },
     ],

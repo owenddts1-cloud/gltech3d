@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { categoryCreateSchema, categoryPatchSchema } from "@/lib/schemas/categories";
+import { autoSlug } from "@/lib/slug";
 import { revalidatePath } from "next/cache";
 
 export interface CategoryView {
@@ -26,15 +27,6 @@ function toView(r: CatRow): CategoryView {
     slug: r.slug,
     sortOrder: r.sort_order,
   };
-}
-
-/** Slug auto-gerado: "Action Figure" → "action-figure" */
-function autoSlug(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u00e0-\u00ff]+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 export async function fetchCategories() {

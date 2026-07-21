@@ -61,6 +61,8 @@ export const PAYMENT_LABEL: Record<SalePayment, string> = {
 export interface SaleRow {
   id: string;
   platform: string;
+  /** Canal de venda (lookup sale_channels) — FK real; platform é o snapshot de texto. */
+  channelId: string | null;
   customerName: string | null;
   /** Status legado (0048) — mantido para compat; não é o eixo do Kanban. */
   status: string;

@@ -5502,3 +5502,187 @@ alter table public.marketplace_orders
   add column if not exists contact_id uuid references public.contacts(id) on delete set null;
 create index if not exists marketplace_orders_org_contact_idx
   on public.marketplace_orders (organization_id, contact_id) where contact_id is not null;
+
+-- =============================================================================
+-- sale_channels + materials: catálogos compartilhados O.S./Vendas (migration 0061).
+-- =============================================================================
+create table if not exists public.sale_channels (
+  id              uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name            text not null,
+  slug            text not null,
+  sort_order      numeric,
+  created_by      uuid references auth.users(id),
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  constraint sale_channels_name_len check (char_length(name) between 1 and 120)
+);
+create unique index if not exists sale_channels_org_slug_unique
+  on public.sale_channels (organization_id, slug);
+create index if not exists sale_channels_org_idx
+  on public.sale_channels (organization_id);
+
+alter table public.sale_channels enable row level security;
+drop policy if exists tenant_isolation_sale_channels_all on public.sale_channels;
+create policy tenant_isolation_sale_channels_all on public.sale_channels
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.sale_channels from anon;
+
+drop trigger if exists trg_sale_channels_audit on public.sale_channels;
+create trigger trg_sale_channels_audit
+  after insert or update or delete on public.sale_channels
+  for each row execute function public.fn_audit_log_row();
+
+drop trigger if exists trg_sale_channels_updated_at on public.sale_channels;
+create trigger trg_sale_channels_updated_at
+  before update on public.sale_channels
+  for each row execute function public.fn_set_updated_at();
+
+insert into public.sale_channels (organization_id, name, slug, sort_order)
+select o.id, v.name, v.slug, v.sort_order
+from public.organizations o
+cross join (values
+  ('B2B', 'b2b', 1),
+  ('Shopee', 'shopee', 2),
+  ('Facebook', 'facebook', 3),
+  ('Mercado Livre', 'mercado-livre', 4),
+  ('TikTok Shop', 'tiktok-shop', 5),
+  ('Olx', 'olx', 6),
+  ('Outro', 'outro', 7)
+) as v(name, slug, sort_order)
+on conflict (organization_id, slug) do nothing;
+
+create table if not exists public.materials (
+  id              uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name            text not null,
+  slug            text not null,
+  sort_order      numeric,
+  created_by      uuid references auth.users(id),
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  constraint materials_name_len check (char_length(name) between 1 and 120)
+);
+create unique index if not exists materials_org_slug_unique
+  on public.materials (organization_id, slug);
+create index if not exists materials_org_idx
+  on public.materials (organization_id);
+
+alter table public.materials enable row level security;
+drop policy if exists tenant_isolation_materials_all on public.materials;
+create policy tenant_isolation_materials_all on public.materials
+  for all
+  using (organization_id in (select * from public.fn_user_org_ids()))
+  with check (organization_id in (select * from public.fn_user_org_ids()));
+revoke all on public.materials from anon;
+
+drop trigger if exists trg_materials_audit on public.materials;
+create trigger trg_materials_audit
+  after insert or update or delete on public.materials
+  for each row execute function public.fn_audit_log_row();
+
+drop trigger if exists trg_materials_updated_at on public.materials;
+create trigger trg_materials_updated_at
+  before update on public.materials
+  for each row execute function public.fn_set_updated_at();
+
+insert into public.materials (organization_id, name, slug, sort_order)
+select o.id, v.name, v.slug, v.sort_order
+from public.organizations o
+cross join (values ('PLA', 'pla', 1), ('ABS', 'abs', 2), ('PETG', 'petg', 3)) as v(name, slug, sort_order)
+on conflict (organization_id, slug) do nothing;
+
+-- =============================================================================
+-- service_orders/marketplace_orders.channel_id + relax do CHECK de platform (migration 0062).
+-- =============================================================================
+alter table public.service_orders
+  add column if not exists channel_id uuid references public.sale_channels(id) on delete set null;
+create index if not exists service_orders_org_channel_idx
+  on public.service_orders (organization_id, channel_id) where channel_id is not null;
+
+alter table public.marketplace_orders
+  add column if not exists channel_id uuid references public.sale_channels(id) on delete set null;
+create index if not exists marketplace_orders_org_channel_idx
+  on public.marketplace_orders (organization_id, channel_id) where channel_id is not null;
+
+alter table public.marketplace_orders
+  drop constraint if exists marketplace_orders_platform_check;
+
+do $$
+declare
+  r record;
+begin
+  for r in
+    select conname
+    from pg_constraint
+    where conrelid = 'public.marketplace_orders'::regclass
+      and contype = 'c'
+      and conname <> 'mo_platform_len'
+      and pg_get_constraintdef(oid) ilike '%platform%= any%'
+  loop
+    execute format('alter table public.marketplace_orders drop constraint %I', r.conname);
+  end loop;
+end $$;
+
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'mo_platform_len') then
+    alter table public.marketplace_orders
+      add constraint mo_platform_len check (char_length(platform) between 1 and 80);
+  end if;
+end $$;
+
+-- =============================================================================
+-- Auto-geração de Venda ao concluir O.S. (migration 0063).
+-- =============================================================================
+create unique index if not exists marketplace_orders_service_order_id_unique
+  on public.marketplace_orders (service_order_id)
+  where service_order_id is not null;
+
+create or replace function public.fn_service_order_auto_sale()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_channel_name text;
+  v_next_pos numeric;
+begin
+  if new.status = 'concluido' and old.status is distinct from 'concluido' then
+
+    select name into v_channel_name
+    from public.sale_channels
+    where id = new.channel_id and organization_id = new.organization_id;
+
+    select coalesce(max(board_position), 0) + 1 into v_next_pos
+    from public.marketplace_orders
+    where organization_id = new.organization_id;
+
+    insert into public.marketplace_orders (
+      organization_id, service_order_id, channel_id, platform,
+      contact_id, customer_name, total_cents, qty,
+      status, fulfillment_status, payment_status, sold_at,
+      notes, board_position, product_id
+    ) values (
+      new.organization_id, new.id, new.channel_id, coalesce(v_channel_name, 'Outro'),
+      new.contact_id, new.contact_name, new.total_cents, new.qty,
+      'concluido', 'pronta', 'pendente', now(),
+      'Gerado automaticamente a partir da O.S. ' || coalesce(new.code, new.id::text) || ': ' || new.title,
+      v_next_pos, null
+    )
+    on conflict (service_order_id) do nothing;
+
+    perform public.emit_event(
+      'service_order.concluded', 'service_order', new.id,
+      jsonb_build_object('service_order_id', new.id), '{}'::jsonb, new.organization_id
+    );
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_service_order_auto_sale on public.service_orders;
+create trigger trg_service_order_auto_sale
+  after update of status on public.service_orders
+  for each row execute function public.fn_service_order_auto_sale();

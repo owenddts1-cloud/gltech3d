@@ -12,5 +12,15 @@ export default async function ServiceOrdersPage({
   const [result, sp] = await Promise.all([fetchServiceOrdersData(), searchParams]);
   const orders = result.ok ? result.orders : [];
   const contacts = result.ok ? result.contacts : [];
-  return <ServiceOrdersBoard initialOrders={orders} contacts={contacts} openOsId={sp.os} />;
+  const saleChannels = result.ok ? result.saleChannels : [];
+  const materials = result.ok ? result.materials : [];
+  return (
+    <ServiceOrdersBoard
+      initialOrders={orders}
+      contacts={contacts}
+      saleChannels={saleChannels}
+      materials={materials}
+      openOsId={sp.os}
+    />
+  );
 }

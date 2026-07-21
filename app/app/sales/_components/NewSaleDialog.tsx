@@ -21,17 +21,36 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Combobox } from "@/components/ui/combobox";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { ContactPicker } from "./ContactPicker";
 import { createSale } from "@/app/actions/sales/actions";
 import type { ContactOption } from "@/app/actions/contacts/actions";
+import { quickCreateSaleChannel, type SaleChannelOption } from "@/app/actions/sale-channels/actions";
 import {
-  SALES_PLATFORMS,
   SALES_STATUSES,
   type SaleProductOption,
   type SaleRow,
 } from "@/lib/sales/config";
 import { STATUS_LABEL } from "../_lib/view-model";
+
+/** allowCreate do combobox de canal: cadastra um canal de venda novo pra org. */
+function channelAllowCreate(onCreated: (c: SaleChannelOption) => void) {
+  return {
+    label: (q: string) => `Adicionar "${q}" como novo canal`,
+    onCreate: async (name: string): Promise<ComboboxOption | null> => {
+      const res = await quickCreateSaleChannel({ name });
+      if (!res.ok) {
+        toast.error(res.error);
+        return null;
+      }
+      if (!res.existed) {
+        toast.success("Canal de venda criado.");
+        onCreated(res.channel);
+      }
+      return { value: res.channel.name, label: res.channel.name };
+    },
+  };
+}
 
 const brl = (cents: number): string =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -44,6 +63,9 @@ interface Props {
   productOptions?: SaleProductOption[];
   /** Contatos da org — combobox de cliente com busca + "Outro cliente". */
   contactOptions?: ContactOption[];
+  /** Canais de venda da org — combobox de canal com busca + "novo canal". */
+  channelOptions?: SaleChannelOption[];
+  onChannelCreated?: (c: SaleChannelOption) => void;
   onCreated: (s: SaleRow) => void;
 }
 
@@ -53,9 +75,11 @@ export default function NewSaleDialog({
   fixedPlatform,
   productOptions = [],
   contactOptions = [],
+  channelOptions = [],
+  onChannelCreated,
   onCreated,
 }: Props) {
-  const [platform, setPlatform] = useState(fixedPlatform ?? "Shopee");
+  const [platform, setPlatform] = useState(fixedPlatform ?? channelOptions[0]?.name ?? "");
   const [contactId, setContactId] = useState("");
   const [customer, setCustomer] = useState("");
   const [status, setStatus] = useState("pago");
@@ -81,8 +105,11 @@ export default function NewSaleDialog({
       return;
     }
     setSaving(true);
+    const chosenPlatform = fixedPlatform ?? platform;
+    const channelId = channelOptions.find((c) => c.name === chosenPlatform)?.id ?? null;
     const r = await createSale({
-      platform: fixedPlatform ?? platform,
+      platform: chosenPlatform,
+      channelId,
       contactId: contactId || null,
       customerName: customer,
       status,
@@ -129,8 +156,12 @@ export default function NewSaleDialog({
               <Combobox
                 value={platform}
                 onChange={setPlatform}
-                options={SALES_PLATFORMS.map((p) => ({ value: p, label: p }))}
-                searchPlaceholder="Buscar canal…"
+                options={channelOptions.map((c) => ({ value: c.name, label: c.name }))}
+                searchPlaceholder="Buscar ou digitar novo canal…"
+                allowCreate={channelAllowCreate((c) => {
+                  onChannelCreated?.(c);
+                  setPlatform(c.name);
+                })}
               />
             </div>
           )}

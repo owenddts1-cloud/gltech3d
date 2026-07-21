@@ -9,6 +9,7 @@
  */
 
 import type { OrderOverviewRow } from "@/app/actions/dashboard/analytics";
+export { paginate, type PageSlice } from "@/lib/pagination";
 
 export type OrdersTab = "andamento" | "atrasadas" | "concluidas";
 
@@ -52,19 +53,6 @@ export function bucketOrders(rows: OrderOverviewRow[], now: Date): OrderBuckets 
   );
 
   return { andamento, atrasadas, concluidas };
-}
-
-export interface PageSlice<T> {
-  items: T[];
-  page: number;
-  totalPages: number;
-}
-
-/** Fatia a lista para a página pedida (1-based), clampando fora do intervalo. */
-export function paginate<T>(list: T[], page: number, perPage: number = ORDERS_PER_PAGE): PageSlice<T> {
-  const totalPages = Math.max(1, Math.ceil(list.length / perPage));
-  const safe = Math.min(Math.max(1, page), totalPages);
-  return { items: list.slice((safe - 1) * perPage, safe * perPage), page: safe, totalPages };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

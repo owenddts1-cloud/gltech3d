@@ -22,6 +22,7 @@ function sale(patch: Partial<SaleRow>): SaleRow {
   return {
     id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     platform: "Shopee",
+    channelId: null,
     customerName: "Maria",
     status: "pago",
     fulfillmentStatus: "confirmada",

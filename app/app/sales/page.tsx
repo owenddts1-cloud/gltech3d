@@ -14,6 +14,7 @@ export default async function SalesPage() {
       byPlatform={r.ok ? r.byPlatform : []}
       productOptions={r.ok ? r.productOptions : []}
       contactOptions={r.ok ? r.contactOptions : []}
+      channelOptions={r.ok ? r.channelOptions : []}
     />
   );
 }

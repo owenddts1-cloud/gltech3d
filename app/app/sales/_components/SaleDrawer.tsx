@@ -20,13 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -48,15 +41,34 @@ import {
   FULFILLMENT_LABEL,
   KANBAN_STAGES,
   PAYMENT_LABEL,
-  SALES_PLATFORMS,
   type SalePayment,
   type SaleProductOption,
   type SaleRow,
 } from "@/lib/sales/config";
 import { brl, orderCode } from "../_lib/view-model";
-import { Combobox } from "@/components/ui/combobox";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { ContactPicker } from "./ContactPicker";
 import type { ContactOption } from "@/app/actions/contacts/actions";
+import { quickCreateSaleChannel, type SaleChannelOption } from "@/app/actions/sale-channels/actions";
+
+/** allowCreate do combobox de canal: cadastra um canal de venda novo pra org. */
+function channelAllowCreate(onCreated: (c: SaleChannelOption) => void) {
+  return {
+    label: (q: string) => `Adicionar "${q}" como novo canal`,
+    onCreate: async (name: string): Promise<ComboboxOption | null> => {
+      const res = await quickCreateSaleChannel({ name });
+      if (!res.ok) {
+        toast.error(res.error);
+        return null;
+      }
+      if (!res.existed) {
+        toast.success("Canal de venda criado.");
+        onCreated(res.channel);
+      }
+      return { value: res.channel.name, label: res.channel.name };
+    },
+  };
+}
 
 interface Props {
   /** Null = drawer closed. */
@@ -68,6 +80,9 @@ interface Props {
   productOptions?: SaleProductOption[];
   /** Contatos da org — combobox de cliente com busca + "Outro cliente". */
   contactOptions?: ContactOption[];
+  /** Canais de venda da org — combobox de canal com busca + "novo canal". */
+  channelOptions?: SaleChannelOption[];
+  onChannelCreated?: (c: SaleChannelOption) => void;
 }
 
 const PAYMENT_VARIANT: Record<SalePayment, "success" | "warning" | "error"> = {
@@ -99,7 +114,15 @@ function pickSnapshot(sale: SaleRow, patch: Partial<SaleRow>): Partial<SaleRow> 
   return snapshot;
 }
 
-export default function SaleDrawer({ sale, onClose, onPatch, productOptions = [], contactOptions = [] }: Props) {
+export default function SaleDrawer({
+  sale,
+  onClose,
+  onPatch,
+  productOptions = [],
+  contactOptions = [],
+  channelOptions = [],
+  onChannelCreated,
+}: Props) {
   return (
     <Sheet
       open={sale !== null}
@@ -119,6 +142,8 @@ export default function SaleDrawer({ sale, onClose, onPatch, productOptions = []
             onPatch={onPatch}
             productOptions={productOptions}
             contactOptions={contactOptions}
+            channelOptions={channelOptions}
+            onChannelCreated={onChannelCreated ?? (() => {})}
           />
         </SheetContent>
       )}
@@ -131,11 +156,15 @@ function SaleDrawerBody({
   onPatch,
   productOptions,
   contactOptions,
+  channelOptions,
+  onChannelCreated,
 }: {
   sale: SaleRow;
   onPatch: (id: string, patch: Partial<SaleRow>) => void;
   productOptions: SaleProductOption[];
   contactOptions: ContactOption[];
+  channelOptions: SaleChannelOption[];
+  onChannelCreated: (c: SaleChannelOption) => void;
 }) {
   const [notesDraft, setNotesDraft] = useState(sale.notes ?? "");
   const [editing, setEditing] = useState(false);
@@ -241,11 +270,13 @@ function SaleDrawerBody({
       toast.error("Data inválida.");
       return;
     }
+    const channelId = channelOptions.find((c) => c.name === form.platform)?.id ?? null;
     persist(
       {
         contactId: form.contactId || null,
         customerName: form.customer.trim() || null,
         platform: form.platform,
+        channelId,
         totalCents: Math.round(total * 100),
         commissionCents: Math.round(commission * 100),
         soldAt: form.soldAt,
@@ -255,6 +286,7 @@ function SaleDrawerBody({
         contactId: form.contactId || null,
         customerName: form.customer,
         platform: form.platform,
+        channelId,
         total,
         commission,
         soldAt: form.soldAt,
@@ -348,21 +380,17 @@ function SaleDrawerBody({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Canal</Label>
-                <Select
+                <Combobox
+                  className="h-9 text-xs"
                   value={form.platform}
-                  onValueChange={(v) => setForm((f) => ({ ...f, platform: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SALES_PLATFORMS.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(v) => setForm((f) => ({ ...f, platform: v }))}
+                  options={channelOptions.map((c) => ({ value: c.name, label: c.name }))}
+                  searchPlaceholder="Buscar ou digitar novo canal…"
+                  allowCreate={channelAllowCreate((c) => {
+                    onChannelCreated(c);
+                    setForm((f) => ({ ...f, platform: c.name }));
+                  })}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="d-date">Data</Label>

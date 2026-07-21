@@ -17,6 +17,7 @@ import {
 } from "@/lib/sales/config";
 import { computeProductPricing } from "@/lib/pricing/engine";
 import { fetchContactOptions } from "@/app/actions/contacts/actions";
+import { fetchSaleChannelOptions } from "@/app/actions/sale-channels/actions";
 
 /**
  * Vendas de marketplace (migration 0048) — lançamento manual + agregação por
@@ -24,7 +25,10 @@ import { fetchContactOptions } from "@/app/actions/contacts/actions";
  */
 
 const createSchema = z.object({
-  platform: z.enum(SALES_PLATFORMS),
+  /** Texto snapshot do canal (nome do sale_channels escolhido/criado no Combobox). */
+  platform: z.string().trim().min(1).max(80),
+  /** FK → sale_channels.id (migration 0062). */
+  channelId: z.string().uuid().nullable().optional(),
   customerName: z.string().trim().max(160).optional().default(""),
   status: z.enum(SALES_STATUSES).default("pago"),
   total: z.coerce.number().nonnegative().max(10_000_000),
@@ -63,6 +67,7 @@ async function requireCtx(): Promise<{ ok: true; ctx: Ctx } | { ok: false; error
 interface Row {
   id: string;
   platform: string;
+  channel_id: string | null;
   customer_name: string | null;
   status: string;
   fulfillment_status: string | null;
@@ -79,7 +84,7 @@ interface Row {
 
 /** Colunas lidas de marketplace_orders — reusado em fetch/create/update. */
 const SALE_SELECT =
-  "id, platform, customer_name, status, fulfillment_status, payment_status, board_position, total_cents, commission_cents, contact_id, product_id, qty, sold_at, notes";
+  "id, platform, channel_id, customer_name, status, fulfillment_status, payment_status, board_position, total_cents, commission_cents, contact_id, product_id, qty, sold_at, notes";
 
 /** Custo unitário (engine de precificação) por produto do catálogo. */
 interface ProductCostInfo {
@@ -165,6 +170,7 @@ function toView(r: Row): SaleRow {
   return {
     id: r.id,
     platform: r.platform,
+    channelId: r.channel_id ?? null,
     customerName: r.customer_name,
     status: r.status,
     fulfillmentStatus: fulfillment,
@@ -195,10 +201,11 @@ export async function fetchSales(platform?: string) {
     query = query.eq("platform", platform);
   }
 
-  const [{ data, error }, costMap, contactsRes] = await Promise.all([
+  const [{ data, error }, costMap, contactsRes, channelsRes] = await Promise.all([
     query,
     buildProductCostMap(c.ctx.supabase, c.ctx.orgId),
     fetchContactOptions(),
+    fetchSaleChannelOptions(),
   ]);
   if (error) return { ok: false as const, error: error.message };
 
@@ -216,12 +223,17 @@ export async function fetchSales(platform?: string) {
     avgTicketCents: active.length ? Math.round(totalCents / active.length) : 0,
   };
 
-  // Total por plataforma (para a visão geral).
-  const byPlatform = SALES_PLATFORMS.map((p) => ({
+  // Total por canal (para a visão geral) — agrupa dinamicamente sobre os
+  // canais realmente presentes nos dados, não mais a lista estática fixa
+  // (senão um canal custom criado via allowCreate nunca apareceria aqui).
+  const platformsPresent = Array.from(new Set(active.map((s) => s.platform))).sort((a, b) =>
+    a.localeCompare(b, "pt-BR"),
+  );
+  const byPlatform = platformsPresent.map((p) => ({
     platform: p,
     totalCents: active.filter((s) => s.platform === p).reduce((s, r) => s + r.totalCents, 0),
     count: active.filter((s) => s.platform === p).length,
-  })).filter((x) => x.count > 0);
+  }));
 
   // Opções p/ vincular produto (combobox de Vendas): custo/preço da engine.
   const productOptions: SaleProductOption[] = Array.from(costMap.entries())
@@ -231,7 +243,10 @@ export async function fetchSales(platform?: string) {
   // Opções p/ vincular cliente (combobox de Vendas): contatos reais da org.
   const contactOptions = contactsRes.ok ? contactsRes.contacts : [];
 
-  return { ok: true as const, sales, kpis, byPlatform, productOptions, contactOptions };
+  // Opções p/ canal de venda (combobox de Vendas): sale_channels reais da org.
+  const channelOptions = channelsRes.ok ? channelsRes.channels : [];
+
+  return { ok: true as const, sales, kpis, byPlatform, productOptions, contactOptions, channelOptions };
 }
 
 export async function createSale(raw: unknown) {
@@ -249,6 +264,7 @@ export async function createSale(raw: unknown) {
     .insert({
       organization_id: c.ctx.orgId,
       platform: d.platform,
+      channel_id: d.channelId ?? null,
       customer_name: d.customerName || null,
       status: d.status,
       total_cents: Math.round(d.total * 100),
@@ -285,6 +301,7 @@ export async function updateSale(id: string, raw: unknown) {
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (d.platform !== undefined) patch.platform = d.platform;
+  if (d.channelId !== undefined) patch.channel_id = d.channelId ?? null;
   if (d.customerName !== undefined) patch.customer_name = d.customerName || null;
   if (d.status !== undefined) patch.status = d.status;
   if (d.total !== undefined) patch.total_cents = Math.round(d.total * 100);

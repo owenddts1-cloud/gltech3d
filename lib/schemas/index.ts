@@ -17,3 +17,5 @@ export * from "./messaging";
 export * from "./categories";
 export * from "./service-orders";
 export * from "./products-catalog";
+export * from "./sale-channels";
+export * from "./materials";

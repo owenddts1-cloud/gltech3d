@@ -10,6 +10,8 @@ import {
   type SoPriority,
 } from "@/lib/schemas/service-orders";
 import { revalidatePath } from "next/cache";
+import { fetchSaleChannelOptions } from "@/app/actions/sale-channels/actions";
+import { fetchMaterialOptions } from "@/app/actions/materials/actions";
 
 export interface ServiceOrderView {
   id: string;
@@ -20,6 +22,7 @@ export interface ServiceOrderView {
   status: SoStatus;
   priority: SoPriority;
   material: string | null;
+  channelId: string | null;
   totalCents: number;
   qty: number;
   slaDueAt: string | null;
@@ -30,7 +33,7 @@ export interface ServiceOrderView {
 
 interface SoRow {
   id: string; code: string | null; title: string; contact_id: string | null; contact_name: string | null;
-  status: SoStatus; priority: SoPriority | null; material: string | null;
+  status: SoStatus; priority: SoPriority | null; material: string | null; channel_id: string | null;
   total_cents: number | string; qty: number | string; sla_due_at: string | null;
   slicer_notes: unknown; position: number | string; created_at: string;
 }
@@ -45,6 +48,7 @@ function mapRow(r: SoRow): ServiceOrderView {
     status: r.status,
     priority: r.priority ?? "media",
     material: r.material ?? null,
+    channelId: r.channel_id ?? null,
     totalCents: Number(r.total_cents ?? 0),
     qty: Number(r.qty ?? 1),
     slaDueAt: r.sla_due_at,
@@ -61,7 +65,7 @@ export async function fetchServiceOrdersData() {
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
 
   const supabase = await createClient();
-  const [ordersRes, contactsRes] = await Promise.all([
+  const [ordersRes, contactsRes, channelsRes, materialsRes] = await Promise.all([
     supabase
       .from("service_orders")
       .select("*")
@@ -74,6 +78,8 @@ export async function fetchServiceOrdersData() {
       .eq("organization_id", activeOrg.orgId)
       .order("name", { ascending: true })
       .limit(300),
+    fetchSaleChannelOptions(),
+    fetchMaterialOptions(),
   ]);
 
   return {
@@ -81,6 +87,8 @@ export async function fetchServiceOrdersData() {
     orgId: activeOrg.orgId,
     orders: ((ordersRes.data as SoRow[] | null) ?? []).map(mapRow),
     contacts: (contactsRes.data as Array<{ id: string; name: string | null }> | null) ?? [],
+    saleChannels: channelsRes.ok ? channelsRes.channels : [],
+    materials: materialsRes.ok ? materialsRes.materials : [],
   };
 }
 
@@ -106,24 +114,29 @@ export async function createServiceOrder(raw: unknown) {
   const d = parsed.data;
 
   const supabase = await createClient();
-  const { error } = await supabase.from("service_orders").insert({
-    organization_id: activeOrg.orgId,
-    title: d.title,
-    contact_id: d.contactId ?? null,
-    contact_name: d.contactName || null,
-    status: d.status,
-    priority: d.priority,
-    material: d.material ?? null,
-    total_cents: Math.round((d.total ?? 0) * 100),
-    qty: d.qty,
-    sla_due_at: d.slaDueAt ?? null,
-    slicer_notes: buildSlicerNotes(d),
-    created_by: authUser.id,
-  });
+  const { data, error } = await supabase
+    .from("service_orders")
+    .insert({
+      organization_id: activeOrg.orgId,
+      title: d.title,
+      contact_id: d.contactId ?? null,
+      contact_name: d.contactName || null,
+      status: d.status,
+      priority: d.priority,
+      material: d.material ?? null,
+      channel_id: d.channelId ?? null,
+      total_cents: Math.round((d.total ?? 0) * 100),
+      qty: d.qty,
+      sla_due_at: d.slaDueAt ?? null,
+      slicer_notes: buildSlicerNotes(d),
+      created_by: authUser.id,
+    })
+    .select("*")
+    .single();
   if (error) return { ok: false as const, error: error.message };
 
   revalidatePath("/app/service-orders");
-  return { ok: true as const };
+  return { ok: true as const, order: mapRow(data as SoRow) };
 }
 
 export async function updateServiceOrderStatus(raw: unknown) {
@@ -164,6 +177,7 @@ export async function updateServiceOrder(id: string, raw: unknown) {
   if (d.status !== undefined) patch.status = d.status;
   if (d.priority !== undefined) patch.priority = d.priority;
   if (d.material !== undefined) patch.material = d.material ?? null;
+  if (d.channelId !== undefined) patch.channel_id = d.channelId ?? null;
   if (d.total !== undefined) patch.total_cents = Math.round(d.total * 100);
   if (d.qty !== undefined) patch.qty = d.qty;
   if (d.slaDueAt !== undefined) patch.sla_due_at = d.slaDueAt;

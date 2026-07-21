@@ -27,8 +27,11 @@ import {
   type ServiceOrderView,
 } from "@/app/actions/service-orders/actions";
 import { quickCreateContact } from "@/app/actions/contacts/actions";
+import { quickCreateSaleChannel, type SaleChannelOption } from "@/app/actions/sale-channels/actions";
+import { quickCreateMaterial, type MaterialOption } from "@/app/actions/materials/actions";
 import { SO_STATUSES, type SoStatus, type SoPriority } from "@/lib/schemas/service-orders";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+import { paginate, OS_PAGE_SIZE, resolveDropPosition } from "@/app/app/service-orders/_lib/board";
 
 type ContactLite = { id: string; name: string | null };
 
@@ -57,6 +60,54 @@ function clientAllowCreate(onCreated: (c: ContactLite) => void) {
         onCreated({ id: res.contact.id, name: res.contact.name });
       }
       return { value: res.contact.id, label: res.contact.name };
+    },
+  };
+}
+
+/** Opções do combobox de canal ("Sem canal" + canais ordenados). */
+function channelOptions(channels: SaleChannelOption[]): ComboboxOption[] {
+  return [
+    { value: "", label: "— Sem canal —" },
+    ...channels
+      .map((c) => ({ value: c.id, label: c.name }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR")),
+  ];
+}
+
+/** allowCreate do combobox de canal: cadastra um canal de venda novo pra org. */
+function channelAllowCreate(onCreated: (c: SaleChannelOption) => void) {
+  return {
+    label: (q: string) => `Adicionar "${q}" como novo canal`,
+    onCreate: async (name: string): Promise<ComboboxOption | null> => {
+      const res = await quickCreateSaleChannel({ name });
+      if (!res.ok) {
+        toast.error(res.error);
+        return null;
+      }
+      if (!res.existed) {
+        toast.success("Canal de venda criado.");
+        onCreated(res.channel);
+      }
+      return { value: res.channel.id, label: res.channel.name };
+    },
+  };
+}
+
+/** allowCreate do combobox de material: o valor gravado é o NOME (texto livre). */
+function materialAllowCreate(onCreated: (m: MaterialOption) => void) {
+  return {
+    label: (q: string) => `Adicionar "${q}" como novo material`,
+    onCreate: async (name: string): Promise<ComboboxOption | null> => {
+      const res = await quickCreateMaterial({ name });
+      if (!res.ok) {
+        toast.error(res.error);
+        return null;
+      }
+      if (!res.existed) {
+        toast.success("Material adicionado às sugestões.");
+        onCreated(res.material);
+      }
+      return { value: res.material.name, label: res.material.name };
     },
   };
 }
@@ -94,14 +145,19 @@ function slaInfo(iso: string | null, status: SoStatus): { label: string; tone: s
 interface Props {
   initialOrders: ServiceOrderView[];
   contacts: Array<{ id: string; name: string | null }>;
+  saleChannels: SaleChannelOption[];
+  materials: MaterialOption[];
   /** Abre o detalhe desta O.S. ao montar (deep-link ?os=<id> vindo do Dashboard). */
   openOsId?: string;
 }
 
-export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props) {
+export function ServiceOrdersBoard({ initialOrders, contacts, saleChannels, materials, openOsId }: Props) {
   const [orders, setOrders] = useState<ServiceOrderView[]>(initialOrders);
   // Lista viva de contatos: o "Outro cliente" (allowCreate) acrescenta aqui.
   const [contactList, setContactList] = useState<ContactLite[]>(contacts);
+  // Idem para canal de venda e material — o allowCreate dos Comboboxes acrescenta aqui.
+  const [channelList, setChannelList] = useState<SaleChannelOption[]>(saleChannels);
+  const [materialList, setMaterialList] = useState<MaterialOption[]>(materials);
   const [, startTransition] = useTransition();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -113,6 +169,10 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
   const [dateTo, setDateTo] = useState("");
   const [minValue, setMinValue] = useState("");
   const [orderBy, setOrderBy] = useState<OrderBy>("posicao");
+  // Paginação por coluna (5 O.S. visíveis por vez, reseta quando um filtro muda).
+  const [pages, setPages] = useState<Record<SoStatus, number>>(
+    () => Object.fromEntries(SO_STATUSES.map((s) => [s, 1])) as Record<SoStatus, number>,
+  );
   // Detalhe/edição de uma O.S.
   const [detailOrder, setDetailOrder] = useState<ServiceOrderView | null>(null);
   // Prefill vindo do simulador de Projetos ("Copiar e Gerar OS"). Antes o
@@ -142,6 +202,11 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
     // roda só uma vez por id vindo do servidor
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openOsId]);
+
+  // Qualquer filtro mudando invalida a página atual de cada coluna.
+  useEffect(() => {
+    setPages(Object.fromEntries(SO_STATUSES.map((s) => [s, 1])) as Record<SoStatus, number>);
+  }, [searchTerm, priorityFilter, clientFilter, riskOnly, dateFrom, dateTo, minValue, orderBy]);
 
   // Lista de clientes presentes nas O.S. (para o filtro).
   const clientOptions = useMemo(() => {
@@ -222,11 +287,14 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const newStatus = destination.droppableId as SoStatus;
+    // O índice do DnD é relativo à página visível da coluna — converte pro
+    // índice real entre todas as O.S. da coluna antes de persistir.
+    const realPosition = resolveDropPosition(pages[newStatus] ?? 1, OS_PAGE_SIZE, destination.index);
     setOrders((prev) =>
-      prev.map((o) => (o.id === draggableId ? { ...o, status: newStatus, position: destination.index } : o)),
+      prev.map((o) => (o.id === draggableId ? { ...o, status: newStatus, position: realPosition } : o)),
     );
     startTransition(async () => {
-      const res = await updateServiceOrderStatus({ id: draggableId, status: newStatus, position: destination.index });
+      const res = await updateServiceOrderStatus({ id: draggableId, status: newStatus, position: realPosition });
       if (!res.ok) toast.error("Não foi possível mover a OS");
     });
   }
@@ -275,6 +343,10 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
               }}
               contacts={contactList}
               onContactCreated={(c) => setContactList((prev) => [...prev, c])}
+              channels={channelList}
+              onChannelCreated={(c) => setChannelList((prev) => [...prev, c])}
+              materials={materialList}
+              onMaterialCreated={(m) => setMaterialList((prev) => [...prev, m])}
               prefill={prefill}
               onCreated={(o) => setOrders((prev) => [o, ...prev])}
             />
@@ -404,7 +476,9 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
       {/* ─── Board ─── */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-2">
-          {COLUMNS.map((col) => (
+          {COLUMNS.map((col) => {
+            const { items: pageItems, totalPages } = paginate(byStatus[col.id], pages[col.id] ?? 1, OS_PAGE_SIZE);
+            return (
             <div key={col.id} className={`flex w-[280px] shrink-0 flex-col rounded-xl border border-border/80 ${col.bgClass} min-h-[500px]`}>
               {/* Column Header */}
               <div className="flex items-center justify-between px-3.5 py-3 border-b border-border/40 bg-surface/40 backdrop-blur-xs rounded-t-xl">
@@ -429,7 +503,7 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
                       snapshot.isDraggingOver ? "bg-accent-soft/30 dark:bg-accent-soft/10" : ""
                     }`}
                   >
-                    {byStatus[col.id].map((o, i) => {
+                    {pageItems.map((o, i) => {
                       const sla = slaInfo(o.slaDueAt, o.status);
                       const contactInit = o.contactName 
                         ? o.contactName.trim().split(/\s+/).slice(0, 2).map(n => n[0] ?? "").join("").toUpperCase()
@@ -477,7 +551,7 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
                                   <div className="flex items-center gap-0.5">
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setDetailOrder(o); }}
-                                      className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 text-muted-foreground hover:text-accent hover:bg-accent-soft p-1 rounded-lg"
+                                      className="text-muted-foreground hover:text-accent hover:bg-accent-soft p-1 rounded-lg"
                                       aria-label="Ver/editar OS"
                                     >
                                       <PencilSimple size={12} />
@@ -557,8 +631,23 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
                   </div>
                 )}
               </Droppable>
+
+              {/* Paginação da coluna: 5 O.S. visíveis por vez */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-1 border-t border-border/40 px-3 py-2">
+                  {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((n) => (
+                    <PageBtn
+                      key={n}
+                      n={n}
+                      active={n === (pages[col.id] ?? 1)}
+                      onClick={() => setPages((p) => ({ ...p, [col.id]: n }))}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </DragDropContext>
 
@@ -567,6 +656,10 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
         order={detailOrder}
         contacts={contactList}
         onContactCreated={(c) => setContactList((prev) => [...prev, c])}
+        channels={channelList}
+        onChannelCreated={(c) => setChannelList((prev) => [...prev, c])}
+        materials={materialList}
+        onMaterialCreated={(m) => setMaterialList((prev) => [...prev, m])}
         onOpenChange={(v) => { if (!v) setDetailOrder(null); }}
         onSaved={(patched) => {
           setOrders((prev) => prev.map((o) => (o.id === patched.id ? patched : o)));
@@ -578,11 +671,15 @@ export function ServiceOrdersBoard({ initialOrders, contacts, openOsId }: Props)
 }
 
 function OsEditDialog({
-  order, contacts, onContactCreated, onOpenChange, onSaved,
+  order, contacts, onContactCreated, channels, onChannelCreated, materials, onMaterialCreated, onOpenChange, onSaved,
 }: {
   order: ServiceOrderView | null;
   contacts: ContactLite[];
   onContactCreated: (c: ContactLite) => void;
+  channels: SaleChannelOption[];
+  onChannelCreated: (c: SaleChannelOption) => void;
+  materials: MaterialOption[];
+  onMaterialCreated: (m: MaterialOption) => void;
   onOpenChange: (v: boolean) => void;
   onSaved: (o: ServiceOrderView) => void;
 }) {
@@ -605,6 +702,7 @@ function OsEditDialog({
       status: f.status,
       priority: f.priority,
       material: f.material.trim() || null,
+      channelId: f.channelId || null,
       total: f.total ? Number(f.total.replace(",", ".")) : 0,
       qty: Number(f.qty) || 1,
       slaDueAt: f.sla ? new Date(f.sla).toISOString() : null,
@@ -622,6 +720,7 @@ function OsEditDialog({
         status: payload.status,
         priority: payload.priority,
         material: payload.material,
+        channelId: payload.channelId,
         totalCents: Math.round((payload.total ?? 0) * 100),
         qty: payload.qty,
         slaDueAt: payload.slaDueAt,
@@ -644,19 +743,25 @@ function OsEditDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="ed-status">Status</Label>
-              <select id="ed-status" value={f.status} onChange={(e) => setF((p) => ({ ...p, status: e.target.value as SoStatus }))}
-                className="flex h-9 w-full rounded-lg border border-border bg-surface px-3 text-xs outline-hidden focus:ring-2 focus:ring-accent/20">
-                {SO_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-              </select>
+              <Combobox
+                id="ed-status"
+                className="h-9 rounded-lg text-xs"
+                value={f.status}
+                onChange={(v) => setF((p) => ({ ...p, status: v as SoStatus }))}
+                options={SO_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
+                searchPlaceholder="Buscar status…"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ed-priority">Prioridade</Label>
-              <select id="ed-priority" value={f.priority} onChange={(e) => setF((p) => ({ ...p, priority: e.target.value as SoPriority }))}
-                className="flex h-9 w-full rounded-lg border border-border bg-surface px-3 text-xs outline-hidden focus:ring-2 focus:ring-accent/20">
-                <option value="alta">Alta</option>
-                <option value="media">Média</option>
-                <option value="baixa">Baixa</option>
-              </select>
+              <Combobox
+                id="ed-priority"
+                className="h-9 rounded-lg text-xs"
+                value={f.priority}
+                onChange={(v) => setF((p) => ({ ...p, priority: v as SoPriority }))}
+                options={(Object.keys(PRIORITY_META) as SoPriority[]).map((p) => ({ value: p, label: PRIORITY_META[p].label }))}
+                searchPlaceholder="Buscar prioridade…"
+              />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -671,6 +776,18 @@ function OsEditDialog({
               allowCreate={clientAllowCreate(onContactCreated)}
             />
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ed-channel">Canal de venda</Label>
+            <Combobox
+              id="ed-channel"
+              className="h-9 rounded-lg text-xs"
+              value={f.channelId}
+              onChange={(v) => setF((p) => ({ ...p, channelId: v }))}
+              options={channelOptions(channels)}
+              searchPlaceholder="Buscar canal…"
+              allowCreate={channelAllowCreate(onChannelCreated)}
+            />
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="ed-total">Valor (R$)</Label>
@@ -682,7 +799,15 @@ function OsEditDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ed-material">Material</Label>
-              <Input id="ed-material" value={f.material} onChange={(e) => setF((p) => ({ ...p, material: e.target.value }))} className="h-9 rounded-lg" />
+              <Combobox
+                id="ed-material"
+                className="h-9 rounded-lg text-xs"
+                value={f.material}
+                onChange={(v) => setF((p) => ({ ...p, material: v }))}
+                options={materials.map((m) => ({ value: m.name, label: m.name }))}
+                searchPlaceholder="Buscar material…"
+                allowCreate={materialAllowCreate(onMaterialCreated)}
+              />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -713,6 +838,7 @@ function formFromOrder(o: ServiceOrderView | null) {
     status: (o?.status ?? "orcamento") as SoStatus,
     priority: (o?.priority ?? "media") as SoPriority,
     material: o?.material ?? "",
+    channelId: o?.channelId ?? "",
     total: o ? String(o.totalCents / 100) : "",
     qty: String(o?.qty ?? 1),
     sla: o?.slaDueAt ? o.slaDueAt.slice(0, 10) : "",
@@ -728,18 +854,40 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
   );
 }
 
+function PageBtn({ n, active, onClick }: { n: number; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-current={active ? "page" : undefined}
+      onClick={onClick}
+      className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold transition-colors ${
+        active
+          ? "border border-accent bg-accent-soft text-accent"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+      }`}
+    >
+      {n}
+    </button>
+  );
+}
+
 function NewOsDialog({
-  open, onOpenChange, contacts, onContactCreated, prefill, onCreated,
+  open, onOpenChange, contacts, onContactCreated, channels, onChannelCreated, materials, onMaterialCreated, prefill, onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   contacts: ContactLite[];
   onContactCreated: (c: ContactLite) => void;
+  channels: SaleChannelOption[];
+  onChannelCreated: (c: SaleChannelOption) => void;
+  materials: MaterialOption[];
+  onMaterialCreated: (m: MaterialOption) => void;
   prefill?: { title?: string; notes?: string; total?: number } | null;
   onCreated: (o: ServiceOrderView) => void;
 }) {
   const [title, setTitle] = useState("");
   const [contactId, setContactId] = useState("");
+  const [channelId, setChannelId] = useState("");
   const [total, setTotal] = useState("");
   const [qty, setQty] = useState("1");
   const [sla, setSla] = useState("");
@@ -758,7 +906,7 @@ function NewOsDialog({
   }, [open, prefill]);
 
   function reset() {
-    setTitle(""); setContactId(""); setTotal(""); setQty("1"); setSla(""); setNotes("");
+    setTitle(""); setContactId(""); setChannelId(""); setTotal(""); setQty("1"); setSla(""); setNotes("");
     setPriority("media"); setMaterial("");
   }
 
@@ -771,6 +919,7 @@ function NewOsDialog({
       contactName: contact?.name ?? undefined,
       priority,
       material: material.trim() || null,
+      channelId: channelId || null,
       total: total ? Number(total.replace(",", ".")) : 0,
       qty: Number(qty) || 1,
       slaDueAt: sla ? new Date(sla).toISOString() : null,
@@ -783,22 +932,7 @@ function NewOsDialog({
         return;
       }
       toast.success("OS criada");
-      onCreated({
-        id: crypto.randomUUID(),
-        code: null,
-        title: payload.title,
-        contactId: payload.contactId,
-        contactName: payload.contactName ?? null,
-        status: "orcamento",
-        priority: payload.priority,
-        material: payload.material,
-        totalCents: Math.round((payload.total ?? 0) * 100),
-        qty: payload.qty,
-        slaDueAt: payload.slaDueAt,
-        slicerNotes: payload.notes ? { notes: payload.notes } : {},
-        position: 0,
-        createdAt: new Date().toISOString(),
-      });
+      onCreated(res.order);
       reset();
       onOpenChange(false);
     });
@@ -833,6 +967,19 @@ function NewOsDialog({
               allowCreate={clientAllowCreate(onContactCreated)}
             />
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="os-channel">Canal de venda</Label>
+            <Combobox
+              id="os-channel"
+              className="h-9 rounded-lg text-xs"
+              value={channelId}
+              onChange={(v) => setChannelId(v)}
+              options={channelOptions(channels)}
+              placeholder="— Sem canal —"
+              searchPlaceholder="Buscar ou digitar novo canal…"
+              allowCreate={channelAllowCreate(onChannelCreated)}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="os-total">Valor Total (R$)</Label>
@@ -846,20 +993,27 @@ function NewOsDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="os-priority">Prioridade</Label>
-              <select
+              <Combobox
                 id="os-priority"
+                className="h-9 rounded-lg text-xs"
                 value={priority}
-                onChange={(e) => setPriority(e.target.value as SoPriority)}
-                className="flex h-9 w-full rounded-lg border border-border bg-surface px-3 text-xs outline-hidden focus:ring-2 focus:ring-accent/20"
-              >
-                <option value="alta">Alta</option>
-                <option value="media">Média</option>
-                <option value="baixa">Baixa</option>
-              </select>
+                onChange={(v) => setPriority(v as SoPriority)}
+                options={(Object.keys(PRIORITY_META) as SoPriority[]).map((p) => ({ value: p, label: PRIORITY_META[p].label }))}
+                searchPlaceholder="Buscar prioridade…"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="os-material">Material</Label>
-              <Input id="os-material" value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="PLA, ABS, PETG..." className="h-9 rounded-lg" />
+              <Combobox
+                id="os-material"
+                className="h-9 rounded-lg text-xs"
+                value={material}
+                onChange={(v) => setMaterial(v)}
+                options={materials.map((m) => ({ value: m.name, label: m.name }))}
+                placeholder="PLA, ABS, PETG..."
+                searchPlaceholder="Buscar ou digitar novo material…"
+                allowCreate={materialAllowCreate(onMaterialCreated)}
+              />
             </div>
           </div>
           <div className="space-y-1.5">

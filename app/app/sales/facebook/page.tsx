@@ -15,6 +15,7 @@ export default async function Page() {
       byPlatform={[]}
       productOptions={r.ok ? r.productOptions : []}
       contactOptions={r.ok ? r.contactOptions : []}
+      channelOptions={r.ok ? r.channelOptions : []}
     />
   );
 }
