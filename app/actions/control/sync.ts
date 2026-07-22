@@ -33,11 +33,14 @@ export async function syncControlToModules(): Promise<
   const org = activeOrg.orgId;
   const supabase = await createClient();
 
-  // ── Origem: linhas da planilha ──
+  // ── Origem: linhas da planilha ainda não linkadas (linhas com service_order_id
+  // já preenchido são cuidadas em tempo real pelos triggers de sync bidirecional
+  // — migrations 0064-0066 — este botão vira só uma ferramenta de backfill). ──
   const { data: finData, error: finErr } = await supabase
     .from("financial_records")
-    .select("id, date, description, type, category, platform, revenue_cents, expense_cents, quantity")
-    .eq("organization_id", org);
+    .select("id, date, description, type, category, platform, revenue_cents, expense_cents, quantity, service_order_id")
+    .eq("organization_id", org)
+    .is("service_order_id", null);
   if (finErr) return { ok: false, error: finErr.message };
 
   const plan = planControlSync((finData as SyncSourceRow[] | null) ?? []);
@@ -130,6 +133,11 @@ export async function syncControlToModules(): Promise<
           title: s.osTitle, contact_id: contactId, contact_name: s.customerName, total_cents: s.totalCents,
           updated_at: new Date().toISOString(),
         }).eq("organization_id", org).eq("id", order.service_order_id);
+        // Linha antiga (pré-trigger) já tinha MO ligada mas a FR de origem nunca
+        // recebeu o vínculo de volta — grava agora pra entrar no radar dos triggers
+        // de sync bidirecional (0065/0066) dali em diante.
+        await supabase.from("financial_records").update({ service_order_id: order.service_order_id })
+          .eq("organization_id", org).eq("id", s.key.replace(/^ctrl:/, ""));
         result.osUpdated += 1;
         continue;
       }
@@ -148,6 +156,10 @@ export async function syncControlToModules(): Promise<
         await supabase.from("marketplace_orders").update({ service_order_id: osId }).eq("organization_id", org).eq("id", order.id);
         order.service_order_id = osId;
         result.osCreated += 1;
+        // Entra no radar dos triggers de sync bidirecional (0065/0066) a partir de
+        // agora — a própria linha de origem recebe o vínculo.
+        await supabase.from("financial_records").update({ service_order_id: osId })
+          .eq("organization_id", org).eq("id", s.key.replace(/^ctrl:/, ""));
       }
     }
   }

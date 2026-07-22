@@ -74,6 +74,15 @@ const NAV: NavEntry[] = [
     ],
   },
   {
+    key: "financeiro",
+    label: "Financeiro",
+    icon: Coins,
+    children: [
+      { href: "/app/control", label: "Controle", icon: Coins },
+      { href: "/app/reports", label: "Relatórios", icon: ChartLineUp },
+    ],
+  },
+  {
     key: "clientes",
     label: "Clientes",
     icon: AddressBook,
@@ -87,15 +96,6 @@ const NAV: NavEntry[] = [
       { href: "/app/team", label: "Equipe", icon: UsersThree },
       { href: "/app/lgpd/requests", label: "LGPD", icon: ScalesSimple, permission: "lgpd.execute_redact" },
       { href: "/app/ai/agents", label: "Agentes IA", icon: Robot, permission: "ai.agents.view" },
-    ],
-  },
-  {
-    key: "financeiro",
-    label: "Financeiro",
-    icon: Coins,
-    children: [
-      { href: "/app/control", label: "Controle", icon: Coins },
-      { href: "/app/reports", label: "Relatórios", icon: ChartLineUp },
     ],
   },
   {

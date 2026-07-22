@@ -27,7 +27,6 @@ const STATUS_LABEL: Record<string, string> = {
   orcamento: "Orçamento",
   aprovado: "Aprovado",
   em_producao: "Em produção",
-  pos_processamento: "Pós-processo",
   pronto_entrega: "Pronto p/ entrega",
   concluido: "Concluído",
 };

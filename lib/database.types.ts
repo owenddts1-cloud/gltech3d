@@ -2034,6 +2034,7 @@ export type Database = {
           platform: string | null
           quantity: number
           revenue_cents: number
+          service_order_id: string | null
           type: string
           updated_at: string
         }
@@ -2052,6 +2053,7 @@ export type Database = {
           platform?: string | null
           quantity?: number
           revenue_cents?: number
+          service_order_id?: string | null
           type: string
           updated_at?: string
         }
@@ -2070,6 +2072,7 @@ export type Database = {
           platform?: string | null
           quantity?: number
           revenue_cents?: number
+          service_order_id?: string | null
           type?: string
           updated_at?: string
         }
@@ -2079,6 +2082,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_records_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -4346,6 +4356,7 @@ export type Database = {
         }
         Returns: string
       }
+      fn_control_month: { Args: { p_date: string }; Returns: string }
       fn_decrypt_oauth: { Args: { ciphertext: string }; Returns: string }
       fn_encrypt_oauth: { Args: { plaintext: string }; Returns: string }
       fn_is_platform_admin: { Args: never; Returns: boolean }
@@ -4383,6 +4394,13 @@ export type Database = {
           not_after: string
           updated_at: string
           user_agent: string
+        }[]
+      }
+      fn_parse_sale_description: {
+        Args: { p_desc: string }
+        Returns: {
+          client: string
+          product: string
         }[]
       }
       fn_publish_ai_agent_version: {

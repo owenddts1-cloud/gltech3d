@@ -5,7 +5,7 @@
 import { z } from "zod";
 
 export const SO_STATUSES = [
-  "orcamento", "aprovado", "em_producao", "pos_processamento", "pronto_entrega", "concluido",
+  "orcamento", "aprovado", "em_producao", "pronto_entrega", "concluido",
 ] as const;
 export const soStatusSchema = z.enum(SO_STATUSES);
 

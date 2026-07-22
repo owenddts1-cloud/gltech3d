@@ -118,7 +118,6 @@ const COLUMNS: { id: SoStatus; label: string; accent: string; bgClass: string; b
   { id: "orcamento", label: "Orçamento", accent: "#EAB308", bgClass: "bg-amber-500/[0.02] dark:bg-amber-500/[0.01]", borderClass: "border-amber-500/10 hover:border-amber-500/20", dotClass: "bg-amber-500" },
   { id: "aprovado", label: "Aprovado / Fila", accent: "#06B6D4", bgClass: "bg-cyan-500/[0.02] dark:bg-cyan-500/[0.01]", borderClass: "border-cyan-500/10 hover:border-cyan-500/20", dotClass: "bg-cyan-500" },
   { id: "em_producao", label: "Em Produção", accent: "#F97316", bgClass: "bg-orange-500/[0.02] dark:bg-orange-500/[0.01]", borderClass: "border-orange-500/10 hover:border-orange-500/20", dotClass: "bg-orange-500" },
-  { id: "pos_processamento", label: "Pós-Processo", accent: "#8B5CF6", bgClass: "bg-violet-500/[0.02] dark:bg-violet-500/[0.01]", borderClass: "border-violet-500/10 hover:border-violet-500/20", dotClass: "bg-violet-500" },
   { id: "pronto_entrega", label: "Pronto p/ Entrega", accent: "#3B82F6", bgClass: "bg-blue-500/[0.02] dark:bg-blue-500/[0.01]", borderClass: "border-blue-500/10 hover:border-blue-500/20", dotClass: "bg-blue-500" },
   { id: "concluido", label: "Concluído", accent: "#10B981", bgClass: "bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]", borderClass: "border-emerald-500/10 hover:border-emerald-500/20", dotClass: "bg-emerald-500" },
 ];
@@ -475,11 +474,11 @@ export function ServiceOrdersBoard({ initialOrders, contacts, saleChannels, mate
 
       {/* ─── Board ─── */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        <div className="flex items-start gap-4 overflow-x-auto pb-2">
           {COLUMNS.map((col) => {
             const { items: pageItems, totalPages } = paginate(byStatus[col.id], pages[col.id] ?? 1, OS_PAGE_SIZE);
             return (
-            <div key={col.id} className={`flex w-[280px] shrink-0 flex-col rounded-xl border border-border/80 ${col.bgClass} min-h-[500px]`}>
+            <div key={col.id} className={`flex w-[280px] shrink-0 flex-col rounded-xl border border-border/80 ${col.bgClass} min-h-[80px]`}>
               {/* Column Header */}
               <div className="flex items-center justify-between px-3.5 py-3 border-b border-border/40 bg-surface/40 backdrop-blur-xs rounded-t-xl">
                 <div className="flex items-center gap-2">

@@ -26,7 +26,6 @@ const STATUS_META: Record<string, { label: string; variant: "warning" | "info" |
   orcamento: { label: "Orçamento", variant: "warning" },
   aprovado: { label: "Aprovado / Fila", variant: "info" },
   em_producao: { label: "Em Produção", variant: "default" },
-  pos_processamento: { label: "Pós-Processo", variant: "info" },
   pronto_entrega: { label: "Pronto p/ Entrega", variant: "info" },
   concluido: { label: "Concluído", variant: "success" },
 };
