@@ -21,6 +21,16 @@ export interface ContactSnapshot {
   phone_number: string | null;
   cpf_present: boolean;
   birthdate: string | null;
+  // Endereço e documento fiscal (migration 0068) — dado pessoal tratado, portanto
+  // parte obrigatória do relatório de acesso do art. 18 II.
+  document_number: string | null;
+  address: string | null;
+  address_number: string | null;
+  address_complement: string | null;
+  district: string | null;
+  city: string | null;
+  state: string | null;
+  cep: string | null;
   is_blocked: boolean;
   is_anonymized: boolean;
   consent: Record<string, unknown> | null;
@@ -162,7 +172,7 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
     const { data, error } = await admin
       .from("contacts")
       .select(
-        "id, name, display_name, email, phone_number, cpf_encrypted, birthdate, is_blocked, is_anonymized, consent, tags, source, source_metadata, created_at, last_activity_at",
+        "id, name, display_name, email, phone_number, cpf_encrypted, birthdate, document_number, address, address_number, address_complement, district, city, state, cep, is_blocked, is_anonymized, consent, tags, source, source_metadata, created_at, last_activity_at",
       )
       .eq("organization_id", organizationId)
       .eq("id", contactId)
@@ -182,6 +192,14 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
         phone_number: data.phone_number ?? null,
         cpf_present: Boolean(data.cpf_encrypted),
         birthdate: data.birthdate ?? null,
+        document_number: data.document_number ?? null,
+        address: data.address ?? null,
+        address_number: data.address_number ?? null,
+        address_complement: data.address_complement ?? null,
+        district: data.district ?? null,
+        city: data.city ?? null,
+        state: data.state ?? null,
+        cep: data.cep ?? null,
         is_blocked: Boolean(data.is_blocked),
         is_anonymized: Boolean(data.is_anonymized),
         consent: (data.consent as Record<string, unknown> | null) ?? null,

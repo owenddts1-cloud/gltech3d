@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Plus, Trash, Cube, PencilSimple, Storefront } from "@/lib/ui/icons";
+import { Package, Plus, Trash, Cube, PencilSimple, Storefront, VideoCamera } from "@/lib/ui/icons";
+import { dataMesh } from "@/lib/mesh/data-mesh";
 import {
   createProduct, deleteProduct, updateProduct, type ProductView,
 } from "@/app/actions/products/actions";
@@ -173,6 +174,24 @@ export function ProductsClient({
                   +{brl(p.pricing.profit)}<br />lucro
                 </div>
               </div>
+
+              {/* Ação Cross-App: Gerar Vídeo IA & Postar */}
+              <button
+                onClick={() => {
+                  dataMesh.emit("crm", "content-studio", "CRM_TO_CONTENT", {
+                    productName: p.name,
+                    category: p.category,
+                    material: p.filamentName,
+                    price: p.pricing.suggestedPrice,
+                    images: p.images,
+                  });
+                  toast.success(`Dados de '${p.name}' transmitidos para o AI Content Studio!`);
+                }}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 py-2 text-xs font-bold text-amber-500 hover:bg-amber-500/20 transition-colors"
+              >
+                <VideoCamera size={14} />
+                <span>Gerar Vídeo IA & Postar</span>
+              </button>
             </div>
           ))}
         </div>

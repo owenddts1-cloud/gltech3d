@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { toast } from "sonner";
 import {
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   ClipboardText,
+  Buildings,
   Plus,
   Trash,
   Clock,
@@ -21,6 +23,8 @@ import {
   MagnifyingGlass,
   Cube,
   PencilSimple,
+  FileText,
+  Receipt,
 } from "@/lib/ui/icons";
 import {
   createServiceOrder, updateServiceOrderStatus, updateServiceOrder, deleteServiceOrder,
@@ -151,6 +155,7 @@ interface Props {
 }
 
 export function ServiceOrdersBoard({ initialOrders, contacts, saleChannels, materials, openOsId }: Props) {
+  const router = useRouter();
   const [orders, setOrders] = useState<ServiceOrderView[]>(initialOrders);
   // Lista viva de contatos: o "Outro cliente" (allowCreate) acrescenta aqui.
   const [contactList, setContactList] = useState<ContactLite[]>(contacts);
@@ -350,6 +355,21 @@ export function ServiceOrdersBoard({ initialOrders, contacts, saleChannels, mate
               onCreated={(o) => setOrders((prev) => [o, ...prev])}
             />
           </div>
+        </div>
+
+        {/* ── Sub-abas de Navegação: Ordens de Serviço | Organização ── */}
+        <div className="mt-4 flex items-center gap-2 border-t border-border/60 pt-3">
+          <Button variant="secondary" size="sm" className="h-8 rounded-lg px-3 text-xs font-bold bg-accent/15 text-accent border border-accent/20">
+            <ClipboardText size={14} className="mr-1.5" /> Ordens de Serviço
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 rounded-lg px-3 text-xs text-text-muted hover:bg-surface-elevated hover:text-foreground"
+            onClick={() => router.push("/app/settings/tenant")}
+          >
+            <Buildings size={14} className="mr-1.5" /> Organização (Dados da Empresa & Documentos)
+          </Button>
         </div>
       </header>
 
@@ -682,6 +702,7 @@ function OsEditDialog({
   onOpenChange: (v: boolean) => void;
   onSaved: (o: ServiceOrderView) => void;
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [f, setF] = useState(() => formFromOrder(order));
   const [lastId, setLastId] = useState<string | null>(order?.id ?? null);
@@ -689,6 +710,17 @@ function OsEditDialog({
   if (order && order.id !== lastId) { setLastId(order.id); setF(formFromOrder(order)); }
 
   if (!order) return null;
+
+  // Com itens cadastrados, valor e quantidade viram derivados: quem manda é a
+  // soma das linhas (triggers da migration 0068). Deixar os campos editáveis aqui
+  // faria cada "Salvar" sobrescrever o cálculo com o número velho do formulário —
+  // a action também ignora os dois campos nesse caso, isto é só a UI sendo honesta.
+  const derived = order.itemsCount > 0;
+
+  function openDocs(tipo: string) {
+    if (!order) return;
+    router.push(`/app/service-orders/${order.id}/documentos?tipo=${tipo}`);
+  }
 
   function submit() {
     if (!order) return;
@@ -720,8 +752,9 @@ function OsEditDialog({
         priority: payload.priority,
         material: payload.material,
         channelId: payload.channelId,
-        totalCents: Math.round((payload.total ?? 0) * 100),
-        qty: payload.qty,
+        // Com itens, o total no banco veio das triggers — não sobrescreve na tela.
+        totalCents: res.derivedFromItems ? order.totalCents : Math.round((payload.total ?? 0) * 100),
+        qty: res.derivedFromItems ? order.qty : payload.qty,
         slaDueAt: payload.slaDueAt,
         slicerNotes: payload.notes ? { ...order.slicerNotes, notes: payload.notes } : order.slicerNotes,
       });
@@ -790,11 +823,11 @@ function OsEditDialog({
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="ed-total">Valor (R$)</Label>
-              <Input id="ed-total" inputMode="decimal" value={f.total} onChange={(e) => setF((p) => ({ ...p, total: e.target.value }))} className="h-9 rounded-lg" />
+              <Input id="ed-total" inputMode="decimal" value={f.total} onChange={(e) => setF((p) => ({ ...p, total: e.target.value }))} className="h-9 rounded-lg" disabled={derived} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ed-qty">Qtd</Label>
-              <Input id="ed-qty" inputMode="numeric" value={f.qty} onChange={(e) => setF((p) => ({ ...p, qty: e.target.value }))} className="h-9 rounded-lg" />
+              <Input id="ed-qty" inputMode="numeric" value={f.qty} onChange={(e) => setF((p) => ({ ...p, qty: e.target.value }))} className="h-9 rounded-lg" disabled={derived} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ed-material">Material</Label>
@@ -813,11 +846,41 @@ function OsEditDialog({
             <Label htmlFor="ed-sla">Prazo (SLA)</Label>
             <Input id="ed-sla" type="date" value={f.sla} onChange={(e) => setF((p) => ({ ...p, sla: e.target.value }))} className="h-9 rounded-lg" />
           </div>
+          {derived && (
+            <p className="rounded-lg bg-surface-elevated px-3 py-2 text-[11px] text-text-muted">
+              Valor e quantidade são calculados a partir dos {order.itemsCount} itens desta O.S.
+              Edite-os em <strong>Emitir documento</strong>.
+            </p>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="ed-notes">Notas técnicas</Label>
             <Input id="ed-notes" value={f.notes} onChange={(e) => setF((p) => ({ ...p, notes: e.target.value }))} className="h-9 rounded-lg" />
           </div>
         </div>
+
+        {/* Emissão de documentos: leva ao editor com o tipo já selecionado. */}
+        <div className="space-y-1.5 border-t border-border pt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+            Emitir documento
+            {order.documentsCount > 0 && (
+              <span className="ml-1 font-normal normal-case tracking-normal">
+                ({order.documentsCount} já emitido{order.documentsCount > 1 ? "s" : ""})
+              </span>
+            )}
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <Button variant="outline" size="sm" className="rounded-lg text-[11px]" onClick={() => openDocs("orcamento")}>
+              <FileText size={13} className="mr-1" /> Orçamento
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-lg text-[11px]" onClick={() => openDocs("ordem_servico")}>
+              <ClipboardText size={13} className="mr-1" /> O.S.
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-lg text-[11px]" onClick={() => openDocs("recibo")}>
+              <Receipt size={13} className="mr-1" /> Recibo
+            </Button>
+          </div>
+        </div>
+
         <DialogFooter className="gap-2">
           <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => onOpenChange(false)}>Fechar</Button>
           <Button size="sm" className="rounded-lg text-xs font-semibold bg-accent text-white hover:bg-accent/90" onClick={submit} disabled={pending}>

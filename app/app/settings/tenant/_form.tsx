@@ -1,4 +1,6 @@
 "use client";
+
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -15,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { updateTenant } from "@/app/actions/settings/updateTenant";
 import { tenantSchema, type Locale, type TenantInput } from "@/lib/schemas/settings";
+import { DocumentBrandingFields } from "./_document-branding";
 
 interface Props {
   initial: TenantInput;
@@ -30,6 +33,7 @@ const TIMEZONES = [
 ];
 
 export function TenantForm({ initial }: Props) {
+  const router = useRouter();
   const [form, setForm] = useState<TenantInput>(initial);
   const [reasonsText, setReasonsText] = useState(
     (initial.lost_reasons_extra ?? []).join(", "),
@@ -54,13 +58,17 @@ export function TenantForm({ initial }: Props) {
     }
     startTransition(async () => {
       const r = await updateTenant(parsed.data);
-      if (r.ok) toast.success("Organização atualizada.");
-      else toast.error(`Erro: ${r.error}`);
+      if (r.ok) {
+        toast.success("Organização e dados de documentos salvos com sucesso!");
+        router.refresh();
+      } else {
+        toast.error(`Erro: ${r.error}`);
+      }
     });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl">
+    <form onSubmit={handleSubmit} className="max-w-3xl">
       <Card className="space-y-4 p-6">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -162,6 +170,8 @@ export function TenantForm({ initial }: Props) {
             Adicionados ao set padrão. Cada pipeline pode ter seus próprios motivos.
           </p>
         </div>
+
+        <DocumentBrandingFields value={form.documents} onChange={(v) => set("documents", v)} />
 
         <div className="flex justify-end">
           <Button type="submit" disabled={isPending}>

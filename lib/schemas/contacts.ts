@@ -45,6 +45,27 @@ export const contactCreateSchema = z.object({
   source: z.string().min(1).default("manual"),
   source_metadata: z.record(z.string(), z.unknown()).optional(),
   consent: z.record(z.string(), z.unknown()).optional(),
+
+  // Endereço e documento fiscal (migration 0068) — o que os documentos impressos
+  // (orçamento / O.S. / recibo) precisam imprimir. Todos opcionais: o CRM segue
+  // funcionando com contato que só tem nome.
+  //
+  // `document_number` guarda CPF **ou** CNPJ em texto plano e é DIFERENTE de
+  // `cpf` acima, que é cifrado com pgcrypto. É dado pessoal: anulado na
+  // anonimização pelo trigger trg_contacts_redact_address.
+  document_number: z.string().trim().max(32).optional(),
+  address: z.string().trim().max(200).optional(),
+  address_number: z.string().trim().max(20).optional(),
+  address_complement: z.string().trim().max(100).optional(),
+  district: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(120).optional(),
+  state: z
+    .string()
+    .trim()
+    .length(2, "UF deve ter 2 letras")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  cep: z.string().trim().max(12).optional(),
 });
 export type ContactCreate = z.infer<typeof contactCreateSchema>;
 

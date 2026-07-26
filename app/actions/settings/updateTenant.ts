@@ -33,7 +33,8 @@ export async function updateTenant(input: TenantInput): Promise<UpdateTenantResu
   const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const userAgent = hdrs.get("user-agent") ?? null;
 
-  // Read current settings jsonb to merge `lost_reasons_extra` non-destructively.
+  // Read current settings jsonb to merge `lost_reasons_extra` and `documents`
+  // non-destructively — outras chaves (k_energy, kwh_rate, …) precisam sobreviver.
   const { data: orgRow, error: readErr } = await supabase
     .from("organizations")
     .select("settings")
@@ -45,6 +46,7 @@ export async function updateTenant(input: TenantInput): Promise<UpdateTenantResu
   const nextSettings = {
     ...currentSettings,
     lost_reasons_extra: parsed.data.lost_reasons_extra,
+    documents: parsed.data.documents,
   };
 
   const { error } = await supabase
@@ -91,5 +93,7 @@ export async function updateTenant(input: TenantInput): Promise<UpdateTenantResu
     });
 
   revalidatePath("/app/settings/tenant");
+  revalidatePath("/app/service-orders");
+  revalidatePath("/app/service-orders/[id]/documentos", "page");
   return { ok: true };
 }

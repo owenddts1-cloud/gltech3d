@@ -28,6 +28,7 @@
     "@ai-sdk/google": "^3.0.89",
     "@ai-sdk/openai": "^3.0.53",
     "@hello-pangea/dnd": "^17.0.0",
+    "@imgly/background-removal": "^1.5.8",
     "@hookform/resolvers": "^3.9.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@phosphor-icons/react": "^2.1.10",

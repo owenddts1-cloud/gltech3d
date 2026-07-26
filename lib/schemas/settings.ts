@@ -25,6 +25,58 @@ export const profileSchema = z.object({
 });
 export type ProfileInput = z.infer<typeof profileSchema>;
 
+/**
+ * Branding dos documentos impressos, persistido em `organizations.settings.documents`.
+ *
+ * Vive no jsonb e não em colunas porque `organizations` é tabela de plataforma (fica
+ * no snapshot do baseline, não no apêndice) e nenhum destes campos é filtrado,
+ * ordenado ou joinado — é payload de renderização puro (DIRC-D). O anti-pattern de
+ * jsonb lock-in é evitado justamente por este schema: ninguém lê path cru.
+ *
+ * `display_name`, `legal_name` e `cnpj` NÃO se repetem aqui — vêm das colunas.
+ */
+const brandingAddressSchema = z.object({
+  street: z.string().trim().max(200).default(""),
+  number: z.string().trim().max(20).default(""),
+  complement: z.string().trim().max(100).default(""),
+  district: z.string().trim().max(120).default(""),
+  city: z.string().trim().max(120).default(""),
+  state: z.string().trim().max(2).default(""),
+  cep: z.string().trim().max(12).default(""),
+});
+
+export const documentBrandingSchema = z.object({
+  logo_url: z.string().trim().max(2048).default(""),
+  phone: z.string().trim().max(40).default(""),
+  email: z.string().trim().max(200).default(""),
+  site: z.string().trim().max(200).default(""),
+  instagram: z.string().trim().max(120).default(""),
+  address: brandingAddressSchema.default({}),
+  footer_note: z.string().trim().max(300).default(""),
+  default_validity_days: z.coerce.number().int().min(0).max(365).default(15),
+  default_payment_terms: z.string().trim().max(600).default(""),
+  default_warranty: z.string().trim().max(600).default(""),
+  default_delivery_estimate: z.string().trim().max(200).default(""),
+  signer_name: z.string().trim().max(200).default(""),
+  signer_role: z.string().trim().max(120).default(""),
+});
+export type DocumentBranding = z.infer<typeof documentBrandingSchema>;
+
+/** Branding vazio, já com os defaults — usado quando a org nunca configurou nada. */
+export function emptyDocumentBranding(): DocumentBranding {
+  return documentBrandingSchema.parse({});
+}
+
+/**
+ * Lê `organizations.settings.documents` com tolerância: settings corrompido ou
+ * ausente devolve os defaults em vez de derrubar a página.
+ */
+export function readDocumentBranding(settings: unknown): DocumentBranding {
+  const bag = (settings ?? {}) as Record<string, unknown>;
+  const parsed = documentBrandingSchema.safeParse(bag.documents ?? {});
+  return parsed.success ? parsed.data : emptyDocumentBranding();
+}
+
 export const tenantSchema = z.object({
   display_name: z.string().min(1).max(120),
   legal_name: z.string().min(1).max(200),
@@ -52,6 +104,7 @@ export const tenantSchema = z.object({
     .optional()
     .or(z.literal("").transform(() => null)),
   lost_reasons_extra: z.array(z.string().min(1).max(80)).max(50).default([]),
+  documents: documentBrandingSchema.default({}),
 });
 export type TenantInput = z.infer<typeof tenantSchema>;
 

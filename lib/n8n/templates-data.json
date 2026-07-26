@@ -1,0 +1,2298 @@
+[
+  {
+    "id": "tmpl_1",
+    "title": "AI product Images",
+    "category": "Geral",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "AI product imagines.json"
+  },
+  {
+    "id": "tmpl_2",
+    "title": "AI Agent for project management and meetings with Airtable and Fireflies",
+    "category": "Airtable",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "AI Agent for project management and meetings with Airtable and Fireflies.json"
+  },
+  {
+    "id": "tmpl_3",
+    "title": "AI Agent to chat with Airtable and analyze data",
+    "category": "Airtable",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (41 nós n8n)",
+    "filename": "AI Agent to chat with Airtable and analyze data.json"
+  },
+  {
+    "id": "tmpl_4",
+    "title": "Get Airtable data in Obsidian Notes",
+    "category": "Airtable",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "Get Airtable data via AI and Obsidian Notes.json"
+  },
+  {
+    "id": "tmpl_5",
+    "title": "Handling Job Application Submissions with AI and n8n Forms",
+    "category": "Airtable",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (23 nós n8n)",
+    "filename": "Handling Job Application Submissions with AI and n8n Forms.json"
+  },
+  {
+    "id": "tmpl_6",
+    "title": "OpenAI Assistant for Hubspot Chat",
+    "category": "Airtable",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (34 nós n8n)",
+    "filename": "vAssistant for Hubspot Chat using OpenAi and Airtable.json"
+  },
+  {
+    "id": "tmpl_7",
+    "title": "chrome extension backend with AI",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Analyze tradingview.com charts with Chrome extension, N8N and OpenAI.json"
+  },
+  {
+    "id": "tmpl_8",
+    "title": "[3/3] Anomaly detection tool (crops dataset)",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Automated Hugging Face Paper Summary Fetching & Categorization Workflow.json"
+  },
+  {
+    "id": "tmpl_9",
+    "title": "Autonomous AI crawler",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (38 nós n8n)",
+    "filename": "Autonomous AI crawler.json"
+  },
+  {
+    "id": "tmpl_10",
+    "title": "Bilig WorkPaper MCP formula engine for n8n agents",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (4 nós n8n)",
+    "filename": "Bilig WorkPaper MCP formula engine for n8n agents.json"
+  },
+  {
+    "id": "tmpl_11",
+    "title": "Build a Financial Documents Assistant using Qdrant and Mistral.ai",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (29 nós n8n)",
+    "filename": "Build a Financial Documents Assistant using Qdrant and Mistral.ai.json"
+  },
+  {
+    "id": "tmpl_12",
+    "title": "Build a Tax Code Assistant with Qdrant, Mistral.ai and OpenAI",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (38 nós n8n)",
+    "filename": "Build a Tax Code Assistant with Qdrant, Mistral.ai and OpenAI.json"
+  },
+  {
+    "id": "tmpl_13",
+    "title": "Build Your Own Image Search Using AI Object Detection, CDN and ElasticSearch",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Build Your Own Image Search Using AI Object Detection, CDN and ElasticSearch.json"
+  },
+  {
+    "id": "tmpl_14",
+    "title": "Building RAG Chatbot for Movie Recommendations with Qdrant and Open AI",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (27 nós n8n)",
+    "filename": "Building RAG Chatbot for Movie Recommendations with Qdrant and Open AI.json"
+  },
+  {
+    "id": "tmpl_15",
+    "title": "Chat with GitHub OpenAPI Specification using RAG (Pinecone and OpenAI)",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Chat with GitHub API Documentation_ RAG-Powered Chatbot with Pinecone & OpenAI.json"
+  },
+  {
+    "id": "tmpl_16",
+    "title": "Google Analytics: Weekly Report",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "Create a Google Analytics Data Report with AI and sent it to E-Mail and Telegram.json"
+  },
+  {
+    "id": "tmpl_17",
+    "title": "Customer Insights with Qdrant, Python and Information Extractor",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (37 nós n8n)",
+    "filename": "Customer Insights with Qdrant, Python and Information Extractor.json"
+  },
+  {
+    "id": "tmpl_18",
+    "title": "DataForge Lite — Single URL AI Scraper",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "DataForge Lite - AI URL Data Extractor.json"
+  },
+  {
+    "id": "tmpl_19",
+    "title": "Deduplicate Scraping AI Grants for Eligibility using AI",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (24 nós n8n)",
+    "filename": "Deduplicate Scraping AI Grants for Eligibility using AI.json"
+  },
+  {
+    "id": "tmpl_20",
+    "title": "Enrich Property Inventory Survey with Image Recognition and AI Agent",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (29 nós n8n)",
+    "filename": "Enrich Property Inventory Survey with Image Recognition and AI Agent.json"
+  },
+  {
+    "id": "tmpl_21",
+    "title": "Extract insights & analyse YouTube comments via AI Agent chat",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (29 nós n8n)",
+    "filename": "Extract insights & analyse YouTube comments via AI Agent chat.json"
+  },
+  {
+    "id": "tmpl_22",
+    "title": "Generate SEO Seed Keywords Using AI",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "Generate SEO Seed Keywords Using AI.json"
+  },
+  {
+    "id": "tmpl_23",
+    "title": "HN Who is Hiring Scrape",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (20 nós n8n)",
+    "filename": "Hacker News Job Listing Scraper and Parser.json"
+  },
+  {
+    "id": "tmpl_24",
+    "title": "Hacker News to Video Template - AlexK1919",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (48 nós n8n)",
+    "filename": "Hacker News to Video Content.json"
+  },
+  {
+    "id": "tmpl_25",
+    "title": "Host Your Own AI Deep Research Agent with n8n, Apify and OpenAI o3",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech.",
+    "filename": "Host Your Own AI Deep Research Agent with n8n, Apify and OpenAI o3.json"
+  },
+  {
+    "id": "tmpl_26",
+    "title": "Intelligent Web Query and Semantic Re-Ranking Flow",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (20 nós n8n)",
+    "filename": "Intelligent Web Query and Semantic Re-Ranking Flow using Brave and Google Gemini.json"
+  },
+  {
+    "id": "tmpl_27",
+    "title": "Learn Anything from HN - Get Top Resource Recommendations from Hacker News",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "Learn Anything from HN - Get Top Resource Recommendations from Hacker News.json"
+  },
+  {
+    "id": "tmpl_28",
+    "title": "Live Web Research Agent with Superhighway",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "Live Web Research Agent with Superhighway.json"
+  },
+  {
+    "id": "tmpl_29",
+    "title": "Make OpenAI Citation for File Retrieval RAG",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (19 nós n8n)",
+    "filename": "Make OpenAI Citation for File Retrieval RAG.json"
+  },
+  {
+    "id": "tmpl_30",
+    "title": "Open Deep Research - AI-Powered Autonomous Research Workflow",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Open Deep Research - AI-Powered Autonomous Research Workflow.json"
+  },
+  {
+    "id": "tmpl_31",
+    "title": "Query Perplexity AI from your n8n workflows",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "Query Perplexity AI from your n8n workflows.json"
+  },
+  {
+    "id": "tmpl_32",
+    "title": "Recipe Recommendations with Qdrant and Mistral",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech.",
+    "filename": "Recipe Recommendations with Qdrant and Mistral.json"
+  },
+  {
+    "id": "tmpl_33",
+    "title": "Reconcile Rent Payments with Local Excel Spreadsheet and OpenAI",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Reconcile Rent Payments with Local Excel Spreadsheet and OpenAI.json"
+  },
+  {
+    "id": "tmpl_34",
+    "title": "News Extraction",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (36 nós n8n)",
+    "filename": "Scrape and summarize posts of a news site without RSS feed using AI and save them to a NocoDB.json"
+  },
+  {
+    "id": "tmpl_35",
+    "title": "Scrape and summarize webpages with AI",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "Scrape and summarize webpages with AI.json"
+  },
+  {
+    "id": "tmpl_36",
+    "title": "Scrape Trustpilot Reviews with DeepSeek, Analyze Sentiment with OpenAI",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (20 nós n8n)",
+    "filename": "Scrape Trustpilot Reviews with DeepSeek, Analyze Sentiment with OpenAI.json"
+  },
+  {
+    "id": "tmpl_37",
+    "title": "Google analytics template",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (22 nós n8n)",
+    "filename": "Send Google analytics data to A.I. to analyze then save results in Baserow.json"
+  },
+  {
+    "id": "tmpl_38",
+    "title": "SocialPulse Lite — Single Source Monitor (Reddit Only)",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "SocialPulse Lite - Reddit Trend Monitor.json"
+  },
+  {
+    "id": "tmpl_39",
+    "title": "Spot Workplace Discrimination Patterns with AI",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (38 nós n8n)",
+    "filename": "Spot Workplace Discrimination Patterns with AI.json"
+  },
+  {
+    "id": "tmpl_40",
+    "title": "SERPBear analytics template",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "Summarize SERPBear data with AI (via Openrouter) and save it to Baserow.json"
+  },
+  {
+    "id": "tmpl_41",
+    "title": "Umami analytics template",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Summarize Umami data with AI (via Openrouter) and save it to Baserow.json"
+  },
+  {
+    "id": "tmpl_42",
+    "title": "Survey Insights with Qdrant, Python and Information Extractor",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (42 nós n8n)",
+    "filename": "Survey Insights with Qdrant, Python and Information Extractor.json"
+  },
+  {
+    "id": "tmpl_43",
+    "title": "Selenium Ultimate Scraper Workflow",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (63 nós n8n)",
+    "filename": "Ultimate Scraper Workflow for n8n.json"
+  },
+  {
+    "id": "tmpl_44",
+    "title": "[1/3 - anomaly detection] [1/2 - KNN classification] Batch upload dataset to Qdrant (crops dataset)",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (25 nós n8n)",
+    "filename": "Vector Database as a Big Data Analysis Tool for AI Agents [1_3 anomaly][1_2 KNN].json"
+  },
+  {
+    "id": "tmpl_45",
+    "title": "[2/2] KNN classifier (lands dataset)",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "Vector Database as a Big Data Analysis Tool for AI Agents [2_2 KNN].json"
+  },
+  {
+    "id": "tmpl_46",
+    "title": "[2/3] Set up medoids (2 types) for anomaly detection (crops dataset)",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (48 nós n8n)",
+    "filename": "Vector Database as a Big Data Analysis Tool for AI Agents [2_3 - anomaly].json"
+  },
+  {
+    "id": "tmpl_47",
+    "title": "[3/3] Anomaly detection tool (crops dataset)",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Vector Database as a Big Data Analysis Tool for AI Agents [3_3 - anomaly].json"
+  },
+  {
+    "id": "tmpl_48",
+    "title": "Visual Regression Testing with Apify and AI Vision Model",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (34 nós n8n)",
+    "filename": "Visual Regression Testing with Apify and AI Vision Model.json"
+  },
+  {
+    "id": "tmpl_49",
+    "title": "🔍 Perplexity Research to HTML_ AI-Powered Content Creation",
+    "category": "AI Research RAG and Data Analysis",
+    "description": "Template nativo de automação n8n importado do repositório GLTech.",
+    "filename": "🔍 Perplexity Research to HTML_ AI-Powered Content Creation.json"
+  },
+  {
+    "id": "tmpl_50",
+    "title": "Chat with Postgresql Database",
+    "category": "Database and Storage",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "Chat with Postgresql Database.json"
+  },
+  {
+    "id": "tmpl_51",
+    "title": "Generate SQL queries from schema only - AI-powered",
+    "category": "Database and Storage",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (29 nós n8n)",
+    "filename": "Generate SQL queries from schema only - AI-powered.json"
+  },
+  {
+    "id": "tmpl_52",
+    "title": "MongoDB Agent",
+    "category": "Database and Storage",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "MongoDB AI Agent - Intelligent Movie Recommendations.json"
+  },
+  {
+    "id": "tmpl_53",
+    "title": "Supabase Insertion & Upsertion & Retrieval",
+    "category": "Database and Storage",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (21 nós n8n)",
+    "filename": "Supabase Insertion & Upsertion & Retrieval.json"
+  },
+  {
+    "id": "tmpl_54",
+    "title": "SQL agent with memory",
+    "category": "Database and Storage",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "Talk to your SQLite database with a LangChain AI Agent.json"
+  },
+  {
+    "id": "tmpl_55",
+    "title": "Start/Stop a Docker service",
+    "category": "devops",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "docker-compose-controller.json"
+  },
+  {
+    "id": "tmpl_56",
+    "title": "Update Server",
+    "category": "devops",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (4 nós n8n)",
+    "filename": "linux-update-via-webhook.json"
+  },
+  {
+    "id": "tmpl_57",
+    "title": "Discord AI bot",
+    "category": "Discord",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "Discord AI-powered bot.json"
+  },
+  {
+    "id": "tmpl_58",
+    "title": "Send daily translated Calvin and Hobbes Comics to Discord",
+    "category": "Discord",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "Send daily translated Calvin and Hobbes Comics to Discord.json"
+  },
+  {
+    "id": "tmpl_59",
+    "title": "YouTube Videos with AI Summaries on Discord",
+    "category": "Discord",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "Share YouTube Videos with AI Summaries on Discord.json"
+  },
+  {
+    "id": "tmpl_60",
+    "title": "Conversational Interviews with AI Agents and n8n Forms",
+    "category": "Forms and Surveys",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (40 nós n8n)",
+    "filename": "Conversational Interviews with AI Agents and n8n Forms.json"
+  },
+  {
+    "id": "tmpl_61",
+    "title": "Email Subscription Service with n8n Forms, Airtable and AI",
+    "category": "Forms and Surveys",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (32 nós n8n)",
+    "filename": "Email Subscription Service with n8n Forms, Airtable and AI.json"
+  },
+  {
+    "id": "tmpl_62",
+    "title": "Qualifying Appointment Requests with AI & n8n Forms",
+    "category": "Forms and Surveys",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (25 nós n8n)",
+    "filename": "Qualifying Appointment Requests with AI & n8n Forms.json"
+  },
+  {
+    "id": "tmpl_63",
+    "title": "Tunova — Generate a song from a form",
+    "category": "Forms and Surveys",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Tunova - Generate a song from a form.json"
+  },
+  {
+    "id": "tmpl_64",
+    "title": "Very simple Human in the loop system email with AI e IMAP",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (16 nós n8n)",
+    "filename": "A Very Simple _Human in the Loop_ Email Response System Using AI and IMAP.json"
+  },
+  {
+    "id": "tmpl_65",
+    "title": "AI Email Auto-Responder (Ollama)",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "AI Email Auto-Responder with Ollama.json"
+  },
+  {
+    "id": "tmpl_66",
+    "title": "AI Email processing autoresponder with approval (Yes/No)",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "AI-powered email processing autoresponder and response approval (Yes_No).json"
+  },
+  {
+    "id": "tmpl_67",
+    "title": "Analyze & Sort Suspicious Email Contents with ChatGPT",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (25 nós n8n)",
+    "filename": "Analyze & Sort Suspicious Email Contents with ChatGPT.json"
+  },
+  {
+    "id": "tmpl_68",
+    "title": "Analyze Suspicious Email Contents with ChatGPT Vision",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "Analyze Suspicious Email Contents with ChatGPT Vision.json"
+  },
+  {
+    "id": "tmpl_69",
+    "title": "Auto Categorise Outlook Emails with AI",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (36 nós n8n)",
+    "filename": "Auto Categorise Outlook Emails with AI.json"
+  },
+  {
+    "id": "tmpl_70",
+    "title": "Auto-label incoming Gmail messages with AI nodes",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (19 nós n8n)",
+    "filename": "Auto-label incoming Gmail messages with AI nodes.json"
+  },
+  {
+    "id": "tmpl_71",
+    "title": "Basic Automatic Gmail Email Labelling with OpenAI and Gmail API",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "Basic Automatic Gmail Email Labelling with OpenAI and Gmail API.json"
+  },
+  {
+    "id": "tmpl_72",
+    "title": "Classify lemlist replies using OpenAI and automate reply handling",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "Classify lemlist replies using OpenAI and automate reply handling.json"
+  },
+  {
+    "id": "tmpl_73",
+    "title": "Compose reply draft in Gmail with OpenAI Assistant",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (23 nós n8n)",
+    "filename": "Compose reply draft in Gmail with OpenAI Assistant.json"
+  },
+  {
+    "id": "tmpl_74",
+    "title": "create e-mail responses with fastmail and OpenAI",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "create e-mail responses with fastmail and OpenAI.json"
+  },
+  {
+    "id": "tmpl_75",
+    "title": "03 - Rassegna email mattutina con AI",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "Daily AI digest of unread emails to Telegram (Italian).json"
+  },
+  {
+    "id": "tmpl_76",
+    "title": "Daily IMAP Email Summary to Telegram (Local Ollama)",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "Daily Email Notification.json"
+  },
+  {
+    "id": "tmpl_77",
+    "title": "Effortless Email Management with AI",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (31 nós n8n)",
+    "filename": "Effortless Email Management with AI-Powered Summarization & Review.json"
+  },
+  {
+    "id": "tmpl_78",
+    "title": "Email Summary Agent",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "Email Summary Agent.json"
+  },
+  {
+    "id": "tmpl_79",
+    "title": "Extract spend details (template)",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (24 nós n8n)",
+    "filename": "Extract spending history from gmail to google sheet.json"
+  },
+  {
+    "id": "tmpl_80",
+    "title": "Gmail AI auto-responder: create draft replies to incoming emails",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Gmail AI Auto-Responder_ Create Draft Replies to incoming emails.json"
+  },
+  {
+    "id": "tmpl_81",
+    "title": "InboxZero Lite — Simple Email Classifier (Log Only)",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "InboxZero Lite - AI Email Classifier.json"
+  },
+  {
+    "id": "tmpl_82",
+    "title": "LeadPilot Lite — Manual Lead Email Writer",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "LeadPilot Lite - AI Cold Email Writer.json"
+  },
+  {
+    "id": "tmpl_83",
+    "title": "Microsoft Outlook AI Email Assistant",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (28 nós n8n)",
+    "filename": "Microsoft Outlook AI Email Assistant with contact support from Monday and Airtable.json"
+  },
+  {
+    "id": "tmpl_84",
+    "title": "Contact Form Text Classifier for eCommerce",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "Modular & Customizable AI-Powered Email Routing_ Text Classifier for eCommerce.json"
+  },
+  {
+    "id": "tmpl_85",
+    "title": "Send a ChatGPT email reply and save responses to Google Sheets",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (49 nós n8n)",
+    "filename": "Send a ChatGPT email reply and save responses to Google Sheets.json"
+  },
+  {
+    "id": "tmpl_86",
+    "title": "Send specific PDF attachments from Gmail to Google Drive using OpenAI",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "Send specific PDF attachments from Gmail to Google Drive using OpenAI.json"
+  },
+  {
+    "id": "tmpl_87",
+    "title": "Summarize emails with A.I. then send to messenger",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "Summarize your emails with A.I. (via Openrouter) and send to Line messenger.json"
+  },
+  {
+    "id": "tmpl_88",
+    "title": "Personalized Cold Email Writer (Lite)",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "Website-Grounded Cold Email Writer.json"
+  },
+  {
+    "id": "tmpl_89",
+    "title": "📈 Receive Daily Market News from FT.com to your Microsoft outlook inbox",
+    "category": "Gmail and Email Automation",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "📈 Receive Daily Market News from FT.com to your Microsoft outlook inbox.json"
+  },
+  {
+    "id": "tmpl_90",
+    "title": "Airtable to Google Sheets Auto-Sync",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (3 nós n8n)",
+    "filename": "Airtable to Google Sheets Auto-Sync.json"
+  },
+  {
+    "id": "tmpl_91",
+    "title": "Blog Automation TEMPLATE",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (35 nós n8n)",
+    "filename": "Author and Publish Blog Posts From Google Sheets.json"
+  },
+  {
+    "id": "tmpl_92",
+    "title": "Fine-tuning with OpenAI models",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "Automated End-to-End Fine-Tuning of OpenAI Models with Google Drive Integration.json"
+  },
+  {
+    "id": "tmpl_93",
+    "title": "Remove Advanced Background from Google Drive Images",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (16 nós n8n)",
+    "filename": "Automatic Background Removal for Images in Google Drive.json"
+  },
+  {
+    "id": "tmpl_94",
+    "title": "02 - Promemoria scadenze pagamenti",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Automatic payment reminders from Google Sheets (Italian).json"
+  },
+  {
+    "id": "tmpl_95",
+    "title": "Build an OpenAI Assistant with Google Drive Integration",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Build an OpenAI Assistant with Google Drive Integration.json"
+  },
+  {
+    "id": "tmpl_96",
+    "title": "Chat with Google Sheet",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (19 nós n8n)",
+    "filename": "Chat with a Google Sheet using AI.json"
+  },
+  {
+    "id": "tmpl_97",
+    "title": "Telegram-bot AI Da Nang",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (23 nós n8n)",
+    "filename": "Chat with your event schedule from Google Sheets in Telegram.json"
+  },
+  {
+    "id": "tmpl_98",
+    "title": "AI Logo Sheet Extractor to Airtable",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (44 nós n8n)",
+    "filename": "Extract Information from a Logo Sheet using forms, AI, Google Sheet and Airtable.json"
+  },
+  {
+    "id": "tmpl_99",
+    "title": "Flux Dev Image Generation Fal.ai",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Flux Dev Image Generation (Fal.ai) to Google Drive.json"
+  },
+  {
+    "id": "tmpl_100",
+    "title": "Qualify new leads in Google Sheets via OpenAI's GPT-4",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "Qualify new leads in Google Sheets via OpenAI_s GPT-4.json"
+  },
+  {
+    "id": "tmpl_101",
+    "title": "RAG Workflow For Company Documents stored in Google Drive",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "RAG Chatbot for Company Documents using Google Drive and Gemini.json"
+  },
+  {
+    "id": "tmpl_102",
+    "title": "RAG:Context-Aware Chunking | Google Drive to Pinecone via OpenRouter & Gemini",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "RAG_Context-Aware Chunking _ Google Drive to Pinecone via OpenRouter & Gemini.json"
+  },
+  {
+    "id": "tmpl_103",
+    "title": "AI CV Screening Workflow",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "Screen Applicants With AI, notify HR and save them in a Google Sheet.json"
+  },
+  {
+    "id": "tmpl_104",
+    "title": "AI agent: expense tracker in Google Sheets and n8n chat",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "Simple Expense Tracker with n8n Chat, AI Agent and Google Sheets.json"
+  },
+  {
+    "id": "tmpl_105",
+    "title": "Summarize Google Sheets form feedback via OpenAI's GPT-4",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "Summarize Google Sheets form feedback via OpenAI_s GPT-4.json"
+  },
+  {
+    "id": "tmpl_106",
+    "title": "Google Doc Summarizer to Google Sheets",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Summarize the New Documents from Google Drive and Save Summary in Google Sheet.json"
+  },
+  {
+    "id": "tmpl_107",
+    "title": "template in store",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "Upload to Instagram and Tiktok from Google Drive.json"
+  },
+  {
+    "id": "tmpl_108",
+    "title": "01 - Lead dal sito → Registro + Notifiche",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "Website leads to Google Sheets with Telegram alert and auto-reply (Italian).json"
+  },
+  {
+    "id": "tmpl_109",
+    "title": "Vision-Based AI Agent Scraper - with Google Sheets, ScrapingBee, and Gemini",
+    "category": "Google Drive and Google Sheets",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (29 nós n8n)",
+    "filename": "✨ Vision-Based AI Agent Scraper - with Google Sheets, ScrapingBee, and Gemini.json"
+  },
+  {
+    "id": "tmpl_110",
+    "title": "BambooHR AI-Powered Company Policies and Benefits Chatbot",
+    "category": "HR and Recruitment",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (50 nós n8n)",
+    "filename": "BambooHR AI-Powered Company Policies and Benefits Chatbot.json"
+  },
+  {
+    "id": "tmpl_111",
+    "title": "CV Screening with OpenAI",
+    "category": "HR and Recruitment",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "CV Screening with OpenAI.json"
+  },
+  {
+    "id": "tmpl_112",
+    "title": "HR & IT Helpdesk Chatbot with Audio Transcription",
+    "category": "HR and Recruitment",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (27 nós n8n)",
+    "filename": "HR & IT Helpdesk Chatbot with Audio Transcription.json"
+  },
+  {
+    "id": "tmpl_113",
+    "title": "HR Job Posting and Evaluation with AI",
+    "category": "HR and Recruitment",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (36 nós n8n)",
+    "filename": "HR Job Posting and Evaluation with AI.json"
+  },
+  {
+    "id": "tmpl_114",
+    "title": "InstaTest",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "AI agent for Instagram DM_inbox. Manychat + Open AI integration.json"
+  },
+  {
+    "id": "tmpl_115",
+    "title": "AI Social Media Content Generator (Ollama)",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "AI Social Media Content Generator with Ollama.json"
+  },
+  {
+    "id": "tmpl_116",
+    "title": "Create dynamic Twitter profile banner",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Create dynamic Twitter profile banner.json"
+  },
+  {
+    "id": "tmpl_117",
+    "title": "FlowScribe Lite — Quick 4-Platform Repurpose",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "FlowScribe Lite - AI Content Repurposing 4 Platforms.json"
+  },
+  {
+    "id": "tmpl_118",
+    "title": "Generate Instagram Content from Top Trends with AI Image Generation",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (44 nós n8n)",
+    "filename": "Generate Instagram Content from Top Trends with AI Image Generation.json"
+  },
+  {
+    "id": "tmpl_119",
+    "title": "Article to Thread + LinkedIn Post (Lite)",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (4 nós n8n)",
+    "filename": "Grounded Article to Thread and LinkedIn Post.json"
+  },
+  {
+    "id": "tmpl_120",
+    "title": "Monitor X Search with Xquik",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Monitor X Search with Xquik.json"
+  },
+  {
+    "id": "tmpl_121",
+    "title": "OpenAI-powered tweet generator",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "OpenAI-powered tweet generator.json"
+  },
+  {
+    "id": "tmpl_122",
+    "title": "Post New YouTube Videos to X",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "Post New YouTube Videos to X.json"
+  },
+  {
+    "id": "tmpl_123",
+    "title": "Reddit AI digest",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "Reddit AI digest.json"
+  },
+  {
+    "id": "tmpl_124",
+    "title": "Social Media Analysis and Automated Email Generation",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (19 nós n8n)",
+    "filename": "Social Media Analysis and Automated Email Generation.json"
+  },
+  {
+    "id": "tmpl_125",
+    "title": "Speed Up Social Media Banners With BannerBear.com",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (16 nós n8n)",
+    "filename": "Speed Up Social Media Banners With BannerBear.com.json"
+  },
+  {
+    "id": "tmpl_126",
+    "title": "Twitter Virtual AI Influencer",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Twitter Virtual AI Influencer.json"
+  },
+  {
+    "id": "tmpl_127",
+    "title": "Update Twitter banner using HTTP request",
+    "category": "Instagram Twitter Social Media",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (4 nós n8n)",
+    "filename": "Update Twitter banner using HTTP request.json"
+  },
+  {
+    "id": "tmpl_128",
+    "title": "Add positive feedback messages to a table in Notion",
+    "category": "Notion",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "Add positive feedback messages to a table in Notion.json"
+  },
+  {
+    "id": "tmpl_129",
+    "title": "Hugging Face to Notion",
+    "category": "Notion",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "Analyse papers from Hugging Face with AI and store them in Notion.json"
+  },
+  {
+    "id": "tmpl_130",
+    "title": "Automate Competitor Research with Exa.ai, Notion and AI Agents",
+    "category": "Notion",
+    "description": "Template nativo de automação n8n importado do repositório GLTech.",
+    "filename": "Automate Competitor Research with Exa.ai, Notion and AI Agents.json"
+  },
+  {
+    "id": "tmpl_131",
+    "title": "Automate LinkedIn Posts with AI",
+    "category": "Notion",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "Automate LinkedIn Outreach with Notion and OpenAI.json"
+  },
+  {
+    "id": "tmpl_132",
+    "title": "Notion AI Assistant Generator",
+    "category": "Notion",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (24 nós n8n)",
+    "filename": "Notion AI Assistant Generator.json"
+  },
+  {
+    "id": "tmpl_133",
+    "title": "Notion knowledge base AI assistant",
+    "category": "Notion",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Notion knowledge base AI assistant.json"
+  },
+  {
+    "id": "tmpl_134",
+    "title": "Prod: Notion to Vector Store - Dimension 768",
+    "category": "Notion",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "Notion to Pinecone Vector Store Integration.json"
+  },
+  {
+    "id": "tmpl_135",
+    "title": "Store Notion's Pages as Vector Documents into Supabase with OpenAI",
+    "category": "Notion",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "Store Notion_s Pages as Vector Documents into Supabase with OpenAI.json"
+  },
+  {
+    "id": "tmpl_136",
+    "title": "mails2notion V2",
+    "category": "Notion",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (38 nós n8n)",
+    "filename": "Turn Emails into AI-Enhanced Tasks in Notion (Multi-User Support) with Gmail, Airtable and Softr.json"
+  },
+  {
+    "id": "tmpl_137",
+    "title": "RAG on living data",
+    "category": "Notion",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (34 nós n8n)",
+    "filename": "Upsert huge documents in a vector store with Supabase and Notion.json"
+  },
+  {
+    "id": "tmpl_138",
+    "title": "Actioning Your Meeting Next Steps using Transcripts and AI",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (28 nós n8n)",
+    "filename": "Actioning Your Meeting Next Steps using Transcripts and AI.json"
+  },
+  {
+    "id": "tmpl_139",
+    "title": "Advanced AI Demo (Presented at AI Developers #14 meetup)",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (39 nós n8n)",
+    "filename": "Advanced AI Demo (Presented at AI Developers #14 meetup).json"
+  },
+  {
+    "id": "tmpl_140",
+    "title": "AI agent chat",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "AI agent chat.json"
+  },
+  {
+    "id": "tmpl_141",
+    "title": "AI Agent for realtime insights on meetings",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (19 nós n8n)",
+    "filename": "AI Agent for realtime insights on meetings.json"
+  },
+  {
+    "id": "tmpl_142",
+    "title": "Agent with custom HTTP Request",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (20 nós n8n)",
+    "filename": "AI agent that can scrape webpages.json"
+  },
+  {
+    "id": "tmpl_143",
+    "title": "AI Agent To Chat With Files In Supabase Storage",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (33 nós n8n)",
+    "filename": "AI Agent To Chat With Files In Supabase Storage.json"
+  },
+  {
+    "id": "tmpl_144",
+    "title": "AI Agent to chat with Supabase_PostgreSQL DB",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "AI Agent to chat with Supabase_PostgreSQL DB.json"
+  },
+  {
+    "id": "tmpl_145",
+    "title": "AI Agent to chat with you Search Console Data, using OpenAI and Postgres",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (30 nós n8n)",
+    "filename": "AI Agent to chat with you Search Console Data, using OpenAI and Postgres.json"
+  },
+  {
+    "id": "tmpl_146",
+    "title": "AI Agent with Ollama for current weather and wiki",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "AI Agent with Ollama for current weather and wiki.json"
+  },
+  {
+    "id": "tmpl_147",
+    "title": "AI Agent : Google calendar assistant using OpenAI",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "AI Agent _ Google calendar assistant using OpenAI.json"
+  },
+  {
+    "id": "tmpl_148",
+    "title": "HR-focused automation pipeline with AI",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "AI Automated HR Workflow for CV Analysis and Candidate Evaluation.json"
+  },
+  {
+    "id": "tmpl_149",
+    "title": "AI Blog Writer Pipeline (Ollama)",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "AI Blog Writer Pipeline with Ollama.json"
+  },
+  {
+    "id": "tmpl_150",
+    "title": "AI chat with any data source (using the n8n workflow tool)",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "AI chat with any data source (using the n8n workflow tool).json"
+  },
+  {
+    "id": "tmpl_151",
+    "title": "AI chatbot that can search the web",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "AI chatbot that can search the web.json"
+  },
+  {
+    "id": "tmpl_152",
+    "title": "Stock Q&A Workflow",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "AI Crew to Automate Fundamental Stock Analysis - Q&A Workflow.json"
+  },
+  {
+    "id": "tmpl_153",
+    "title": "AI Customer feedback sentiment analysis",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "AI Customer feedback sentiment analysis.json"
+  },
+  {
+    "id": "tmpl_154",
+    "title": "AI Data Extraction with Dynamic Prompts and Airtable",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (51 nós n8n)",
+    "filename": "AI Data Extraction with Dynamic Prompts and Airtable.json"
+  },
+  {
+    "id": "tmpl_155",
+    "title": "AI Data Extraction with Dynamic Prompts and Baserow",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (45 nós n8n)",
+    "filename": "AI Data Extraction with Dynamic Prompts and Baserow.json"
+  },
+  {
+    "id": "tmpl_156",
+    "title": "AI Fitness Coach Strava Data Analysis and Personalized Training Insights",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "AI Fitness Coach Strava Data Analysis and Personalized Training Insights.json"
+  },
+  {
+    "id": "tmpl_157",
+    "title": "AI Powered Web Scraping with Jina, Google Sheets and OpenAI _ the EASY way",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "AI Powered Web Scraping with Jina, Google Sheets and OpenAI _ the EASY way.json"
+  },
+  {
+    "id": "tmpl_158",
+    "title": "AI Social Media Caption Creator",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "AI Social Media Caption Creator creates social media post captions in Airtable.json"
+  },
+  {
+    "id": "tmpl_159",
+    "title": "AI Voice Chat using Webhook, Memory Manager, OpenAI, Google Gemini & ElevenLabs",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "AI Voice Chat using Webhook, Memory Manager, OpenAI, Google Gemini & ElevenLabs.json"
+  },
+  {
+    "id": "tmpl_160",
+    "title": "Voice RAG Chatbot with ElevenLabs and OpenAI",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (23 nós n8n)",
+    "filename": "AI Voice Chatbot with ElevenLabs & OpenAI for Customer Service and Restaurants.json"
+  },
+  {
+    "id": "tmpl_161",
+    "title": "AI web researcher for sales",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (22 nós n8n)",
+    "filename": "AI web researcher for sales.json"
+  },
+  {
+    "id": "tmpl_162",
+    "title": "Complete Youtube",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "AI Youtube Trend Finder Based On Niche.json"
+  },
+  {
+    "id": "tmpl_163",
+    "title": "AI-Driven Lead Management and Inquiry Automation with ERPNext & n8n",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech.",
+    "filename": "AI-Driven Lead Management and Inquiry Automation with ERPNext & n8n.json"
+  },
+  {
+    "id": "tmpl_164",
+    "title": "AI-Generated Summary Block for WordPress Posts - with OpenAI, WordPress, Google Sheets & Slack",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (32 nós n8n)",
+    "filename": "AI-Generated Summary Block for WordPress Posts.json"
+  },
+  {
+    "id": "tmpl_165",
+    "title": "AI-Powered Candidate Shortlisting Automation for ERPNext",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (39 nós n8n)",
+    "filename": "AI-Powered Candidate Shortlisting Automation for ERPNext.json"
+  },
+  {
+    "id": "tmpl_166",
+    "title": "Email AI Auto-responder. Summerize and send email",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (26 nós n8n)",
+    "filename": "AI-Powered Email Automation for Business_ Summarize & Respond with RAG.json"
+  },
+  {
+    "id": "tmpl_167",
+    "title": "RAG Workflow For Stock Earnings Report Analysis",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "AI-Powered RAG Workflow For Stock Earnings Report Analysis.json"
+  },
+  {
+    "id": "tmpl_168",
+    "title": "Social Media AI Agent - Telegram",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (26 nós n8n)",
+    "filename": "AI-Powered Social Media Amplifier.json"
+  },
+  {
+    "id": "tmpl_169",
+    "title": "AI-powered WooCommerce Support-Agent",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (40 nós n8n)",
+    "filename": "AI-powered WooCommerce Support-Agent.json"
+  },
+  {
+    "id": "tmpl_170",
+    "title": "LangChain - Example - Workflow Retriever",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "AI_ Ask questions about any data source (using the n8n workflow retriever).json"
+  },
+  {
+    "id": "tmpl_171",
+    "title": "Podcast Digest",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (19 nós n8n)",
+    "filename": "AI_ Summarize podcast episode and enhance using Wikipedia.json"
+  },
+  {
+    "id": "tmpl_172",
+    "title": "Ask a human",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Ask a human for help when the AI doesn_t know the answer.json"
+  },
+  {
+    "id": "tmpl_173",
+    "title": "Automate Customer Support Issue Resolution using AI Text Classifier",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (36 nós n8n)",
+    "filename": "Automate Customer Support Issue Resolution using AI Text Classifier.json"
+  },
+  {
+    "id": "tmpl_174",
+    "title": "Automate Image Validation Tasks using AI Vision",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "Automate Image Validation Tasks using AI Vision.json"
+  },
+  {
+    "id": "tmpl_175",
+    "title": "Automate Your RFP Process with OpenAI Assistants",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (23 nós n8n)",
+    "filename": "Automate Your RFP Process with OpenAI Assistants.json"
+  },
+  {
+    "id": "tmpl_176",
+    "title": "modelo do chatbot",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Chat Assistant (OpenAI assistant) with Postgres Memory And API Calling Capabalities.json"
+  },
+  {
+    "id": "tmpl_177",
+    "title": "Chat with local LLMs using n8n and Ollama",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Chat with local LLMs using n8n and Ollama.json"
+  },
+  {
+    "id": "tmpl_178",
+    "title": "Chat with OpenAI Assistant (by adding a memory)",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "Chat with OpenAI Assistant (by adding a memory).json"
+  },
+  {
+    "id": "tmpl_179",
+    "title": "[n8n Template] AI Content Generator",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Claude AI Content Generator.json"
+  },
+  {
+    "id": "tmpl_180",
+    "title": "[n8n Template] Claude AI LINE Chatbot",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Claude AI LINE Chatbot.json"
+  },
+  {
+    "id": "tmpl_181",
+    "title": "[n8n Template] AI Morning Brief",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (4 nós n8n)",
+    "filename": "Claude AI Morning Brief.json"
+  },
+  {
+    "id": "tmpl_182",
+    "title": "[n8n Template] Smart Webhook AI Router",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Claude Smart Webhook AI Router.json"
+  },
+  {
+    "id": "tmpl_183",
+    "title": "Image Generation API",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "Configure your own Image Creation API Using OpenAI DALLE-3.json"
+  },
+  {
+    "id": "tmpl_184",
+    "title": "Text to Speech (OpenAI)",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "Convert text to speech with OpenAI.json"
+  },
+  {
+    "id": "tmpl_185",
+    "title": "Create a Branded AI-Powered Website Chatbot",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (24 nós n8n)",
+    "filename": "Create a Branded AI-Powered Website Chatbot.json"
+  },
+  {
+    "id": "tmpl_186",
+    "title": "LangChain - Example - Code Node Example",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "Custom LangChain agent written in JavaScript.json"
+  },
+  {
+    "id": "tmpl_187",
+    "title": "Daily meetings summarization with Gemini AI",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "Daily meetings summarization with Gemini AI.json"
+  },
+  {
+    "id": "tmpl_188",
+    "title": "Daily Podcast Summary",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (21 nós n8n)",
+    "filename": "Daily Podcast Summary.json"
+  },
+  {
+    "id": "tmpl_189",
+    "title": "DaoXE Multi-Model Chat with Automatic Fallback",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "DaoXE Multi-Model Chat with Automatic Fallback.json"
+  },
+  {
+    "id": "tmpl_190",
+    "title": "Detect hallucinations using specialised Ollama model bespoke-minicheck",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "Detect hallucinations using specialised Ollama model bespoke-minicheck.json"
+  },
+  {
+    "id": "tmpl_191",
+    "title": "Dynamically generate HTML page from user request using OpenAI Structured Output",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "Dynamically generate a webpage from user request using OpenAI Structured Output.json"
+  },
+  {
+    "id": "tmpl_192",
+    "title": "Easy Image Captioning with Gemini 1.5 Pro",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (16 nós n8n)",
+    "filename": "Easy Image Captioning with Gemini 1.5 Pro.json"
+  },
+  {
+    "id": "tmpl_193",
+    "title": "Enrich FAQ sections on your website pages at scale with AI",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (36 nós n8n)",
+    "filename": "Enrich FAQ sections on your website pages at scale with AI.json"
+  },
+  {
+    "id": "tmpl_194",
+    "title": "Extract personal data with a self-hosted LLM Mistral NeMo",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "Extract personal data with self-hosted LLM Mistral NeMo.json"
+  },
+  {
+    "id": "tmpl_195",
+    "title": "Load Prompts from Github Repo and auto populate n8n expressions",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Fetch Dynamic Prompts from GitHub and Auto-Populate n8n Expressions in Prompt.json"
+  },
+  {
+    "id": "tmpl_196",
+    "title": "Flux AI Image Generator",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (19 nós n8n)",
+    "filename": "Flux AI Image Generator.json"
+  },
+  {
+    "id": "tmpl_197",
+    "title": "[AI/LangChain] Output Parser 4",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "Force AI to use a specific output format.json"
+  },
+  {
+    "id": "tmpl_198",
+    "title": "GCF Token Optimization — Encode API Data, Decode Losslessly",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "GCF Token Optimization for LLM Tool Responses.json"
+  },
+  {
+    "id": "tmpl_199",
+    "title": "Content to 9:16 Aspect Image Generator v1",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (39 nós n8n)",
+    "filename": "Generate 9_16 Images from Content and Brand Guidelines.json"
+  },
+  {
+    "id": "tmpl_200",
+    "title": "Generate audio from text using OpenAI - text-to-speech Workflow",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Generate audio from text using OpenAI and Webhook _ Text to Speech Workflow.json"
+  },
+  {
+    "id": "tmpl_201",
+    "title": "Generate Text-to-Speech Using Elevenlabs via API",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "Generate Text-to-Speech Using Elevenlabs via API.json"
+  },
+  {
+    "id": "tmpl_202",
+    "title": "Generating Image Embeddings via Textual Summarisation",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (22 nós n8n)",
+    "filename": "Generating Image Embeddings via Textual Summarisation.json"
+  },
+  {
+    "id": "tmpl_203",
+    "title": "lemlist __ GPT-3_ Supercharge your sales workflows",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech.",
+    "filename": "lemlist __ GPT-3_ Supercharge your sales workflows.json"
+  },
+  {
+    "id": "tmpl_204",
+    "title": "Narrating over a Video using Multimodal AI",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (21 nós n8n)",
+    "filename": "Narrating over a Video using Multimodal AI.json"
+  },
+  {
+    "id": "tmpl_205",
+    "title": "Ollama Basic Workflow",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (2 nós n8n)",
+    "filename": "Ollama_Basic_Workflow.json"
+  },
+  {
+    "id": "tmpl_206",
+    "title": "OpenAI Assistant with custom n8n tools",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "OpenAI assistant with custom tools.json"
+  },
+  {
+    "id": "tmpl_207",
+    "title": "OpenAI Assistant workflow: uploa file, create an Assistant, chat with it!",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "OpenAI Assistant workflow_ upload file, create an Assistant, chat with it!.json"
+  },
+  {
+    "id": "tmpl_208",
+    "title": "OpenAI-model-examples",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (27 nós n8n)",
+    "filename": "OpenAI examples_ ChatGPT, DALLE-2, Whisper-1 – 5-in-1.json"
+  },
+  {
+    "id": "tmpl_209",
+    "title": "Organise Your Local File Directories With AI",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (16 nós n8n)",
+    "filename": "Organise Your Local File Directories With AI.json"
+  },
+  {
+    "id": "tmpl_210",
+    "title": "OpenAI Personal Shopper with RAG and WooCommerce",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (25 nós n8n)",
+    "filename": "Personal Shopper Chatbot for WooCommerce with RAG using Google Drive and openAI.json"
+  },
+  {
+    "id": "tmpl_211",
+    "title": "Prompt-based Object Detection with Gemini 2.0",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "Prompt-based Object Detection with Gemini 2.0.json"
+  },
+  {
+    "id": "tmpl_212",
+    "title": "Proxmox AI Agent with n8n and Generative AI Integration",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (35 nós n8n)",
+    "filename": "Proxmox AI Agent with n8n and Generative AI Integration.json"
+  },
+  {
+    "id": "tmpl_213",
+    "title": "Query n8n Credentials with AI SQL Agent",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "Query n8n Credentials with AI SQL Agent.json"
+  },
+  {
+    "id": "tmpl_214",
+    "title": "Calendar_scheduling",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (21 nós n8n)",
+    "filename": "Suggest meeting slots using AI.json"
+  },
+  {
+    "id": "tmpl_215",
+    "title": "Summarize YouTube Videos from Transcript",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "Summarize YouTube Videos from Transcript.json"
+  },
+  {
+    "id": "tmpl_216",
+    "title": "SupportFlow Lite — Simple AI Support Bot (No RAG)",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "SupportFlow Lite - Simple AI Customer Support Chatbot.json"
+  },
+  {
+    "id": "tmpl_217",
+    "title": "Transform Image to Lego Style Using Line and Dall-E",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Transform Image to Lego Style Using Line and Dall-E.json"
+  },
+  {
+    "id": "tmpl_218",
+    "title": "Translate audio using AI",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Translate audio using AI.json"
+  },
+  {
+    "id": "tmpl_219",
+    "title": "Use any LLM-Model via OpenRouter",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "Use OpenRouter in n8n versions _1.78.json"
+  },
+  {
+    "id": "tmpl_220",
+    "title": "⚡AI-Powered YouTube Video Summarization & Analysis",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "⚡AI-Powered YouTube Video Summarization & Analysis.json"
+  },
+  {
+    "id": "tmpl_221",
+    "title": "FLUX-fill standalone",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "🎨 Interactive Image Editor with FLUX.1 Fill Tool for Inpainting.json"
+  },
+  {
+    "id": "tmpl_222",
+    "title": "🐋DeepSeek V3 Chat & R1 Reasoning Quick Start",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "🐋DeepSeek V3 Chat & R1 Reasoning Quick Start.json"
+  },
+  {
+    "id": "tmpl_223",
+    "title": "Docsify example",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (60 nós n8n)",
+    "filename": "📚 Auto-generate documentation for n8n workflows with GPT and Docsify.json"
+  },
+  {
+    "id": "tmpl_224",
+    "title": "🗨️Ollama Chat",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "🔐🦙🤖 Private & Local Ollama Self-Hosted AI Assistant.json"
+  },
+  {
+    "id": "tmpl_225",
+    "title": "🔥📈🤖 AI Agent for n8n Creators Leaderboard - Find Popular Workflows",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (43 nós n8n)",
+    "filename": "🔥📈🤖 AI Agent for n8n Creators Leaderboard - Find Popular Workflows.json"
+  },
+  {
+    "id": "tmpl_226",
+    "title": "Testing Mulitple Local LLM with LM Studio",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (21 nós n8n)",
+    "filename": "🚀 Local Multi-LLM Testing & Performance Tracker.json"
+  },
+  {
+    "id": "tmpl_227",
+    "title": "🤖🧑‍💻 AI Agent for Top n8n Creators Leaderboard Reporting",
+    "category": "OpenAI and LLMs",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (49 nós n8n)",
+    "filename": "🤖🧑_💻 AI Agent for Top n8n Creators Leaderboard Reporting.json"
+  },
+  {
+    "id": "tmpl_228",
+    "title": "ALL_unique_nodes",
+    "category": "Other",
+    "description": "Template nativo de automação n8n importado do repositório GLTech.",
+    "filename": "ALL_unique_nodes.json"
+  },
+  {
+    "id": "tmpl_229",
+    "title": "Analyze the sentiment of feedback and send a message on Mattermost",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Analyze feedback and send a message on Mattermost.json"
+  },
+  {
+    "id": "tmpl_230",
+    "title": "Analyze feedback using AWS Comprehend and send it to a Mattermost channel",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Analyze feedback using AWS Comprehend and send it to a Mattermost channel.json"
+  },
+  {
+    "id": "tmpl_231",
+    "title": "API Schema Extractor",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (88 nós n8n)",
+    "filename": "API Schema Extractor.json"
+  },
+  {
+    "id": "tmpl_232",
+    "title": "Automate Pinterest Analysis & AI-Powered Content Suggestions With Pinterest API",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "Automate Pinterest Analysis & AI-Powered Content Suggestions With Pinterest API.json"
+  },
+  {
+    "id": "tmpl_233",
+    "title": "Analyze Screenshots with AI",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "Automate Screenshots with URLbox & Analyze them with AI.json"
+  },
+  {
+    "id": "tmpl_234",
+    "title": "Automate SIEM Alert Enrichment with MITRE ATT&CK, Qdrant & Zendesk in n8n",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (26 nós n8n)",
+    "filename": "Automate SIEM Alert Enrichment with MITRE ATT&CK, Qdrant & Zendesk in n8n.json"
+  },
+  {
+    "id": "tmpl_235",
+    "title": "Automate testimonials in Strapi with n8n",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "Automate testimonials in Strapi with n8n.json"
+  },
+  {
+    "id": "tmpl_236",
+    "title": "Bitrix24 Chatbot Application Workflow example with Webhook Integration",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "Bitrix24 Chatbot Application Workflow example with Webhook Integration.json"
+  },
+  {
+    "id": "tmpl_237",
+    "title": "ChatGPT Automatic Code Review in Gitlab MR",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "ChatGPT Automatic Code Review in Gitlab MR.json"
+  },
+  {
+    "id": "tmpl_238",
+    "title": "Classify new bugs in Linear with OpenAI_s GPT-4 and move them to the right team",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Classify new bugs in Linear with OpenAI_s GPT-4 and move them to the right team.json"
+  },
+  {
+    "id": "tmpl_239",
+    "title": "ClientFlow Lite — Simple Onboarding (Email + Log)",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "ClientFlow Lite - Client Onboarding Automation.json"
+  },
+  {
+    "id": "tmpl_240",
+    "title": "Create, update, and get a profile in Humantic AI",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Create, update, and get a profile in Humantic AI.json"
+  },
+  {
+    "id": "tmpl_241",
+    "title": "Enhance Customer Chat by Buffering Messages with Twilio and Redis",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (18 nós n8n)",
+    "filename": "Enhance Customer Chat by Buffering Messages with Twilio and Redis.json"
+  },
+  {
+    "id": "tmpl_242",
+    "title": "Generate Seedance videos with Vancine API and bounded polling",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (24 nós n8n)",
+    "filename": "Generate Seedance videos with Vancine API and bounded polling.json"
+  },
+  {
+    "id": "tmpl_243",
+    "title": "Glasp Highlights Auto Export",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "glasp-highlights-export-workflow.json"
+  },
+  {
+    "id": "tmpl_244",
+    "title": "Hacker News Throwback Machine - See What Was Hot on This Day, Every Year!",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "Hacker News Throwback Machine - See What Was Hot on This Day, Every Year!.json"
+  },
+  {
+    "id": "tmpl_245",
+    "title": "Handling Appointment Leads and Follow-up With Twilio, Cal.com and AI",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (36 nós n8n)",
+    "filename": "Handling Appointment Leads and Follow-up With Twilio, Cal.com and AI.json"
+  },
+  {
+    "id": "tmpl_246",
+    "title": "Integrating AI with Open-Meteo API for Enhanced Weather Forecasting",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Integrating AI with Open-Meteo API for Enhanced Weather Forecasting.json"
+  },
+  {
+    "id": "tmpl_247",
+    "title": "Introduction to the HTTP Tool",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Introduction to the HTTP Tool.json"
+  },
+  {
+    "id": "tmpl_248",
+    "title": "KB Tool - Confluence Knowledge Base",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "KB Tool - Confluence Knowledge Base.json"
+  },
+  {
+    "id": "tmpl_249",
+    "title": "Komos Regulated Browser Ops Task Queue",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Komos Regulated Browser Ops Task Queue.json"
+  },
+  {
+    "id": "tmpl_250",
+    "title": "Latchshot — capture a public webpage",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (4 nós n8n)",
+    "filename": "Latchshot — capture a public webpage.json"
+  },
+  {
+    "id": "tmpl_251",
+    "title": "LINE Assistant with Google Calendar and Gmail Integration",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "LINE Assistant with Google Calendar and Gmail Integration.json"
+  },
+  {
+    "id": "tmpl_252",
+    "title": "Monthly Spotify Track Archiving and Playlist Classification",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (37 nós n8n)",
+    "filename": "Monthly Spotify Track Archiving and Playlist Classification.json"
+  },
+  {
+    "id": "tmpl_253",
+    "title": "Obsidian Notes Read Aloud: Available as a Podcast Feed",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (23 nós n8n)",
+    "filename": "Obsidian Notes Read Aloud using AI_ Available as a Podcast Feed.json"
+  },
+  {
+    "id": "tmpl_254",
+    "title": "Printify Automation - Update Title and Description - AlexK1919",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (26 nós n8n)",
+    "filename": "Optimize & Update Printify Title and Description Workflow.json"
+  },
+  {
+    "id": "tmpl_255",
+    "title": "Qualify replies from Pipedrive persons with AI",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "Qualify replies from Pipedrive persons with AI.json"
+  },
+  {
+    "id": "tmpl_256",
+    "title": "Siri AI Agent_ Apple Shortcuts powered voice template",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (7 nós n8n)",
+    "filename": "Siri AI Agent_ Apple Shortcuts powered voice template.json"
+  },
+  {
+    "id": "tmpl_257",
+    "title": "Synthetic Candidate Intake Reliability Harness",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (3 nós n8n)",
+    "filename": "Synthetic Candidate Intake Reliability Harness.json"
+  },
+  {
+    "id": "tmpl_258",
+    "title": "Text automations using Apple Shortcuts",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "Text automations using Apple Shortcuts.json"
+  },
+  {
+    "id": "tmpl_259",
+    "title": "Tunova — Generate a song via webhook (drop-in API)",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Tunova - Generate a song via webhook.json"
+  },
+  {
+    "id": "tmpl_260",
+    "title": "Use AI to organize your Todoist Inbox",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Use AI to organize your Todoist Inbox.json"
+  },
+  {
+    "id": "tmpl_261",
+    "title": "get_a_web_page",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (4 nós n8n)",
+    "filename": "Using External Workflows as Tools in n8n.json"
+  },
+  {
+    "id": "tmpl_262",
+    "title": "UTM Link Creator & QR Code Generator with Scheduled Google Analytics Reports",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "UTM Link Creator & QR Code Generator with Scheduled Google Analytics Reports.json"
+  },
+  {
+    "id": "tmpl_263",
+    "title": "Visualize your SQL Agent queries with OpenAI and Quickchart.io",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (19 nós n8n)",
+    "filename": "Visualize your SQL Agent queries with OpenAI and Quickchart.io.json"
+  },
+  {
+    "id": "tmpl_264",
+    "title": "VoiceAgent Lite — Simple Call Logger",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "VoiceAgent Lite - Phone Call Logger.json"
+  },
+  {
+    "id": "tmpl_265",
+    "title": "Zoom AI Meeting Assistant",
+    "category": "Other Integrations and Use Cases",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (24 nós n8n)",
+    "filename": "Zoom AI Meeting Assistant creates mail summary, ClickUp tasks and follow-up call.json"
+  },
+  {
+    "id": "tmpl_266",
+    "title": "Ask questions about a PDF using AI",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (16 nós n8n)",
+    "filename": "Ask questions about a PDF using AI.json"
+  },
+  {
+    "id": "tmpl_267",
+    "title": "Breakdown Documents into Study Notes using Templating MistralAI and Qdrant",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (42 nós n8n)",
+    "filename": "Breakdown Documents into Study Notes using Templating MistralAI and Qdrant.json"
+  },
+  {
+    "id": "tmpl_268",
+    "title": "Chat with PDF docs using AI (quoting sources)",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (22 nós n8n)",
+    "filename": "Chat with PDF docs using AI (quoting sources).json"
+  },
+  {
+    "id": "tmpl_269",
+    "title": "Convert URL HTML to Markdown Format and Get Page Links",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Convert URL HTML to Markdown Format and Get Page Links.json"
+  },
+  {
+    "id": "tmpl_270",
+    "title": "CV Resume PDF Parsing with Multimodal Vision AI",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "CV Resume PDF Parsing with Multimodal Vision AI.json"
+  },
+  {
+    "id": "tmpl_271",
+    "title": "ETL pipeline",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "ETL pipeline for text processing.json"
+  },
+  {
+    "id": "tmpl_272",
+    "title": "Extract and process information directly from PDF using Claude and Gemini",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "Extract and process information directly from PDF using Claude and Gemini.json"
+  },
+  {
+    "id": "tmpl_273",
+    "title": "Extract data from resume and create PDF with Gotenberg",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (43 nós n8n)",
+    "filename": "Extract data from resume and create PDF with Gotenberg.json"
+  },
+  {
+    "id": "tmpl_274",
+    "title": "Image to license plate number",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Extract license plate number from image uploaded via an n8n form.json"
+  },
+  {
+    "id": "tmpl_275",
+    "title": "Extract text from PDF and image using Vertex AI (Gemini) into CSV",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (16 nós n8n)",
+    "filename": "Extract text from PDF and image using Vertex AI (Gemini) into CSV.json"
+  },
+  {
+    "id": "tmpl_276",
+    "title": "PDF invoice data extraction with human-in-the-loop from GMail to Google Sheets",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "Invoice data extraction with human-in-the-loop validation and auto-training using Cradl AI.json"
+  },
+  {
+    "id": "tmpl_277",
+    "title": "Invoice data extraction with LlamaParse and OpenAI",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (26 nós n8n)",
+    "filename": "Invoice data extraction with LlamaParse and OpenAI.json"
+  },
+  {
+    "id": "tmpl_278",
+    "title": "Manipulate PDF with Adobe developer API",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (20 nós n8n)",
+    "filename": "Manipulate PDF with Adobe developer API.json"
+  },
+  {
+    "id": "tmpl_279",
+    "title": "Parse PDF with LlamaParse and save to Airtable",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech.",
+    "filename": "Parse PDF with LlamaParse and save to Airtable.json"
+  },
+  {
+    "id": "tmpl_280",
+    "title": "Prepare CSV files with GPT-4",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "Prepare CSV files with GPT-4.json"
+  },
+  {
+    "id": "tmpl_281",
+    "title": "Remove Personally Identifiable Information (PII) from CSV Files with OpenAI",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "Remove Personally Identifiable Information (PII) from CSV Files with OpenAI.json"
+  },
+  {
+    "id": "tmpl_282",
+    "title": "Whisper Transkription copy",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "Transcribe Audio Files, Summarize with GPT-4, and Store in Notion.json"
+  },
+  {
+    "id": "tmpl_283",
+    "title": "Transcribing Bank Statements To Markdown Using Gemini Vision AI",
+    "category": "PDF and Document Processing",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (20 nós n8n)",
+    "filename": "Transcribing Bank Statements To Markdown Using Gemini Vision AI.json"
+  },
+  {
+    "id": "tmpl_284",
+    "title": "AI-Powered Information Monitoring with OpenAI, Google Sheets, Jina AI and Slack",
+    "category": "Slack",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (31 nós n8n)",
+    "filename": "AI-Powered Information Monitoring with OpenAI, Google Sheets, Jina AI and Slack.json"
+  },
+  {
+    "id": "tmpl_285",
+    "title": "Creating a AI Slack Bot with Google Gemini",
+    "category": "Slack",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (10 nós n8n)",
+    "filename": "Creating a AI Slack Bot with Google Gemini.json"
+  },
+  {
+    "id": "tmpl_286",
+    "title": "Customer Support Channel and Ticketing System with Slack and Linear",
+    "category": "Slack",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (19 nós n8n)",
+    "filename": "Customer Support Channel and Ticketing System with Slack and Linear.json"
+  },
+  {
+    "id": "tmpl_287",
+    "title": "Enhance Security Operations with the Qualys Slack Shortcut Bot!",
+    "category": "Slack",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (23 nós n8n)",
+    "filename": "Enhance Security Operations with the Qualys Slack Shortcut Bot!.json"
+  },
+  {
+    "id": "tmpl_288",
+    "title": "piepdrive-test",
+    "category": "Slack",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "Enrich Pipedrive_s Organization Data with OpenAI GPT-4o & Notify it in Slack.json"
+  },
+  {
+    "id": "tmpl_289",
+    "title": "IT Ops AI SlackBot Workflow - Chat with your knowledge base",
+    "category": "Slack",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (20 nós n8n)",
+    "filename": "IT Ops AI SlackBot Workflow - Chat with your knowledge base.json"
+  },
+  {
+    "id": "tmpl_290",
+    "title": "Sentiment Analysis Tracking on Support Issues with Linear and Slack",
+    "category": "Slack",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (19 nós n8n)",
+    "filename": "Sentiment Analysis Tracking on Support Issues with Linear and Slack.json"
+  },
+  {
+    "id": "tmpl_291",
+    "title": "My workflow 6",
+    "category": "Slack",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (11 nós n8n)",
+    "filename": "Slack slash commands AI Chat Bot.json"
+  },
+  {
+    "id": "tmpl_292",
+    "title": "Venafi Cloud Slack Cert Bot",
+    "category": "Slack",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (38 nós n8n)",
+    "filename": "Venafi Cloud Slack Cert Bot.json"
+  },
+  {
+    "id": "tmpl_293",
+    "title": "Agentic Telegram AI bot with LangChain nodes and new tools",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "Agentic Telegram AI bot with with LangChain nodes and new tools.json"
+  },
+  {
+    "id": "tmpl_294",
+    "title": "AI-Powered Children_s Arabic Storytelling on Telegram",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "AI-Powered Children_s Arabic Storytelling on Telegram.json"
+  },
+  {
+    "id": "tmpl_295",
+    "title": "AI-Powered Children_s English Storytelling on Telegram with OpenAI",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "AI-Powered Children_s English Storytelling on Telegram with OpenAI.json"
+  },
+  {
+    "id": "tmpl_296",
+    "title": "Angie, Personal AI Assistant with Telegram Voice and Text",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "Angie, Personal AI Assistant with Telegram Voice and Text.json"
+  },
+  {
+    "id": "tmpl_297",
+    "title": "Automated AI image analysis and response via Telegram",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (8 nós n8n)",
+    "filename": "Automated AI image analysis and response via Telegram.json"
+  },
+  {
+    "id": "tmpl_298",
+    "title": "Bitcoin price alert to Telegram with CoinPaprika",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Bitcoin price alert to Telegram with CoinPaprika.json"
+  },
+  {
+    "id": "tmpl_299",
+    "title": "Chat with OpenAIs GPT via a simple Telegram Bot",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (4 nós n8n)",
+    "filename": "Chat with OpenAIs GPT via a simple Telegram Bot.json"
+  },
+  {
+    "id": "tmpl_300",
+    "title": "Detect toxic language in Telegram messages",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Detect toxic language in Telegram messages.json"
+  },
+  {
+    "id": "tmpl_301",
+    "title": "Image Creation with OpenAI and Telegram",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Image Creation with OpenAI and Telegram.json"
+  },
+  {
+    "id": "tmpl_302",
+    "title": "Internship Informer",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (30 nós n8n)",
+    "filename": "Internship Informer.json"
+  },
+  {
+    "id": "tmpl_303",
+    "title": "ResumeBot",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (98 nós n8n)",
+    "filename": "ResumeBot.json"
+  },
+  {
+    "id": "tmpl_304",
+    "title": "Send a random recipe once a day to Telegram",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "Send a random recipe once a day to Telegram.json"
+  },
+  {
+    "id": "tmpl_305",
+    "title": "TeleBot_KnowledgeHub",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "TeleBot_KnowledgeHub.json"
+  },
+  {
+    "id": "tmpl_306",
+    "title": "Telegram AI multi-format chatbot",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (15 nós n8n)",
+    "filename": "Telegram AI bot assistant_ ready-made template for voice & text messages.json"
+  },
+  {
+    "id": "tmpl_307",
+    "title": "Telegram AI Langchain bot",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (12 nós n8n)",
+    "filename": "Telegram AI bot with LangChain nodes.json"
+  },
+  {
+    "id": "tmpl_308",
+    "title": "NeurochainAI Basic API Integration",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (29 nós n8n)",
+    "filename": "Telegram AI Bot_ NeurochainAI Text & Image - NeurochainAI Basic API Integration.json"
+  },
+  {
+    "id": "tmpl_309",
+    "title": "Telegram AI-bot",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (16 nós n8n)",
+    "filename": "Telegram AI Chatbot.json"
+  },
+  {
+    "id": "tmpl_310",
+    "title": "Simple Telegram AI Bot (Lite)",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (5 nós n8n)",
+    "filename": "Telegram AI Support Bot with Conversation Memory.json"
+  },
+  {
+    "id": "tmpl_311",
+    "title": "Telegram Bot with Supabase memory and OpenAI assistant integration",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Telegram Bot with Supabase memory and OpenAI assistant integration.json"
+  },
+  {
+    "id": "tmpl_312",
+    "title": "Telegram RAG pdf",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (20 nós n8n)",
+    "filename": "Telegram chat with PDF.json"
+  },
+  {
+    "id": "tmpl_313",
+    "title": "Play with Spotify from Telegram",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (14 nós n8n)",
+    "filename": "Telegram to Spotify with OpenAI.json"
+  },
+  {
+    "id": "tmpl_314",
+    "title": "Translate Telegram audio messages with AI (55 supported languages) v1",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (13 nós n8n)",
+    "filename": "Translate Telegram audio messages with AI (55 supported languages).json"
+  },
+  {
+    "id": "tmpl_315",
+    "title": "🐋🤖 DeepSeek AI Agent + Telegram + LONG TERM Memory 🧠",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (23 nós n8n)",
+    "filename": "🐋🤖 DeepSeek AI Agent + Telegram + LONG TERM Memory 🧠.json"
+  },
+  {
+    "id": "tmpl_316",
+    "title": "🤖 Telegram Messaging Agent for Text/Audio/Images",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (39 nós n8n)",
+    "filename": "🤖 Telegram Messaging Agent for Text_Audio_Images.json"
+  },
+  {
+    "id": "tmpl_317",
+    "title": "🤖🧠 AI Agent Chatbot + LONG TERM Memory + Note Storage + Telegram",
+    "category": "Telegram",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (21 nós n8n)",
+    "filename": "🤖🧠 AI Agent Chatbot + LONG TERM Memory + Note Storage + Telegram.json"
+  },
+  {
+    "id": "tmpl_318",
+    "title": "Automate Sales Meeting Prep with AI & APIFY Sent To WhatsApp",
+    "category": "WhatsApp",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (61 nós n8n)",
+    "filename": "Automate Sales Meeting Prep with AI & APIFY Sent To WhatsApp.json"
+  },
+  {
+    "id": "tmpl_319",
+    "title": "Building Your First WhatsApp Chatbot",
+    "category": "WhatsApp",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (28 nós n8n)",
+    "filename": "Building Your First WhatsApp Chatbot.json"
+  },
+  {
+    "id": "tmpl_320",
+    "title": "Business WhatsApp AI RAG Chatbot",
+    "category": "WhatsApp",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (24 nós n8n)",
+    "filename": "Complete business WhatsApp AI-Powered RAG Chatbot using OpenAI.json"
+  },
+  {
+    "id": "tmpl_321",
+    "title": "Receive and Send Messages Across WhatsApp, Instagram and Facebook Messenger with Fiwano",
+    "category": "WhatsApp",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (6 nós n8n)",
+    "filename": "Receive and Send Messages Across WhatsApp, Instagram and Facebook Messenger with Fiwano.json"
+  },
+  {
+    "id": "tmpl_322",
+    "title": "Respond to WhatsApp Messages with AI Like a Pro!",
+    "category": "WhatsApp",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (35 nós n8n)",
+    "filename": "Respond to WhatsApp Messages with AI Like a Pro!.json"
+  },
+  {
+    "id": "tmpl_323",
+    "title": "Auto categorize wordpress template",
+    "category": "WordPress",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (9 nós n8n)",
+    "filename": "Auto-Categorize blog posts in wordpress using A.I..json"
+  },
+  {
+    "id": "tmpl_324",
+    "title": "Auto-Tag Blog Posts in WordPress with AI",
+    "category": "WordPress",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (32 nós n8n)",
+    "filename": "Auto-Tag Blog Posts in WordPress with AI.json"
+  },
+  {
+    "id": "tmpl_325",
+    "title": "Automate Blog Creation in Brand Voice with AI",
+    "category": "WordPress",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (27 nós n8n)",
+    "filename": "Automate Blog Creation in Brand Voice with AI.json"
+  },
+  {
+    "id": "tmpl_326",
+    "title": "Automate Content Generator for WordPress with DeepSeek R1",
+    "category": "WordPress",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (17 nós n8n)",
+    "filename": "Automate Content Generator for WordPress with DeepSeek R1.json"
+  },
+  {
+    "id": "tmpl_327",
+    "title": "RAG & GenAI App With WordPress Content",
+    "category": "WordPress",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (53 nós n8n)",
+    "filename": "WordPress - AI Chatbot to enhance user experience - with Supabase and OpenAI.json"
+  },
+  {
+    "id": "tmpl_328",
+    "title": "Write a WordPress post with AI (starting from a few keywords)",
+    "category": "WordPress",
+    "description": "Template nativo de automação n8n importado do repositório GLTech. (37 nós n8n)",
+    "filename": "Write a WordPress post with AI (starting from a few keywords).json"
+  }
+]

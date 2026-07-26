@@ -26,17 +26,18 @@ vi.mock("@/hooks/auth/AuthProvider", () => ({
 }));
 
 import { Sidebar } from "./Sidebar";
+import { CRM_NAV } from "./nav-crm";
 
 describe("Sidebar", () => {
   it("mostra Landing Edit como item de topo", () => {
-    render(<Sidebar collapsed={false} />);
+    render(<Sidebar collapsed={false} nav={CRM_NAV} />);
     const link = screen.getByRole("link", { name: /Landing Edit/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/app/landing-edit");
   });
 
   it("mantém Dashboard no topo e os grupos colapsáveis da navegação", () => {
-    render(<Sidebar collapsed={false} />);
+    render(<Sidebar collapsed={false} nav={CRM_NAV} />);
     // Dashboard segue como link direto de topo.
     expect(screen.getByRole("link", { name: /Dashboard/i })).toBeInTheDocument();
     // Itens reagrupados (Impressoras, Calculadora, Controle…) aparecem sob grupos
@@ -49,7 +50,7 @@ describe("Sidebar", () => {
   it("Landing Edit não exige permissão especial para aparecer", () => {
     // Com toda permissão negada, itens gated somem — Landing Edit tem de ficar.
     vi.resetModules();
-    render(<Sidebar collapsed={false} />);
+    render(<Sidebar collapsed={false} nav={CRM_NAV} />);
     expect(screen.getByRole("link", { name: /Landing Edit/i })).toBeInTheDocument();
   });
 });

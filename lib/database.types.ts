@@ -1296,16 +1296,23 @@ export type Database = {
       }
       contacts: {
         Row: {
+          address: string | null
+          address_complement: string | null
+          address_number: string | null
           anonymized_at: string | null
           birthdate: string | null
           blocked_at: string | null
           blocked_reason: string | null
+          cep: string | null
+          city: string | null
           consent: Json
           cpf_encrypted: string | null
           cpf_hash: string | null
           created_at: string
           created_by_user_id: string | null
           display_name: string | null
+          district: string | null
+          document_number: string | null
           email: string | null
           email_normalized: string | null
           force_human: boolean
@@ -1320,21 +1327,29 @@ export type Database = {
           phone_number: string | null
           source: string
           source_metadata: Json
+          state: string | null
           tags: string[]
           updated_at: string
           wa_identity: string | null
         }
         Insert: {
+          address?: string | null
+          address_complement?: string | null
+          address_number?: string | null
           anonymized_at?: string | null
           birthdate?: string | null
           blocked_at?: string | null
           blocked_reason?: string | null
+          cep?: string | null
+          city?: string | null
           consent?: Json
           cpf_encrypted?: string | null
           cpf_hash?: string | null
           created_at?: string
           created_by_user_id?: string | null
           display_name?: string | null
+          district?: string | null
+          document_number?: string | null
           email?: string | null
           email_normalized?: string | null
           force_human?: boolean
@@ -1349,21 +1364,29 @@ export type Database = {
           phone_number?: string | null
           source?: string
           source_metadata?: Json
+          state?: string | null
           tags?: string[]
           updated_at?: string
           wa_identity?: string | null
         }
         Update: {
+          address?: string | null
+          address_complement?: string | null
+          address_number?: string | null
           anonymized_at?: string | null
           birthdate?: string | null
           blocked_at?: string | null
           blocked_reason?: string | null
+          cep?: string | null
+          city?: string | null
           consent?: Json
           cpf_encrypted?: string | null
           cpf_hash?: string | null
           created_at?: string
           created_by_user_id?: string | null
           display_name?: string | null
+          district?: string | null
+          document_number?: string | null
           email?: string | null
           email_normalized?: string | null
           force_human?: boolean
@@ -1378,6 +1401,7 @@ export type Database = {
           phone_number?: string | null
           source?: string
           source_metadata?: Json
+          state?: string | null
           tags?: string[]
           updated_at?: string
           wa_identity?: string | null
@@ -3611,6 +3635,152 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_order_documents: {
+        Row: {
+          created_at: string
+          doc_type: string
+          doc_year: number
+          id: string
+          issued_at: string
+          issued_by: string | null
+          number: string
+          organization_id: string
+          seq: number
+          service_order_id: string
+          snapshot: Json
+          total_cents: number
+          updated_at: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          doc_year?: number
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          number?: string
+          organization_id: string
+          seq?: number
+          service_order_id: string
+          snapshot: Json
+          total_cents?: number
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          doc_year?: number
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          number?: string
+          organization_id?: string
+          seq?: number
+          service_order_id?: string
+          snapshot?: Json
+          total_cents?: number
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_order_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_documents_so_org_fk"
+            columns: ["service_order_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      service_order_items: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          organization_id: string
+          product_id: string | null
+          qty: number
+          service_order_id: string
+          sort_order: number
+          unit_price_cents: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          organization_id: string
+          product_id?: string | null
+          qty?: number
+          service_order_id: string
+          sort_order?: number
+          unit_price_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          organization_id?: string
+          product_id?: string | null
+          qty?: number
+          service_order_id?: string
+          sort_order?: number
+          unit_price_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_order_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_costed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_order_items_so_org_fk"
+            columns: ["service_order_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id", "organization_id"]
           },
         ]
       }

@@ -68,3 +68,10 @@ deskcommcrm-setup-kit.zip
 .env*
 # Exceção: o template sem segredos deve ser versionado.
 !.env.local.example
+
+.claude-code-history/
+.codex-history/
+.codex/
+
+Imports_github/
+*.zip

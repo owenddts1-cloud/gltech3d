@@ -29,6 +29,9 @@ export interface ServiceOrderView {
   slicerNotes: { notes?: string; layerHeight?: number; infill?: number; supports?: boolean };
   position: number;
   createdAt: string;
+  /** > 0 significa que totalCents/qty são derivados dos itens (migration 0068). */
+  itemsCount: number;
+  documentsCount: number;
 }
 
 interface SoRow {
@@ -36,6 +39,13 @@ interface SoRow {
   status: SoStatus; priority: SoPriority | null; material: string | null; channel_id: string | null;
   total_cents: number | string; qty: number | string; sla_due_at: string | null;
   slicer_notes: unknown; position: number | string; created_at: string;
+  service_order_items?: Array<{ count: number }> | null;
+  service_order_documents?: Array<{ count: number }> | null;
+}
+
+/** `select("…, tabela(count)")` devolve `[{ count: n }]` ou `[]` — normaliza. */
+function relCount(rel: Array<{ count: number }> | null | undefined): number {
+  return Number(rel?.[0]?.count ?? 0);
 }
 
 function mapRow(r: SoRow): ServiceOrderView {
@@ -55,6 +65,8 @@ function mapRow(r: SoRow): ServiceOrderView {
     slicerNotes: (r.slicer_notes as ServiceOrderView["slicerNotes"]) ?? {},
     position: Number(r.position ?? 0),
     createdAt: r.created_at,
+    itemsCount: relCount(r.service_order_items),
+    documentsCount: relCount(r.service_order_documents),
   };
 }
 
@@ -68,7 +80,7 @@ export async function fetchServiceOrdersData() {
   const [ordersRes, contactsRes, channelsRes, materialsRes] = await Promise.all([
     supabase
       .from("service_orders")
-      .select("*")
+      .select("*, service_order_items(count), service_order_documents(count)")
       .order("status", { ascending: true })
       .order("position", { ascending: true })
       .order("created_at", { ascending: false }),
@@ -170,6 +182,19 @@ export async function updateServiceOrder(id: string, raw: unknown) {
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
   const d = parsed.data;
 
+  const supabase = await createClient();
+
+  // Quando a O.S. tem itens (migration 0068), total_cents e qty são DERIVADOS da
+  // soma das linhas pelas triggers de recálculo. Aceitar o valor do formulário
+  // aqui faria o dialog — que mostra o total só de leitura — sobrescrever o
+  // cálculo com o número antigo em cada "Salvar". Ignora os dois campos.
+  const { count: itemsCount } = await supabase
+    .from("service_order_items")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", activeOrg.orgId)
+    .eq("service_order_id", id);
+  const derivedFromItems = (itemsCount ?? 0) > 0;
+
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (d.title !== undefined) patch.title = d.title;
   if (d.contactId !== undefined) patch.contact_id = d.contactId;
@@ -178,14 +203,22 @@ export async function updateServiceOrder(id: string, raw: unknown) {
   if (d.priority !== undefined) patch.priority = d.priority;
   if (d.material !== undefined) patch.material = d.material ?? null;
   if (d.channelId !== undefined) patch.channel_id = d.channelId ?? null;
-  if (d.total !== undefined) patch.total_cents = Math.round(d.total * 100);
-  if (d.qty !== undefined) patch.qty = d.qty;
-  if (d.slaDueAt !== undefined) patch.sla_due_at = d.slaDueAt;
+  if (!derivedFromItems && d.total !== undefined) patch.total_cents = Math.round(d.total * 100);
+  if (!derivedFromItems && d.qty !== undefined) patch.qty = d.qty;
   if (d.notes !== undefined || d.layerHeight !== undefined || d.infill !== undefined || d.supports !== undefined) {
-    patch.slicer_notes = buildSlicerNotes(d);
+    const { data: existingSo } = await supabase
+      .from("service_orders")
+      .select("slicer_notes")
+      .eq("organization_id", activeOrg.orgId)
+      .eq("id", id)
+      .single();
+    const currentNotes = (existingSo?.slicer_notes as Record<string, unknown>) ?? {};
+    patch.slicer_notes = {
+      ...currentNotes,
+      ...buildSlicerNotes(d),
+    };
   }
 
-  const supabase = await createClient();
   const { error } = await supabase
     .from("service_orders")
     .update(patch)
@@ -194,7 +227,9 @@ export async function updateServiceOrder(id: string, raw: unknown) {
   if (error) return { ok: false as const, error: error.message };
 
   revalidatePath("/app/service-orders");
-  return { ok: true as const };
+  // `derivedFromItems` avisa a UI para não aplicar o total do formulário de forma
+  // otimista — o valor real veio dos itens.
+  return { ok: true as const, derivedFromItems };
 }
 
 export async function deleteServiceOrder(id: string) {

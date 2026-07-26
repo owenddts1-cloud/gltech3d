@@ -72,6 +72,7 @@ export {
   MusicNote,
   FileText,
   Lock,
+  Key,
   Receipt,
   Wallet,
   Tag,
@@ -95,6 +96,7 @@ export {
   // sales shell (E1)
   Funnel,
   DownloadSimple,
+  UploadSimple,
   Table,
   Rows,
   BookmarkSimple,
@@ -117,4 +119,11 @@ export {
   Globe,
   Coins,
   ArrowsDownUp,
+  // hub multi-app
+  VideoCamera,
+  SquaresFour,
+  Scissors,
+  EnvelopeSimple,
+  MapPin,
+  User,
 } from "@phosphor-icons/react/dist/ssr";

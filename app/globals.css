@@ -783,3 +783,27 @@
   background-size: 200% auto;
   animation: gltech-text-gradient 4s ease infinite;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Defesa de impressão.
+ *
+ * O CRM não foi feito para ser impresso — a folha oficial mora em
+ * `components/documents/document.css`. Mas Ctrl+P acontece, e há um
+ * `window.print()` na tela de Vendas. Estas regras garantem que o que sair do
+ * papel seja o conteúdo, e não sidebar, topbar e toasts.
+ *
+ * `[data-no-print]` é o marcador padrão: qualquer elemento com esse atributo
+ * some da impressão, em qualquer tela do app.
+ * ────────────────────────────────────────────────────────────────────────── */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  [data-no-print],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+}
