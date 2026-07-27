@@ -37,6 +37,7 @@ import { quickCreateMaterial, type MaterialOption } from "@/app/actions/material
 import { SO_STATUSES, type SoStatus, type SoPriority } from "@/lib/schemas/service-orders";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { paginate, OS_PAGE_SIZE, resolveDropPosition } from "@/app/app/service-orders/_lib/board";
+import { brlFromCents } from "@/lib/format/money";
 
 type ContactLite = { id: string; name: string | null };
 
@@ -135,8 +136,7 @@ const PRIORITY_META: Record<SoPriority, { label: string; cls: string }> = {
   baixa: { label: "Baixa", cls: "bg-slate-500/10 text-slate-600 dark:text-slate-300 border-slate-500/20" },
 };
 
-const brl = (cents: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
 
 function slaInfo(iso: string | null, status: SoStatus): { label: string; tone: string } | null {
   if (!iso || status === "concluido") return null;
@@ -382,7 +382,7 @@ export function ServiceOrdersBoard({ initialOrders, contacts, saleChannels, mate
             <Tag size={14} className="text-cyan-500" />
           </div>
           <span className="mt-2 block text-2xl font-extrabold text-foreground tabular-nums">
-            {brl(metrics.totalPipelineVal)}
+            {brlFromCents(metrics.totalPipelineVal)}
           </span>
           <span className="text-[10px] text-muted-foreground block mt-0.5">soma de todas as OS em aberto</span>
         </Card>
@@ -393,7 +393,7 @@ export function ServiceOrdersBoard({ initialOrders, contacts, saleChannels, mate
             <Sparkle size={14} className="text-emerald-500" />
           </div>
           <span className="mt-2 block text-2xl font-extrabold text-foreground tabular-nums">
-            {brl(metrics.completedVal)}
+            {brlFromCents(metrics.completedVal)}
           </span>
           <span className="text-[10px] text-muted-foreground block mt-0.5">pedidos entregues com sucesso</span>
         </Card>
@@ -509,7 +509,7 @@ export function ServiceOrdersBoard({ initialOrders, contacts, saleChannels, mate
                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
                   <span>{byStatus[col.id].length}</span>
                   <span className="text-muted-foreground/30">|</span>
-                  <span className="font-mono">{brl(columnTotals[col.id])}</span>
+                  <span className="font-mono">{brlFromCents(columnTotals[col.id])}</span>
                 </div>
               </div>
 
@@ -626,7 +626,7 @@ export function ServiceOrdersBoard({ initialOrders, contacts, saleChannels, mate
                               <div className="mt-4 flex items-center justify-between gap-2 pt-3 border-t border-border/40">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-xs font-extrabold text-foreground tabular-nums">
-                                    {brl(o.totalCents)}
+                                    {brlFromCents(o.totalCents)}
                                   </span>
                                   {o.qty > 1 && (
                                     <span className="text-[9px] font-bold text-accent bg-accent-soft px-1.5 py-0.5 rounded border border-accent/10">

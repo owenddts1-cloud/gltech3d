@@ -1,3 +1,4 @@
+import { brlFromCents } from "@/lib/format/money";
 // Exportação dos Relatórios em CSV, XLSX e PDF (imagens 7 e 10 do Manequip).
 // Mesmo padrão da Fase 1 do Controle: libs pesadas por import dinâmico.
 
@@ -8,8 +9,6 @@ export interface ReportsExportPayload {
   breakdowns: { title: string; isCurrency: boolean; groups: { name: string; value: number }[] }[];
 }
 
-const brl = (cents: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((cents || 0) / 100);
 const today = () => new Date().toISOString().slice(0, 10);
 const GREEN = "FF217346";
 
@@ -165,7 +164,7 @@ export async function exportReportsPDF(p: ReportsExportPayload) {
     y += head ? 8 : 7;
   };
   rowVals(cols.map((c) => c.label), true);
-  p.monthly.forEach((m, i) => rowVals([m.month, brl(m.revenueCents), String(m.filamentGrams), `${m.activeHours}h`, String(m.jobs)], false, i % 2 === 0));
+  p.monthly.forEach((m, i) => rowVals([m.month, brlFromCents(m.revenueCents), String(m.filamentGrams), `${m.activeHours}h`, String(m.jobs)], false, i % 2 === 0));
 
   doc.setDrawColor(226, 232, 240); doc.line(margin, H - 14, W - margin, H - 14);
   doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...MUTED);
@@ -187,7 +186,7 @@ export async function exportReportsPDF(p: ReportsExportPayload) {
       doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...INK);
       doc.text(g.name.length > 34 ? g.name.slice(0, 33) + "…" : g.name, margin, y);
       doc.setTextColor(...MUTED);
-      doc.text(b.isCurrency ? brl(g.value) : String(g.value), W - margin, y, { align: "right" });
+      doc.text(b.isCurrency ? brlFromCents(g.value) : String(g.value), W - margin, y, { align: "right" });
       y += 2;
       doc.setFillColor(...LIGHT); doc.roundedRect(margin, y, cw, 1.6, 0.8, 0.8, "F");
       doc.setFillColor(...GREENc); doc.roundedRect(margin, y, Math.max(cw * pct, 0.5), 1.6, 0.8, 0.8, "F");

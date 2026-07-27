@@ -27,7 +27,7 @@ export function CrossAppMeshModal({ isOpen, onClose, currentApp = "crm" }: Cross
     try {
       const parsedData = JSON.parse(payloadJson);
       dataMesh.emit(currentApp, targetApp, payloadType, parsedData);
-      setStatusMsg("Dados integrados e transmitidos via Data Mesh com sucesso!");
+      setStatusMsg("Contexto enviado para a outra tela deste navegador.");
       setTimeout(() => {
         setStatusMsg(null);
         onClose();

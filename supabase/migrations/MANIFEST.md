@@ -78,9 +78,35 @@ Migrations applied to Supabase project `rrydmwnporysaiysiztn` (sa-east-1, Postgr
 
 ## Reproducibility
 
+> **Banco novo: aplique `supabase/baseline.sql`, não `supabase db push`.**
+>
+> Isto não é preferência, é uma limitação real do diretório. As migrations
+> **0001–0009 e 0013 são stubs** que contêm apenas `SELECT 1;` — o DDL delas foi
+> aplicado direto via MCP durante o bootstrap e vive em `docs/specs/0X-spec-*.md`
+> e no `baseline.sql`. Um `supabase db push` contra um banco vazio cria um schema
+> incompleto e as migrations seguintes falham.
+>
+> O `baseline.sql` é o **source of truth** para provisionar do zero: um dump
+> `--schema-only` mais um apêndice idempotente com tudo que veio depois. É ele
+> que o kit self-host aplica em `install.sh` e `update.sh`.
+>
+> Para um banco **já existente**, `supabase db push` funciona normalmente: as
+> migrations pós-0010 são reais e idempotentes.
+
 Migrations were applied directly via the Supabase MCP `apply_migration` tool during the autonomous bootstrap session. The SQL of each migration is also embedded in the corresponding spec under `docs/specs/0X-spec-*.md` and the database keeps them in `supabase_migrations.schema_migrations`.
 
-To re-apply on a fresh Supabase project, replay the migrations in version order via `supabase db push` (Supabase CLI) or via the MCP.
+### Histórico de correções do próprio diretório
+
+- **0016 reconstruída (2026-07-27).** O arquivo nunca existiu no repositório,
+  embora o MANIFEST a listasse como aplicada e o banco remoto a tivesse
+  registrada — a sequência pulava de 0015 para 0017. Qualquer clone perdia
+  `lgpd_requests.emergency` e `.scope` (ambas `NOT NULL`, usadas pelo watcher de
+  SLA). Reconstruída a partir do `baseline.sql`, idempotente e com guard de
+  existência da tabela.
+- **`APPLY_PENDING_*.sql` removidos (2026-07-27).** Eram 10 arquivos soltos em
+  `supabase/` (0028-0031, 0041-0049), todos com migration equivalente já no
+  diretório. Sobras de aplicação manual que sugeriam trabalho pendente onde não
+  havia. Continuam no histórico do git.
 
 ## Tables created (33 total, all RLS enabled)
 

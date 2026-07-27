@@ -18,13 +18,14 @@ import {
   type ProjectsData, type ProjectView, type ProjectNoteView,
 } from "@/app/actions/projects/actions";
 import type { ProjectNoteColor } from "@/lib/schemas/projects";
+import { brlFromReais } from "@/lib/format/money";
 
 // ── Cost helpers ──
 const calcFilament = (p: { weightGrams: number; filamentCostPerKg: number }) => p.weightGrams * (p.filamentCostPerKg / 1000);
 const calcEnergy = (p: { wattage: number; printHours: number; kwhPrice: number }) => (p.wattage / 1000) * p.printHours * p.kwhPrice;
 const calcDeprec = (p: { printHours: number; depreciationPerHour: number }) => p.printHours * p.depreciationPerHour;
 const calcTotal = (p: ProjectView) => calcFilament(p) + calcEnergy(p) + calcDeprec(p);
-const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
 
 export function ProjectsClient({ data }: { data: ProjectsData }) {
   const router = useRouter();
@@ -206,7 +207,7 @@ export function ProjectsClient({ data }: { data: ProjectsData }) {
           {/* Metrics */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Metric label="Projetos" value={String(metrics.totalProjects)} sub="protótipos parametrizados" icon={Cube} cls="text-primary" />
-            <Metric label="Custo Médio Real" value={brl(metrics.avgCost)} sub="insumo + luz + depreciação" icon={Receipt} cls="text-emerald-500" />
+            <Metric label="Custo Médio Real" value={brlFromReais(metrics.avgCost)} sub="insumo + luz + depreciação" icon={Receipt} cls="text-emerald-500" />
             <Metric label="Tempo Médio de Job" value={`${metrics.avgHours}h`} sub="por ciclo" icon={Clock} cls="text-amber-500" />
             <Metric label="Padrão de Infill" value={String(metrics.popularInfill)} sub="mais recorrente" icon={Sparkle} cls="text-purple-500" capitalize />
           </div>
@@ -232,7 +233,7 @@ export function ProjectsClient({ data }: { data: ProjectsData }) {
               <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-4">
                 <div>
                   <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Custo Total</span>
-                  <span className="text-3xl font-black text-foreground block mt-1 font-mono">{brl(sim.total)}</span>
+                  <span className="text-3xl font-black text-foreground block mt-1 font-mono">{brlFromReais(sim.total)}</span>
                 </div>
                 <div className="h-3 w-full rounded-full bg-muted overflow-hidden flex">
                   <div className="h-full bg-cyan-500" style={{ width: `${sim.materialPct}%` }} />
@@ -240,9 +241,9 @@ export function ProjectsClient({ data }: { data: ProjectsData }) {
                   <div className="h-full bg-purple-500" style={{ width: `${sim.deprecPct}%` }} />
                 </div>
                 <div className="space-y-2 text-xs">
-                  <Legend color="bg-cyan-500" label={`Insumo (${sim.materialPct}%)`} value={brl(sim.material)} />
-                  <Legend color="bg-amber-500" label={`Energia (${sim.powerPct}%)`} value={brl(sim.power)} />
-                  <Legend color="bg-purple-500" label={`Depreciação (${sim.deprecPct}%)`} value={brl(sim.deprec)} />
+                  <Legend color="bg-cyan-500" label={`Insumo (${sim.materialPct}%)`} value={brlFromReais(sim.material)} />
+                  <Legend color="bg-amber-500" label={`Energia (${sim.powerPct}%)`} value={brlFromReais(sim.power)} />
+                  <Legend color="bg-purple-500" label={`Depreciação (${sim.deprecPct}%)`} value={brlFromReais(sim.deprec)} />
                 </div>
                 <Button className="w-full h-8 rounded-lg gap-1.5 text-xs font-bold" onClick={() => {
                   localStorage.setItem("gltech_prefill_os", JSON.stringify({ title: "Simulação Customizada de Peça", notes: `Simulado: ${simWeight}g, ${simHours}h, ${simWattage}W`, total: sim.total * 1.5 }));
@@ -295,12 +296,12 @@ export function ProjectsClient({ data }: { data: ProjectsData }) {
                     </div>
                   </div>
                   <div className="p-5 pt-3 space-y-2 text-xs flex-1 flex flex-col">
-                    <Legend color="" label={`Insumo (${p.weightGrams}g)`} value={brl(filCost)} muted />
-                    <Legend color="" label={`Energia (${p.printHours}h)`} value={brl(energyCost)} muted />
-                    <Legend color="" label="Depreciação" value={brl(deprec)} muted />
+                    <Legend color="" label={`Insumo (${p.weightGrams}g)`} value={brlFromReais(filCost)} muted />
+                    <Legend color="" label={`Energia (${p.printHours}h)`} value={brlFromReais(energyCost)} muted />
+                    <Legend color="" label="Depreciação" value={brlFromReais(deprec)} muted />
                     <div className="flex justify-between items-center pt-2 border-t border-border/40 font-extrabold text-foreground">
                       <span>Custo de Fabricação:</span>
-                      <span className="text-accent font-mono">{brl(total)}</span>
+                      <span className="text-accent font-mono">{brlFromReais(total)}</span>
                     </div>
                     <Button variant="outline" size="sm" onClick={() => handleSendToOS(p)}
                       className="w-full h-8 rounded-lg text-xs font-bold mt-auto hover:bg-accent hover:text-white">

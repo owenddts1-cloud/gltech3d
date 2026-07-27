@@ -20,9 +20,9 @@ import type { ProductVariationGroup } from "@/lib/schemas/products-catalog";
 import VariationsEditor from "./VariationsEditor";
 import { ProductImages } from "./ProductImages";
 import { Combobox } from "@/components/ui/combobox";
+import { brlFromReais } from "@/lib/format/money";
 
-const brl = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
 
 interface Lite { id: string; name: string }
 interface FilLite extends Lite { costPerGram: number }
@@ -152,13 +152,13 @@ export function ProductsClient({
 
               {/* Breakdown do custo (BOM) */}
               <div className="mt-4 space-y-1 text-xs">
-                <Row label={`Material${p.filamentName ? ` · ${p.filamentName}` : ""}`} value={brl(p.pricing.materialCost)} />
-                <Row label="Energia" value={brl(p.pricing.energyCost)} />
-                <Row label="Depreciação" value={brl(p.pricing.depreciationCost)} />
-                {p.pricing.extrasCost > 0 && <Row label="Insumos" value={brl(p.pricing.extrasCost)} />}
+                <Row label={`Material${p.filamentName ? ` · ${p.filamentName}` : ""}`} value={brlFromReais(p.pricing.materialCost)} />
+                <Row label="Energia" value={brlFromReais(p.pricing.energyCost)} />
+                <Row label="Depreciação" value={brlFromReais(p.pricing.depreciationCost)} />
+                {p.pricing.extrasCost > 0 && <Row label="Insumos" value={brlFromReais(p.pricing.extrasCost)} />}
                 <div className="mt-1 flex items-center justify-between border-t border-border pt-1.5 font-semibold text-text">
                   <span>Custo total</span>
-                  <span className="tabular-nums">{brl(p.pricing.totalCost)}</span>
+                  <span className="tabular-nums">{brlFromReais(p.pricing.totalCost)}</span>
                 </div>
               </div>
 
@@ -168,10 +168,10 @@ export function ProductsClient({
                   <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                     Preço sugerido · margem {p.marginPct}%
                   </div>
-                  <div className="text-xl font-bold text-accent tabular-nums">{brl(p.pricing.suggestedPrice)}</div>
+                  <div className="text-xl font-bold text-accent tabular-nums">{brlFromReais(p.pricing.suggestedPrice)}</div>
                 </div>
                 <div className="text-right text-[11px] text-success-fg">
-                  +{brl(p.pricing.profit)}<br />lucro
+                  +{brlFromReais(p.pricing.profit)}<br />lucro
                 </div>
               </div>
 

@@ -1,10 +1,25 @@
 /**
- * Formatação de dinheiro para os documentos impressos.
+ * Formatação de dinheiro — módulo canônico.
  *
- * O repo formata BRL ad-hoc em dezenas de componentes (`Intl.NumberFormat` local).
- * Este módulo NÃO é uma tentativa de unificar aquilo — é o mínimo que o gerador de
- * documentos precisa, com um caso que não existe em lugar nenhum: o valor por
- * extenso do recibo.
+ * `brlFromCents` é a forma padrão: o banco guarda tudo em `*_cents` inteiros.
+ * `brlFromReais` existe para a parte do sistema que calcula em reais (motor de
+ * precificação, planilha do Controle, projetos). Ter as duas nomeadas evita o
+ * erro de dividir por 100 duas vezes — ou nenhuma.
+ *
+ * O que ainda formata por conta própria, e por quê (não é esquecimento):
+ *
+ * - `components/kanban/KanbanCard.tsx` e `components/inbox/CRMSidePanel.tsx`
+ *   respeitam a moeda da linha (`currency` da tabela), não só BRL.
+ * - `components/kanban/StageColumn.tsx` e os gráficos usam
+ *   `maximumFractionDigits: 0` para caber no eixo.
+ * - `app/app/control/_components/SpreadsheetGrid.tsx` devolve string vazia em
+ *   valor nulo ou zero, porque célula de planilha vazia não mostra "R$ 0,00".
+ * - Os módulos de IA e o e-mail de alarme instanciam o formatter uma vez e
+ *   chamam `.format()` em vários pontos.
+ *
+ * Unificar esses casos exigiria parametrizar o módulo (moeda, casas decimais,
+ * comportamento em zero) — o que troca duplicação por uma função com quatro
+ * flags. Fica como está, documentado.
  */
 
 const BRL = new Intl.NumberFormat("pt-BR", {
@@ -14,9 +29,21 @@ const BRL = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
 });
 
-/** `125000` → `"R$ 1.250,00"`. */
+/** `125000` → `"R$ 1.250,00"`. Entrada em centavos (a convenção do banco). */
 export function brlFromCents(cents: number): string {
   return BRL.format((Number.isFinite(cents) ? cents : 0) / 100);
+}
+
+/**
+ * `1250` → `"R$ 1.250,00"`. Entrada já em reais.
+ *
+ * Existe porque parte do sistema calcula em reais e não em centavos — o motor de
+ * precificação (`lib/pricing/engine`), a planilha do Controle e os projetos. Ter
+ * as duas funções nomeadas evita o erro clássico de dividir por 100 duas vezes,
+ * ou nenhuma.
+ */
+export function brlFromReais(value: number): string {
+  return BRL.format(Number.isFinite(value) ? value : 0);
 }
 
 /** Só o número, sem o símbolo: `125000` → `"1.250,00"`. Útil dentro de tabelas. */

@@ -29,6 +29,9 @@ export default function AppSwitcherDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {APPS.map((app) => {
             const Icon = app.icon;
+            // O status existia no registry e a UI ignorava: renderizava a string
+            // crua num badge verde, anunciando como pronto o que é protótipo.
+            const soon = app.status === "coming-soon";
             return (
               <Link
                 key={app.id}
@@ -40,8 +43,14 @@ export default function AppSwitcherDashboard() {
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20 group-hover:bg-orange-500 group-hover:text-zinc-950 transition-colors">
                       <Icon size={24} weight="duotone" />
                     </div>
-                    <span className="text-[10px] font-bold tracking-widest text-emerald-400 uppercase bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
-                      {app.status}
+                    <span
+                      className={`text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-md border ${
+                        soon
+                          ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                          : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                      }`}
+                    >
+                      {soon ? "Em construção" : "Disponível"}
                     </span>
                   </div>
 
@@ -56,7 +65,7 @@ export default function AppSwitcherDashboard() {
                 </div>
 
                 <div className="pt-6 mt-6 border-t border-zinc-800/80 flex items-center justify-between text-xs font-semibold text-zinc-300 group-hover:text-orange-400">
-                  <span>Acessar Workspace</span>
+                  <span>{soon ? "Ver prévia" : "Acessar Workspace"}</span>
                   <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                 </div>
               </Link>
@@ -69,7 +78,7 @@ export default function AppSwitcherDashboard() {
       <footer className="max-w-6xl mx-auto w-full border-t border-zinc-800/80 pt-6 flex flex-col md:flex-row items-center justify-between text-xs text-zinc-500 gap-4">
         <div className="flex items-center gap-2">
           <PlugsConnected size={16} className="text-orange-500" />
-          <span>Cross-App Data Mesh Sincronizado</span>
+          <span>Contexto compartilhado entre as telas (local ao navegador)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <Sparkle size={14} className="text-amber-400" />

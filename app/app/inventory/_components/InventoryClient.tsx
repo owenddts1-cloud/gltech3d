@@ -19,9 +19,8 @@ import {
 import type { ConsumablesData } from "@/app/actions/consumables/actions";
 import { ConsumablesClient } from "@/app/app/consumables/_components/ConsumablesClient";
 import { INVENTORY_CATEGORIES, INVENTORY_STATUSES, type InventoryCategory, type InventoryStatus } from "@/lib/schemas/inventory";
+import { brlFromCents } from "@/lib/format/money";
 
-const brl = (cents: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 
 const CATEGORY_LABEL: Record<InventoryCategory, string> = {
   impressora: "Impressora", ferramenta: "Ferramenta", movel: "Móvel",
@@ -109,7 +108,7 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi label="Ativos" value={String(kpis.totalAssets)} sub="itens cadastrados" icon={Toolbox} iconCls="bg-accent-soft text-accent" />
-        <Kpi label="Patrimônio atual" value={brl(kpis.patrimonyCents)} sub="valor depreciado" icon={Receipt} iconCls="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
+        <Kpi label="Patrimônio atual" value={brlFromCents(kpis.patrimonyCents)} sub="valor depreciado" icon={Receipt} iconCls="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
         <Kpi label="Impressoras" value={String(kpis.printers)} sub="como ativo" icon={Printer} iconCls="bg-accent-soft text-accent" />
         <Kpi label="Em manutenção" value={String(kpis.maintenance)} sub="fora de operação" icon={Warning} iconCls={kpis.maintenance > 0 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground"} />
       </div>
@@ -157,8 +156,8 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{a.purpose || "—"}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{a.quantity}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-foreground">{brl(a.totalValueCents)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-semibold text-foreground">{brl(a.currentValueCents)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-foreground">{brlFromCents(a.totalValueCents)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums font-semibold text-foreground">{brlFromCents(a.currentValueCents)}</td>
                       <td className="px-4 py-3"><Badge variant={s.variant}>{s.label}</Badge></td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">

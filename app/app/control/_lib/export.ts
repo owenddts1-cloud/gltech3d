@@ -4,6 +4,7 @@
 
 import { type FinancialRecord } from "@/app/actions/control/actions";
 import { type ColumnDef, isCustomKey } from "../_components/SpreadsheetGrid";
+import { brlFromReais } from "@/lib/format/money";
 import {
   computeTotals, computeMonthlyData,
   computeExpenseCategories, computeRevenueCategories,
@@ -11,8 +12,7 @@ import {
 
 const CURRENCY_KEYS = new Set(["revenue", "expense"]);
 
-const brl = (n: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
+
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -26,7 +26,7 @@ function rawCell(record: FinancialRecord, col: ColumnDef): unknown {
 /** Texto de uma célula para CSV/PDF (datas em DD/MM/AAAA, dinheiro formatado). */
 function displayCell(record: FinancialRecord, col: ColumnDef): string {
   const val = rawCell(record, col);
-  if (CURRENCY_KEYS.has(col.key)) return val ? brl(Number(val)) : "";
+  if (CURRENCY_KEYS.has(col.key)) return val ? brlFromReais(Number(val)) : "";
   if (col.key === "date" && typeof val === "string" && val.includes("-")) {
     const [y, m, d] = val.split("-");
     return d && m && y ? `${d}/${m}/${y}` : val;

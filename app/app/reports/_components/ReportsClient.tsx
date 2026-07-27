@@ -14,6 +14,7 @@ import type { ReportBreakdowns, Breakdown } from "@/app/actions/reports/types";
 import { DynamicChart } from "@/components/charts/DynamicChart";
 import { ChartDrilldownSheet, type DrilldownRow } from "@/components/charts/ChartDrilldownSheet";
 import { exportReportsCSV, exportReportsXLSX, exportReportsPDF, type ReportsExportPayload } from "../_lib/export";
+import { brlFromCents } from "@/lib/format/money";
 
 const PERIODS = [
   { key: "30d", label: "30 Dias", months: 1 },
@@ -22,8 +23,6 @@ const PERIODS = [
 ] as const;
 type PeriodKey = (typeof PERIODS)[number]["key"];
 
-const brl = (cents: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 
 function windowSums(monthly: ReportsData["monthly"], months: number, offset = 0) {
   const end = monthly.length - offset;
@@ -88,7 +87,7 @@ export function ReportsClient({ data, breakdowns }: { data: ReportsData; breakdo
   const exportPayload = useMemo<ReportsExportPayload>(() => ({
     periodLabel: PERIODS.find((p) => p.key === period)?.label ?? "",
     kpis: [
-      { label: "Faturamento", value: brl(kpis.revenue) },
+      { label: "Faturamento", value: brlFromCents(kpis.revenue) },
       { label: "Filamento", value: `${kpis.filamentKg.toFixed(1)} kg` },
       { label: "OS Concluídas", value: `${completion}%` },
       { label: "Tempo Ativo", value: `${kpis.hours}h` },
@@ -114,7 +113,7 @@ export function ReportsClient({ data, breakdowns }: { data: ReportsData; breakdo
     setDrill({ title: `${b.title} · ${label}`, rows });
   }
 
-  const drillValueFmt = (v: number) => brl(v);
+  const drillValueFmt = (v: number) => brlFromCents(v);
 
   return (
     <div className="space-y-6 p-6 mx-auto max-w-7xl animate-in fade-in duration-300">
@@ -169,7 +168,7 @@ export function ReportsClient({ data, breakdowns }: { data: ReportsData; breakdo
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard label="Faturamento" icon={Receipt} iconCls="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-          value={brl(kpis.revenue)} pill={<TrendPill pct={kpis.revenueTrend} />} sub="OS concluídas no período" />
+          value={brlFromCents(kpis.revenue)} pill={<TrendPill pct={kpis.revenueTrend} />} sub="OS concluídas no período" />
         <KpiCard label="Filamento" icon={Printer} iconCls="bg-accent-soft text-accent"
           value={`${kpis.filamentKg.toFixed(1)} kg`} pill={<TrendPill pct={kpis.filamentTrend} />} sub="consumo por telemetria" />
         <KpiCard label="OS Concluídas" icon={ClipboardText} iconCls="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
@@ -192,7 +191,7 @@ export function ReportsClient({ data, breakdowns }: { data: ReportsData; breakdo
             categoryKey="label"
             type="area"
             height={270}
-            valueFormat={(v) => brl(v)}
+            valueFormat={(v) => brlFromCents(v)}
             showBarLabels
           />
         </Card>

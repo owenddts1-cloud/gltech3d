@@ -7,6 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ClipboardText, Cube, Clock } from "@/lib/ui/icons";
+import { brlFromCents } from "@/lib/format/money";
 
 export interface ServiceOrderDetail {
   id: string;
@@ -19,8 +20,7 @@ export interface ServiceOrderDetail {
   slaDueAt: string | null;
 }
 
-const brl = (cents: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+
 
 const STATUS_META: Record<string, { label: string; variant: "warning" | "info" | "default" | "success" | "neutral" }> = {
   orcamento: { label: "Orçamento", variant: "warning" },
@@ -78,7 +78,7 @@ export function ServiceOrderDrawer({ os, open, onOpenChange }: Props) {
             </SheetHeader>
 
             <div className="space-y-3 border-b border-border p-6 text-sm">
-              <Row label="Valor total" value={brl(os.totalCents)} strong />
+              <Row label="Valor total" value={brlFromCents(os.totalCents)} strong />
               <Row label="Prazo (SLA)" value={slaLabel(os.slaDueAt)} icon={<Clock size={13} className="text-muted-foreground" />} />
               <Row label="Material" value={os.material ?? "—"} icon={<Cube size={13} className="text-muted-foreground" />} />
             </div>

@@ -15,8 +15,8 @@ import {
   type ConsumablesData, type ConsumableView,
 } from "@/app/actions/consumables/actions";
 import { CONSUMABLE_CATEGORIES, type ConsumableCategory } from "@/lib/schemas/consumables";
+import { brlFromCents } from "@/lib/format/money";
 
-const brl = (cents: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((cents || 0) / 100);
 const kg = (grams: number) => `${(grams / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kg`;
 
 const CAT_LABEL: Record<ConsumableCategory, string> = { filamento: "Filamento", resina: "Resina", outro: "Outro" };
@@ -76,7 +76,7 @@ export function ConsumablesClient({ data, embedded = false }: { data: Consumable
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi label="Itens cadastrados" value={String(data.kpis.total)} icon={Package} cls="text-primary" />
         <Kpi label="Estoque baixo" value={String(data.kpis.lowStock)} icon={Drop} cls={data.kpis.lowStock > 0 ? "text-amber-500" : "text-emerald-500"} sub="no/abaixo do mínimo" />
-        <Kpi label="Capital em estoque" value={brl(data.kpis.stockValueCents)} icon={Receipt} cls="text-emerald-500" />
+        <Kpi label="Capital em estoque" value={brlFromCents(data.kpis.stockValueCents)} icon={Receipt} cls="text-emerald-500" />
         <Kpi label="Estoque total" value={`${data.kpis.totalKg} kg`} icon={Package} cls="text-cyan-500" />
       </div>
 
@@ -114,8 +114,8 @@ export function ConsumablesClient({ data, embedded = false }: { data: Consumable
                       <span className={it.low ? "text-amber-600 dark:text-amber-400 font-bold" : "text-foreground"}>{kg(it.stockGrams)}</span>
                       {it.low && <Badge variant="secondary" className="ml-1.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[9px]">baixo</Badge>}
                     </td>
-                    <td className="py-3 px-3 text-right font-mono text-muted-foreground">{brl(it.costPerKgCents)}</td>
-                    <td className="py-3 px-3 text-right font-mono text-foreground font-semibold">{brl(it.stockValueCents)}</td>
+                    <td className="py-3 px-3 text-right font-mono text-muted-foreground">{brlFromCents(it.costPerKgCents)}</td>
+                    <td className="py-3 px-3 text-right font-mono text-foreground font-semibold">{brlFromCents(it.stockValueCents)}</td>
                     <td className="py-3 px-3 text-right">
                       <button onClick={() => handleDelete(it.id)} aria-label="Remover" className="text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 p-1 rounded-md transition-colors">
                         <Trash size={13} />

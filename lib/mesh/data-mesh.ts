@@ -1,5 +1,19 @@
 import type { MeshPayload, MeshPayloadType, AppDomain } from "@/types/hub";
 
+/**
+ * Barramento de eventos LOCAL entre as telas do hub.
+ *
+ * Apesar do nome, isto não é um data mesh: não há backend, não há persistência
+ * no servidor e não há escopo de organização. É um array de listeners em
+ * memória mais um histórico de 50 itens em `localStorage`, tudo dentro da aba
+ * do navegador. Recarregar em outro dispositivo não vê nada; outro usuário da
+ * mesma organização também não.
+ *
+ * Serve para o que já faz hoje — passar o contexto de um produto do CRM para a
+ * tela de conteúdo sem redigitar. Qualquer uso que dependa de durabilidade ou
+ * de compartilhamento entre usuários precisa de tabela e RLS antes.
+ */
+
 class DataMeshEngine {
   private listeners: ((payload: MeshPayload) => void)[] = [];
 

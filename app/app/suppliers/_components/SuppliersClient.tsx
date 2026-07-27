@@ -21,8 +21,9 @@ import {
   type SuppliersData,
 } from "@/app/actions/suppliers/actions";
 import { SUPPLIER_CATEGORIES, type SupplierCategory } from "@/lib/schemas/suppliers";
+import { brlFromCents } from "@/lib/format/money";
 
-const brlCents = (c: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(c / 100);
+
 
 const CATEGORY_LABEL: Record<SupplierCategory, string> = {
   filament: "Filamentos / Insumos", printer: "Impressoras / Peças", shipping: "Logística / Frete",
@@ -118,7 +119,7 @@ export function SuppliersClient({ data }: { data: SuppliersData }) {
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi label="Parceiros" value={String(summary.totalSuppliers)} sub="fornecedores cadastrados" icon={Handshake} cls="text-accent" />
-        <Kpi label="Gasto Acumulado" value={brlCents(summary.totalSpendCents)} sub="histórico de compras" icon={Coins} cls="text-emerald-500" />
+        <Kpi label="Gasto Acumulado" value={brlFromCents(summary.totalSpendCents)} sub="histórico de compras" icon={Coins} cls="text-emerald-500" />
         <Kpi label="Prazo Médio" value={`${summary.avgDelivery} dias`} sub="tempo médio de entrega" icon={Package} cls="text-amber-500" />
         <Kpi label="Alertas de Inflação" value={String(summary.highCostAlerts)} sub="insumos acima de R$0,12/g" icon={Warning} cls={summary.highCostAlerts > 0 ? "text-amber-500" : "text-muted-foreground"} />
       </div>
@@ -161,7 +162,7 @@ export function SuppliersClient({ data }: { data: SuppliersData }) {
                         <Row label="Materiais" value={`${sup.materialsCount} vinculados`} />
                         <div className="flex justify-between border-t border-border/60 pt-2 mt-1">
                           <span className="text-muted-foreground font-bold">Investido:</span>
-                          <span className="font-bold text-foreground font-mono">{brlCents(sup.totalSpendCents)}</span>
+                          <span className="font-bold text-foreground font-mono">{brlFromCents(sup.totalSpendCents)}</span>
                         </div>
                       </div>
                     </div>
@@ -247,7 +248,7 @@ export function SuppliersClient({ data }: { data: SuppliersData }) {
                       <span className="text-[10px] text-muted-foreground block">{p.supplierName} · {p.qty} un</span>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="font-bold text-foreground font-mono">{brlCents(p.qty * p.unitPriceCents)}</span>
+                      <span className="font-bold text-foreground font-mono">{brlFromCents(p.qty * p.unitPriceCents)}</span>
                       <span className="block text-[9px] text-muted-foreground font-mono mt-0.5">{p.purchasedAt}</span>
                     </div>
                   </div>
