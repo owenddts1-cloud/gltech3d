@@ -15,7 +15,8 @@ import {
   Copy,
   ArrowsClockwise,
 } from "@/lib/ui/icons";
-import { n8nClient } from "@/lib/n8n/client";
+import { N8N_DEMO_LOGS, N8N_DEMO_WORKFLOWS } from "@/lib/n8n/client";
+import { DemoBanner } from "@/components/app/DemoBanner";
 import { getTemplatesFromPackage } from "@/lib/n8n/templates";
 import { AutoHealingModal } from "@/components/automations/AutoHealingModal";
 import type { N8nWorkflowStatus, N8nExecutionLog, N8nTemplateItem } from "@/types/hub";
@@ -34,32 +35,39 @@ export default function AutomationsPage() {
   const [triggerResult, setTriggerResult] = useState<string | null>(null);
 
   useEffect(() => {
-    n8nClient.getWorkflows().then(setWorkflows);
-    n8nClient.getExecutionLogs().then(setLogs);
+    setWorkflows(N8N_DEMO_WORKFLOWS);
+    setLogs(N8N_DEMO_LOGS);
     setTemplates(getTemplatesFromPackage());
   }, []);
 
-  const handleRunTrigger = async (id: string) => {
+  /**
+   * O disparo real foi removido junto com `/api/n8n/trigger`.
+   *
+   * Aquela rota encaminhava para uma URL vinda do corpo da requisição e anexava
+   * a `N8N_API_KEY` no cabeçalho — qualquer usuário autenticado, de qualquer
+   * tenant, extraía a chave ou varria a rede interna. Enquanto a integração não
+   * for construída de verdade (credencial por tenant + allowlist de destino),
+   * o playground apenas valida o JSON e diz o que ainda falta.
+   */
+  const handleRunTrigger = (id: string) => {
     try {
-      const parsed = JSON.parse(testPayload);
-      const res = await fetch("/api/n8n/trigger", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workflowId: id, payload: parsed }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setTriggerResult(`✅ Workflow '${id}' disparado na API! ExecutionId: ${data.executionId} (Status: ${data.status})`);
-      } else {
-        setTriggerResult(`❌ Erro no disparo: ${data.error || "Falha na requisição"}`);
-      }
+      JSON.parse(testPayload);
     } catch {
-      setTriggerResult("Erro: Payload JSON do playground está malformado.");
+      setTriggerResult("Erro: o JSON do playground está malformado.");
+      return;
     }
+    setTriggerResult(
+      `Payload válido para '${id}'. O disparo real ainda não está disponível — a integração com o n8n está em construção.`,
+    );
   };
 
   return (
     <div className="space-y-6 pb-12">
+      <DemoBanner>
+        Os workflows, execuções e logs abaixo são exemplos fixos. A integração com o n8n ainda
+        não está construída — o disparo real foi desativado.
+      </DemoBanner>
+
       {/* Header do App 2 */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>

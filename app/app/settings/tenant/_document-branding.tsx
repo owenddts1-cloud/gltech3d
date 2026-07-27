@@ -207,7 +207,22 @@ export function DocumentBrandingFields({ value, onChange }: Props) {
           id="doc_warranty"
           value={value.default_warranty}
           onChange={(e) => set("default_warranty", e.target.value)}
-          placeholder="Ex.: garantia de 90 dias contra defeitos de fabricação."
+          placeholder="Ex.: Garantia de 90 dias contra defeitos de fabricação e de precisão dimensional conforme o modelo 3D aprovado."
+          className="min-h-[64px]"
+        />
+        <p className="text-xs text-muted-foreground">
+          Garantia é compromisso contratual: em branco, o bloco simplesmente não é impresso —
+          o sistema não escreve uma garantia no seu lugar.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="doc_notes">Observação padrão dos documentos</Label>
+        <Textarea
+          id="doc_notes"
+          value={value.default_notes}
+          onChange={(e) => set("default_notes", e.target.value)}
+          placeholder="Ex.: O tom de cor da matéria-prima (filamento/resina) pode variar levemente conforme o lote do fabricante."
           className="min-h-[64px]"
         />
       </div>

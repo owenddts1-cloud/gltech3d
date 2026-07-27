@@ -3,70 +3,93 @@ import { formatDateBr } from "@/lib/format/document";
 import { validUntil } from "@/app/app/service-orders/_lib/document-draft";
 import { ShieldCheck, Info } from "@/lib/ui/icons";
 
+/**
+ * Coluna direita: condições comerciais (orçamento) ou especificações de
+ * produção (O.S.), mais observações.
+ *
+ * Este bloco imprimia "Camada: 0.20 mm / Infill: 15% / Suportes: Sim /
+ * Material: PLA" sempre que os campos estivessem vazios — e estavam sempre, o
+ * que fazia toda O.S. entregar ao cliente um parâmetro de produção que ninguém
+ * configurou. Agora cada linha só aparece com valor real, e o cartão inteiro
+ * some se não houver nenhum.
+ */
+
+function Row({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <p className="doc-term-row">
+      <strong>{label}:</strong> {value}
+    </p>
+  );
+}
+
 export function DocTerms({ snapshot }: { snapshot: DocumentSnapshot }) {
   const { terms, docType, serviceOrder } = snapshot;
 
+  const validity = docType === "orcamento" ? formatDateBr(validUntil(snapshot)) : "";
+  const commercialRows =
+    docType === "orcamento" ? [validity, terms.paymentConditions].filter(Boolean) : [];
+  const techRows =
+    docType === "ordem_servico"
+      ? [serviceOrder.layerHeight, serviceOrder.infill, serviceOrder.supports, serviceOrder.material].filter(Boolean)
+      : [];
+  const warranty = docType === "ordem_servico" ? terms.warranty : "";
+
+  const showFirstCard = commercialRows.length > 0 || techRows.length > 0 || Boolean(warranty);
+  const showNotes = Boolean(terms.notes);
+  if (!showFirstCard && !showNotes) return null;
+
   return (
     <div className="doc-terms-right-col">
-      {/* CARD 1: CONDIÇÕES DA PROPOSTA / ESPECIFICAÇÕES */}
-      <div className="doc-term-card-pdf">
-        <div className="doc-card-header">
-          <div className="doc-card-icon-badge">
-            <ShieldCheck size={16} weight="bold" />
-          </div>
-          <h3 className="doc-card-title">
-            {docType === "ordem_servico" ? "ESPECIFICAÇÕES TÉCNICAS (3D)" : "CONDIÇÕES DA PROPOSTA"}
-          </h3>
-        </div>
-
-        <div className="doc-term-card-body">
-          {docType === "orcamento" && (
-            <div>
-              <p className="doc-term-row">
-                <strong>Validade:</strong> {formatDateBr(validUntil(snapshot))}
-              </p>
-              {terms.paymentConditions ? (
-                <p className="doc-term-row mt-1">
-                  <strong>Condições:</strong> {terms.paymentConditions}
-                </p>
-              ) : null}
+      {showFirstCard ? (
+        <div className="doc-term-card-pdf">
+          <div className="doc-card-header">
+            <div className="doc-card-icon-badge">
+              <ShieldCheck size={16} weight="bold" />
             </div>
-          )}
-
-          {docType === "ordem_servico" && (
-            <div className="doc-tech-grid-pdf">
-              <p className="doc-term-row">
-                <strong>Camada:</strong> {serviceOrder.layerHeight || "0.20 mm"}
-              </p>
-              <p className="doc-term-row">
-                <strong>Infill:</strong> {serviceOrder.infill || "15%"}
-              </p>
-              <p className="doc-term-row">
-                <strong>Suportes:</strong> {serviceOrder.supports || "Sim"}
-              </p>
-              <p className="doc-term-row">
-                <strong>Material:</strong> {serviceOrder.material || "PLA"}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* CARD 2: OBSERVAÇÕES */}
-      <div className="doc-term-card-pdf">
-        <div className="doc-card-header">
-          <div className="doc-card-icon-badge">
-            <Info size={16} weight="bold" />
+            <h3 className="doc-card-title">
+              {docType === "ordem_servico" ? "ESPECIFICAÇÕES TÉCNICAS (3D)" : "CONDIÇÕES DA PROPOSTA"}
+            </h3>
           </div>
-          <h3 className="doc-card-title">OBSERVAÇÕES</h3>
+
+          <div className="doc-term-card-body">
+            {docType === "orcamento" ? (
+              <div>
+                <Row label="Validade" value={validity} />
+                <Row label="Condições" value={terms.paymentConditions} />
+              </div>
+            ) : null}
+
+            {docType === "ordem_servico" ? (
+              <>
+                {techRows.length > 0 ? (
+                  <div className="doc-tech-grid-pdf">
+                    <Row label="Camada" value={serviceOrder.layerHeight} />
+                    <Row label="Infill" value={serviceOrder.infill} />
+                    <Row label="Suportes" value={serviceOrder.supports} />
+                    <Row label="Material" value={serviceOrder.material} />
+                  </div>
+                ) : null}
+                <Row label="Garantia" value={warranty} />
+              </>
+            ) : null}
+          </div>
         </div>
-        <div className="doc-term-card-body">
-          <p className="doc-term-notes-text">
-            {terms.notes ||
-              "O tom de cor da matéria-prima (filamento/resina) pode variar levemente conforme o lote do fabricante."}
-          </p>
+      ) : null}
+
+      {showNotes ? (
+        <div className="doc-term-card-pdf">
+          <div className="doc-card-header">
+            <div className="doc-card-icon-badge">
+              <Info size={16} weight="bold" />
+            </div>
+            <h3 className="doc-card-title">OBSERVAÇÕES</h3>
+          </div>
+          <div className="doc-term-card-body">
+            <p className="doc-term-notes-text">{terms.notes}</p>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

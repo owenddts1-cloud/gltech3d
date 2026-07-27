@@ -57,28 +57,61 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     return fail("not_found", "unknown webhook token", 404, { requestId });
   }
 
-  // HMAC (best-effort: se fn_decrypt_oauth falhar — ex. seed dev sem cripto —
-  // loga e pula para o MVP).
+  /**
+   * HMAC — FAIL-CLOSED.
+   *
+   * A versão anterior era best-effort: se `fn_decrypt_oauth` falhasse (chave
+   * rotacionada, `WAHA_BYO_ENCRYPTION_KEY` errada, RPC ausente num clone
+   * self-host, segredo nulo), ela setava `hmacSkipped` e **aceitava o webhook sem
+   * assinatura** — bastava conhecer o `webhook_path_token` para injetar mensagem
+   * arbitrária no inbox do tenant. E gravava `valid_signature: true` no log, o
+   * que apagava o rastro de que nada tinha sido verificado.
+   *
+   * Agora: sem segredo utilizável, ninguém entra. Indisponibilidade da cripto é
+   * 503 (problema nosso, o WAHA reenvia), assinatura errada é 401.
+   */
   const sigHeader = req.headers.get("x-webhook-hmac") ?? req.headers.get("X-Webhook-Hmac");
-  let validSignature = false;
-  let hmacSkipped = false;
+
+  if (!session.webhook_secret_encrypted) {
+    await audit({
+      action: "waha.webhook_hmac_unavailable",
+      organizationId: session.organization_id,
+      requestId,
+      metadata: {
+        provider: "waha",
+        session: session.waha_session_name,
+        reason: "missing_webhook_secret",
+      },
+    });
+    return fail("service_unavailable", "webhook_secret_not_configured", 503, { requestId });
+  }
+
+  let secret: string | null = null;
   try {
     const dec = await admin.rpc("fn_decrypt_oauth", {
       ciphertext: session.webhook_secret_encrypted,
     });
-    if (dec.error || !dec.data) {
-      hmacSkipped = true;
-    } else {
-      validSignature = verifyHmacSha512(rawBody, sigHeader, dec.data as string);
-    }
+    if (!dec.error && dec.data) secret = dec.data as string;
   } catch {
-    hmacSkipped = true;
+    secret = null;
   }
 
-  if (!hmacSkipped && !validSignature) {
+  if (!secret) {
     await audit({
-      action: "nuvemshop.webhook_invalid_signature",
+      action: "waha.webhook_hmac_unavailable",
       organizationId: session.organization_id,
+      requestId,
+      metadata: { provider: "waha", session: session.waha_session_name, reason: "decrypt_failed" },
+    });
+    return fail("service_unavailable", "webhook_secret_undecryptable", 503, { requestId });
+  }
+
+  const validSignature = verifyHmacSha512(rawBody, sigHeader, secret);
+  if (!validSignature) {
+    await audit({
+      action: "waha.webhook_invalid_signature",
+      organizationId: session.organization_id,
+      requestId,
       metadata: { provider: "waha", session: session.waha_session_name, event: envelope.event },
     });
     return fail("unauthenticated", "invalid_signature", 401, { requestId });
@@ -103,7 +136,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     raw_body: rawBody,
     payload_parsed: envelope as unknown as Record<string, unknown>,
     signature_header: sigHeader ?? null,
-    valid_signature: validSignature || hmacSkipped,
+    // O fato, não uma conveniência: só chega aqui quem passou pelo HMAC.
+    valid_signature: validSignature,
     event_type: eventType,
     external_id: externalId,
     status: "received",

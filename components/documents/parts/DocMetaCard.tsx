@@ -40,7 +40,7 @@ export function DocMetaCard({ snapshot, number }: { snapshot: DocumentSnapshot; 
         <div className="doc-meta-card-content">
           {docType === "orcamento" ? (
             <>
-              <span className="doc-meta-card-label">VALIDO ATÉ:</span>
+              <span className="doc-meta-card-label">VÁLIDO ATÉ:</span>
               <span className="doc-meta-card-value">{until ? formatDateBr(until) : "—"}</span>
             </>
           ) : docType === "ordem_servico" ? (

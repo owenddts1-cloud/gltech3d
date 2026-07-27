@@ -60,27 +60,43 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // HMAC — pula em dev quando o secret é o placeholder.
+  /**
+   * HMAC — FAIL-CLOSED (mesma correção da rota per-tenant `[token]`).
+   *
+   * Antes, qualquer falha de decrypt — inclusive um segredo com menos de 4
+   * caracteres — desligava a verificação e o webhook passava sem assinatura.
+   * Segredo indisponível agora é 503 (o WAHA reenvia), assinatura errada é 401.
+   */
   const sigHeader = req.headers.get("x-webhook-hmac") ?? req.headers.get("X-Webhook-Hmac");
-  let validSignature = false;
-  let hmacSkipped = false;
-  try {
-    const dec = await admin.rpc("fn_decrypt_oauth", {
-      ciphertext: session.webhook_secret_encrypted,
-    });
-    if (dec.error || !dec.data || (typeof dec.data === "string" && dec.data.length < 4)) {
-      hmacSkipped = true;
-    } else {
-      validSignature = verifyHmacSha512(rawBody, sigHeader, dec.data as string);
+
+  let secret: string | null = null;
+  if (session.webhook_secret_encrypted) {
+    try {
+      const dec = await admin.rpc("fn_decrypt_oauth", {
+        ciphertext: session.webhook_secret_encrypted,
+      });
+      if (!dec.error && typeof dec.data === "string" && dec.data.length >= 4) secret = dec.data;
+    } catch {
+      secret = null;
     }
-  } catch {
-    hmacSkipped = true;
   }
 
-  if (!hmacSkipped && !validSignature) {
+  if (!secret) {
     await audit({
-      action: "nuvemshop.webhook_invalid_signature",
+      action: "waha.webhook_hmac_unavailable",
       organizationId: session.organization_id,
+      requestId,
+      metadata: { provider: "waha", session: session.waha_session_name, reason: "no_usable_secret" },
+    });
+    return fail("service_unavailable", "webhook_secret_not_configured", 503, { requestId });
+  }
+
+  const validSignature = verifyHmacSha512(rawBody, sigHeader, secret);
+  if (!validSignature) {
+    await audit({
+      action: "waha.webhook_invalid_signature",
+      organizationId: session.organization_id,
+      requestId,
       metadata: { provider: "waha", session: session.waha_session_name, event: envelope.event },
     });
     return fail("unauthenticated", "invalid_signature", 401, { requestId });
@@ -105,7 +121,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     raw_body: rawBody,
     payload_parsed: envelope as unknown as Record<string, unknown>,
     signature_header: sigHeader ?? null,
-    valid_signature: validSignature || hmacSkipped,
+    // O fato, não uma conveniência: só chega aqui quem passou pelo HMAC.
+    valid_signature: validSignature,
     event_type: eventType,
     external_id: externalId,
     status: "received",

@@ -1,6 +1,8 @@
 import type { RenderableDocument } from "@/lib/schemas/service-order-documents";
 import { brlFromCents } from "@/lib/format/money";
 
+import { documentFontClassName } from "./fonts";
+
 import { DocHeader } from "./parts/DocHeader";
 import { DocParties } from "./parts/DocParties";
 import { DocItemsTable } from "./parts/DocItemsTable";
@@ -15,7 +17,9 @@ export function DocumentSheet({ document }: { document: RenderableDocument }) {
   const { snapshot, number, voidedAt } = document;
 
   return (
-    <article className="doc-sheet">
+    // As variáveis de fonte vão no próprio elemento: a folha carrega a tipografia
+    // consigo em vez de depender do <html> raiz.
+    <article className={`doc-sheet ${documentFontClassName}`}>
       {voidedAt ? (
         <div className="doc-void" aria-hidden="true">
           <span>CANCELADO</span>

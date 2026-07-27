@@ -84,6 +84,42 @@ describe("parseDocType", () => {
   });
 });
 
+describe("URLs de imagem persistidas", () => {
+  // Um `blob:` só vive enquanto a aba que o criou existir. Gravado no snapshot
+  // imutável, a foto quebra no primeiro reload e não há conserto — o documento
+  // emitido não pode ser reescrito. Por isso a rejeição é no schema, e não só na
+  // tela: assim nenhum caminho de escrita consegue persistir isso.
+  it.each(["blob:http://localhost:3000/9f3e", "data:image/png;base64,iVBORw0KGgo="])(
+    "rejeita %s em item.imageUrl",
+    (url) => {
+      expect(docItemSchema.safeParse({ name: "x", qty: 1, unitPriceCents: 100, imageUrl: url }).success).toBe(
+        false,
+      );
+    },
+  );
+
+  it("rejeita blob: em heroImageUrl e em org.logoUrl", () => {
+    expect(
+      documentSnapshotSchema.safeParse(minimalSnapshot({ heroImageUrl: "blob:http://x/1" })).success,
+    ).toBe(false);
+    expect(
+      documentSnapshotSchema.safeParse(minimalSnapshot({ org: { logoUrl: "blob:http://x/1" } })).success,
+    ).toBe(false);
+  });
+
+  it("aceita URL pública do Storage e string vazia", () => {
+    expect(
+      docItemSchema.safeParse({
+        name: "x",
+        qty: 1,
+        unitPriceCents: 100,
+        imageUrl: "https://proj.supabase.co/storage/v1/object/public/landing-media/org/a.png",
+      }).success,
+    ).toBe(true);
+    expect(documentSnapshotSchema.safeParse(minimalSnapshot({ heroImageUrl: null })).success).toBe(true);
+  });
+});
+
 describe("rota de impressão", () => {
   it("NÃO é pública — a folha contém PII do cliente", () => {
     expect(isPublicPath("/documentos/9f3e1b2c-0000-4000-8000-000000000000")).toBe(false);

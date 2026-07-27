@@ -152,4 +152,158 @@ describe("DocumentSheet", () => {
     const { container } = renderDoc("orcamento");
     expect(container.querySelector(".doc-items-pdf > thead")).toBeTruthy();
   });
+
+  it("usa o subtotal do snapshot, sem recalcular por fora", () => {
+    // A tabela recalculava a soma localmente, o que podia divergir do VALOR FINAL
+    // do resumo — dois números diferentes no mesmo papel.
+    const { container } = renderDoc("orcamento");
+    const table = container.querySelector(".doc-items-pdf");
+    const summary = container.querySelector(".doc-summary-table-pdf");
+    expect(table?.textContent).toContain("1.890,00");
+    expect(summary?.textContent).toContain("1.890,00");
+  });
+
+  it("toda classe doc-* usada na folha tem CSS correspondente", async () => {
+    // Regressão real: o bloco de local/data e a declaração de quitação foram
+    // renderizados com classes que não existiam no document.css e saíram sem
+    // estilo nenhum no papel. Compilar e renderizar não pega isso.
+    const { readFileSync, readdirSync } = await import("node:fs");
+    const css = readFileSync("components/documents/document.css", "utf-8");
+    const defined = new Set(Array.from(css.matchAll(/\.(doc-[a-z0-9-]+)/g), (m) => m[1]!));
+
+    const files = readdirSync("components/documents", { recursive: true, encoding: "utf-8" })
+      .filter((f) => f.endsWith(".tsx") && !f.endsWith(".test.tsx"))
+      .map((f) => `components/documents/${f.replace(/\\/g, "/")}`);
+    const used = new Set<string>();
+    for (const file of files) {
+      const src = readFileSync(file, "utf-8");
+      for (const m of src.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\})/g)) {
+        for (const cls of `${m[1] ?? ""} ${m[2] ?? ""}`.split(/\s+/)) {
+          if (cls.startsWith("doc-")) used.add(cls);
+        }
+      }
+    }
+
+    // Guarda contra teste vazio: se a varredura não achar nada, ela não vale nada.
+    expect(files.length).toBeGreaterThan(5);
+    expect(used.size).toBeGreaterThan(50);
+    expect(defined.size).toBeGreaterThan(50);
+    expect([...used].filter((c) => !defined.has(c))).toEqual([]);
+  });
+
+  it("renderiza o assinante e o cargo configurados", () => {
+    // signerName/signerRole/city eram editáveis no gerador e ignorados na folha.
+    const { container } = renderDoc("orcamento");
+    const sig = container.querySelector(".doc-signatures-wrap");
+    expect(sig?.textContent).toContain("Guilherme");
+    expect(sig?.textContent).toContain("CONTRATANTE");
+  });
+});
+
+/**
+ * A blindagem que faltava.
+ *
+ * O commit do redesign transformou os dados de exemplo do PDF em fallback de
+ * produção: telefone, e-mail e endereço reais da GL TECH 3D, nome e endereço de
+ * uma cliente, e parâmetros de impressão fabricados ("0.20 mm", "15%", "PLA").
+ * Nada disso foi pego porque todo teste passava um contexto completo.
+ *
+ * Aqui o contexto é propositalmente VAZIO. Se algum literal voltar ao código,
+ * este bloco quebra.
+ */
+describe("DocumentSheet — organização sem nada configurado", () => {
+  const EMPTY_CONTEXT: DocumentContext = {
+    order: {
+      id: "33333333-3333-4333-8333-333333333333",
+      code: null,
+      title: "Peça avulsa",
+      contactId: null,
+      contactName: null,
+      status: "orcamento",
+      material: null,
+      qty: 1,
+      totalCents: 5000,
+      slaDueAt: null,
+      createdAt: "2026-07-20T12:00:00.000Z",
+      notes: "",
+    },
+    items: [],
+    contact: null,
+    products: [],
+    org: {
+      displayName: "",
+      legalName: "",
+      cnpj: "",
+      branding: emptyDocumentBranding(),
+    },
+    issuedBy: { userId: null, name: "" },
+    nowIso: "2026-07-26T12:00:00.000Z",
+  };
+
+  /** Todo literal que já esteve embutido como fallback. Nenhum pode reaparecer. */
+  const FORBIDDEN = [
+    "99928-4834",
+    "99841-9393",
+    "lanuci321",
+    "Sarzedo",
+    "Vicente Nunes",
+    "Geraldo Nassif",
+    "JANE",
+    "GL TECH 3D",
+    "0.20 mm",
+    "15%",
+    "PLA",
+    "60 dias",
+    "Valor com desconto",
+    "±0.1mm",
+  ];
+
+  it.each(["orcamento", "ordem_servico", "recibo"] as const)(
+    "não inventa nenhum dado no documento do tipo %s",
+    (docType) => {
+      const { container } = render(
+        <DocumentSheet
+          document={{
+            snapshot: buildDraftSnapshot(EMPTY_CONTEXT, docType),
+            number: "ORC-2026-0001",
+            voidedAt: null,
+            voidReason: null,
+          }}
+        />,
+      );
+
+      const text = container.textContent ?? "";
+      for (const literal of FORBIDDEN) {
+        expect(text, `vazou o literal "${literal}"`).not.toContain(literal);
+      }
+    },
+  );
+
+  it("omite o bloco de especificações técnicas quando não há parâmetro algum", () => {
+    const { container } = render(
+      <DocumentSheet
+        document={{
+          snapshot: buildDraftSnapshot(EMPTY_CONTEXT, "ordem_servico"),
+          number: "OSV-2026-0001",
+          voidedAt: null,
+          voidReason: null,
+        }}
+      />,
+    );
+    expect(container.textContent).not.toContain("ESPECIFICAÇÕES TÉCNICAS");
+  });
+
+  it("ainda imprime o valor final, que é o que define o documento", () => {
+    const { container } = render(
+      <DocumentSheet
+        document={{
+          snapshot: buildDraftSnapshot(EMPTY_CONTEXT, "orcamento"),
+          number: "ORC-2026-0001",
+          voidedAt: null,
+          voidReason: null,
+        }}
+      />,
+    );
+    expect(container.querySelector(".doc-summary-table-pdf")?.textContent).toContain("50,00");
+  });
 });

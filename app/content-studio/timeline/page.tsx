@@ -15,15 +15,25 @@ import {
   ArrowsClockwise,
   CheckCircle,
 } from "@/lib/ui/icons";
-import { moneyPrinterBridge } from "@/lib/content-studio/money-printer-bridge";
-import { creativeMcpClient } from "@/lib/mcp/creative-client";
 import { dataMesh } from "@/lib/mesh/data-mesh";
+import { DemoBanner } from "@/components/app/DemoBanner";
+
+/**
+ * Preview do estúdio de conteúdo.
+ *
+ * O backend de geração não existe. A rota `/api/content-studio/generate` foi
+ * removida porque devolvia roteiro fixo e URLs de vídeo em `cdn.gltech3d.com`
+ * que nunca existiram, sempre com `success: true` — e a ponte para ela relatava
+ * "vídeo gerado" mesmo quando a requisição falhava.
+ *
+ * A tela segue no ar como referência visual do que a feature será, com os dados
+ * marcados como demonstração e as ações desligadas. Nada aqui promete um
+ * resultado que o sistema não entrega.
+ */
 
 export default function ContentStudioTimelinePage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [prompt, setPrompt] = useState("Criativo em vídeo mostrando o filamento PETG GLTech3D impresso em alta resolução.");
-  const [generatedScript, setGeneratedScript] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
   const [importedBadge, setImportedBadge] = useState<string | null>(null);
   const [subtitles, setSubtitles] = useState([
     { start: "00:00.00", end: "00:03.00", text: "Procurando peças em 3D de alta resistência?" },
@@ -62,42 +72,32 @@ export default function ContentStudioTimelinePage() {
     return () => unsubscribe();
   }, []);
 
-  const handleGenerateContent = async () => {
-    setIsGenerating(true);
-    const script = await creativeMcpClient.generateScriptWithLLM(prompt);
-    setGeneratedScript(script);
-    setIsGenerating(false);
-  };
-
-  const handleMoneyPrinterSubmit = async () => {
-    const job = await moneyPrinterBridge.createVideoJob(prompt);
-    alert(`Job MoneyPrinterTurbo submetido! ID: ${job.jobId}. O vídeo final será renderizado em MP4 em background.`);
-  };
-
   return (
     <div className="space-y-6 pb-12">
+      <DemoBanner />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
             <VideoCamera className="text-amber-500" size={24} />
-            <span>AI Content Studio & Timeline Editor</span>
+            <span>AI Content Studio &amp; Timeline Editor</span>
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Estúdio de edição programática com Remotion, transcrição Whisper, MoneyPrinterTurbo e conectores MCP.
+            Prévia da interface. A edição programática, a transcrição e a renderização de vídeo
+            ainda não estão implementadas.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={async () => {
-              const res = await moneyPrinterBridge.generateAndDispatchToN8n(prompt, prompt);
-              alert(`🎉 Vídeo gerado pelo MoneyPrinterTurbo! ID: ${res.job.jobId}.\n\nTransmitido via Data Mesh para o workflow n8n (Instagram/TikTok/WhatsApp) com o ID ${res.dispatchedPayloadId}!`);
-            }}
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-xs font-bold text-zinc-950 hover:opacity-90 transition-opacity shadow-lg shadow-orange-500/20"
+            type="button"
+            disabled
+            title="A geração de vídeo ainda não está disponível."
+            className="flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-zinc-700 px-4 py-2 text-xs font-bold text-zinc-400 opacity-60"
           >
             <Lightning size={15} weight="fill" />
-            <span>Gerar Vídeo & Auto-Postar via n8n</span>
+            <span>Gerar Vídeo &amp; Auto-Postar via n8n</span>
           </button>
         </div>
       </div>
@@ -128,21 +128,13 @@ export default function ContentStudioTimelinePage() {
           </div>
 
           <button
-            onClick={handleGenerateContent}
-            disabled={isGenerating}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-4 py-2 text-xs font-bold text-amber-400 hover:bg-amber-500/20"
+            type="button"
+            disabled
+            title="A geração de roteiro por IA ainda não está disponível."
+            className="flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-lg border border-border bg-zinc-800 px-4 py-2 text-xs font-bold text-zinc-400 opacity-60"
           >
-            <span>{isGenerating ? "Gerando Roteiro via LLM..." : "Gerar Roteiro com IA"}</span>
+            <span>Gerar Roteiro com IA</span>
           </button>
-
-          {generatedScript && (
-            <div>
-              <label className="block text-xs font-medium text-foreground mb-1">Roteiro Estruturado (MCP Output):</label>
-              <pre className="w-full rounded-xl bg-zinc-950 p-3 text-xs text-emerald-400 border border-border whitespace-pre-wrap font-sans">
-                {generatedScript}
-              </pre>
-            </div>
-          )}
         </div>
 
         {/* Right Col: Video Viewport & Timeline Editor */}

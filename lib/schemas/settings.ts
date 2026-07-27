@@ -57,6 +57,8 @@ export const documentBrandingSchema = z.object({
   default_payment_terms: z.string().trim().max(600).default(""),
   default_warranty: z.string().trim().max(600).default(""),
   default_delivery_estimate: z.string().trim().max(200).default(""),
+  /** Observação padrão impressa no bloco OBSERVAÇÕES (ex.: variação de tom do filamento). */
+  default_notes: z.string().trim().max(1000).default(""),
   signer_name: z.string().trim().max(200).default(""),
   signer_role: z.string().trim().max(120).default(""),
 });

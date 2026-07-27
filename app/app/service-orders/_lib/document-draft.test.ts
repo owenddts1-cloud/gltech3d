@@ -200,6 +200,62 @@ describe("withDerivedFields", () => {
   });
 });
 
+describe("parâmetros de impressão no snapshot", () => {
+  function withSlicer(slicerNotes: DraftOrder["slicerNotes"]) {
+    return buildDraftSnapshot(makeContext({ order: { ...ORDER, slicerNotes } }), "ordem_servico")
+      .serviceOrder;
+  }
+
+  it("formata os valores reais da O.S.", () => {
+    expect(withSlicer({ layerHeight: 0.2, infill: 25, supports: true })).toMatchObject({
+      layerHeight: "0.2 mm",
+      infill: "25%",
+      supports: "Sim",
+    });
+  });
+
+  it("trata ZERO como valor informado, não como ausência", () => {
+    // Era o bug: `infill ? ... : "15%"` fazia 0% de preenchimento virar 15%.
+    expect(withSlicer({ layerHeight: 0, infill: 0, supports: false })).toMatchObject({
+      layerHeight: "0 mm",
+      infill: "0%",
+      supports: "Não",
+    });
+  });
+
+  it("deixa vazio quando o parâmetro não foi informado", () => {
+    // Vazio faz a folha OMITIR a linha, em vez de inventar "0.20 mm"/"15%"/"Sim".
+    expect(withSlicer({})).toMatchObject({ layerHeight: "", infill: "", supports: "" });
+    expect(withSlicer(undefined)).toMatchObject({ layerHeight: "", infill: "", supports: "" });
+  });
+});
+
+describe("defaultTermsFor", () => {
+  it("não inventa garantia nem prazo — só o que está nos Ajustes", () => {
+    // Garantia é compromisso contratual: sem configuração, o campo fica vazio e o
+    // bloco não é impresso.
+    const snap = buildDraftSnapshot(makeContext(), "ordem_servico");
+    expect(snap.terms.warranty).toBe("");
+    expect(snap.terms.deliveryEstimate).toBe("");
+    expect(snap.terms.paymentConditions).toBe("");
+    expect(snap.terms.notes).toBe("");
+  });
+
+  it("propaga os textos configurados pela organização", () => {
+    const ctx = makeContext();
+    ctx.org.branding = {
+      ...ctx.org.branding,
+      default_warranty: "90 dias contra defeito de fabricação.",
+      default_delivery_estimate: "20 dias úteis",
+      default_notes: "Tom pode variar por lote.",
+    };
+    const snap = buildDraftSnapshot(ctx, "ordem_servico");
+    expect(snap.terms.warranty).toBe("90 dias contra defeito de fabricação.");
+    expect(snap.terms.deliveryEstimate).toBe("20 dias úteis");
+    expect(snap.terms.notes).toBe("Tom pode variar por lote.");
+  });
+});
+
 describe("validUntil", () => {
   it("soma a validade à data de emissão", () => {
     const snap = buildDraftSnapshot(makeContext(), "orcamento");

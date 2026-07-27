@@ -129,7 +129,16 @@ export async function fetchDocumentContext(serviceOrderId: string) {
   if (itemsRes.error) return { ok: false as const, error: itemsRes.error.message };
   if (orgRes.error) return { ok: false as const, error: orgRes.error.message };
 
-  const slicer = (orderRow.slicer_notes ?? {}) as { notes?: string };
+  // `slicer_notes` guarda notes + layerHeight (mm) + infill (%) + supports (bool).
+  // O cast anterior era `as { notes?: string }`, que descartava os três parâmetros
+  // de produção — e é por isso que a O.S. impressa acabava mostrando valores
+  // inventados no lugar deles.
+  const slicer = (orderRow.slicer_notes ?? {}) as {
+    notes?: string;
+    layerHeight?: number;
+    infill?: number;
+    supports?: boolean;
+  };
 
   const items: DraftItem[] = (itemsRes.data ?? []).map((r) => ({
     id: r.id,
@@ -183,6 +192,11 @@ export async function fetchDocumentContext(serviceOrderId: string) {
       slaDueAt: orderRow.sla_due_at,
       createdAt: orderRow.created_at,
       notes: slicer.notes ?? "",
+      slicerNotes: {
+        layerHeight: slicer.layerHeight,
+        infill: slicer.infill,
+        supports: slicer.supports,
+      },
     },
     items,
     contact,

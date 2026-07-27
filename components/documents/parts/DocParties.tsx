@@ -2,16 +2,35 @@ import type { DocumentSnapshot } from "@/lib/schemas/service-order-documents";
 import { formatAddressLine, maskCpfCnpj, maskPhoneBr } from "@/lib/format/document";
 import { Buildings, User, ClipboardText } from "@/lib/ui/icons";
 
+/**
+ * Cartões de empresa e cliente.
+ *
+ * Regra: campo vazio não aparece. Este bloco já teve o telefone, o e-mail e o
+ * endereço da GL TECH 3D — e o nome e o endereço de uma cliente real — embutidos
+ * como fallback. Num CRM multi-tenant isso imprime os dados de um cliente no
+ * documento de outro. Nada aqui inventa dado: ou vem do snapshot, ou some.
+ */
+
+/** Uma linha rotulada que desaparece quando não há valor. */
+function Row({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <p className="doc-party-row">
+      <strong>{label}:</strong> {value}
+    </p>
+  );
+}
+
 export function DocParties({ snapshot }: { snapshot: DocumentSnapshot }) {
   const { org, customer, description } = snapshot;
+  // formatAddressLine já monta rua/número/complemento — bairro, cidade/UF e CEP,
+  // pulando o que estiver vazio. Não há nada a concatenar por fora.
   const orgAddress = formatAddressLine(org.address);
   const custAddress = formatAddressLine(customer.address);
 
   return (
     <section className="doc-parties-pdf">
-      {/* GRID DADOS EMPRESA E CLIENTE */}
       <div className="doc-parties-grid">
-        {/* DADOS DA EMPRESA */}
         <div className="doc-party-card">
           <div className="doc-party-head">
             <span className="doc-icon-badge">
@@ -20,25 +39,15 @@ export function DocParties({ snapshot }: { snapshot: DocumentSnapshot }) {
             <h3 className="doc-party-head-title">DADOS DA EMPRESA</h3>
           </div>
           <div className="doc-party-body">
-            <p className="doc-party-main-name">{org.displayName || "GL TECH 3D"}</p>
-            <p className="doc-party-row">
-              <strong>Endereço:</strong> {orgAddress || "Rua Geraldo Nassif Salomão, 20"}
-            </p>
-            {org.address.cep ? (
-              <p className="doc-party-row">
-                <strong>CEP:</strong> {org.address.cep}, Centro, Sarzedo-MG
-              </p>
-            ) : null}
-            <p className="doc-party-row">
-              <strong>Contato:</strong> {maskPhoneBr(org.phone) || "(31) 99928-4834"}
-            </p>
-            <p className="doc-party-row">
-              <strong>E-mail:</strong> {org.email || "lanuci321@gmail.com"}
-            </p>
+            {org.displayName ? <p className="doc-party-main-name">{org.displayName}</p> : null}
+            <Row label="CNPJ" value={maskCpfCnpj(org.cnpj)} />
+            <Row label="Endereço" value={orgAddress} />
+            <Row label="Contato" value={maskPhoneBr(org.phone)} />
+            <Row label="E-mail" value={org.email} />
+            <Row label="Site" value={org.site} />
           </div>
         </div>
 
-        {/* DADOS DO CLIENTE */}
         <div className="doc-party-card">
           <div className="doc-party-head">
             <span className="doc-icon-badge">
@@ -47,31 +56,16 @@ export function DocParties({ snapshot }: { snapshot: DocumentSnapshot }) {
             <h3 className="doc-party-head-title">DADOS DO CLIENTE</h3>
           </div>
           <div className="doc-party-body">
-            <p className="doc-party-main-name">{customer.name || "JANE"}</p>
-            {customer.contactPerson ? (
-              <p className="doc-party-row">
-                <strong>A/C:</strong> {customer.contactPerson}
-              </p>
-            ) : null}
-            {customer.documentNumber ? (
-              <p className="doc-party-row">
-                <strong>CPF/CNPJ:</strong> {maskCpfCnpj(customer.documentNumber)}
-              </p>
-            ) : null}
-            <p className="doc-party-row">
-              <strong>Endereço:</strong> {custAddress || "R. Vicente Nunes Resende, 35, 32450-000, Centro, Sarzedo-MG"}
-            </p>
-            <p className="doc-party-row">
-              <strong>Contato:</strong> {maskPhoneBr(customer.phone) || "(31) 99841-9393"}
-            </p>
-            <p className="doc-party-row">
-              <strong>E-mail:</strong> {customer.email || "—"}
-            </p>
+            {customer.name ? <p className="doc-party-main-name">{customer.name}</p> : null}
+            <Row label="A/C" value={customer.contactPerson} />
+            <Row label="CPF/CNPJ" value={maskCpfCnpj(customer.documentNumber)} />
+            <Row label="Endereço" value={custAddress} />
+            <Row label="Contato" value={maskPhoneBr(customer.phone)} />
+            <Row label="E-mail" value={customer.email} />
           </div>
         </div>
       </div>
 
-      {/* DESCRIÇÃO SERVIÇO */}
       {description ? (
         <div className="doc-service-desc-card">
           <div className="doc-party-head">

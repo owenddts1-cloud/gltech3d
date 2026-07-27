@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   ClipboardText,
   Buildings,
@@ -737,7 +738,10 @@ function OsEditDialog({
       total: f.total ? Number(f.total.replace(",", ".")) : 0,
       qty: Number(f.qty) || 1,
       slaDueAt: f.sla ? new Date(f.sla).toISOString() : null,
-      notes: f.notes.trim() || undefined,
+      notes: f.notes.trim(),
+      layerHeight: optionalNumber(f.layerHeight),
+      infill: optionalNumber(f.infill),
+      supports: f.supports,
     };
     startTransition(async () => {
       const res = await updateServiceOrder(order.id, payload);
@@ -756,7 +760,15 @@ function OsEditDialog({
         totalCents: res.derivedFromItems ? order.totalCents : Math.round((payload.total ?? 0) * 100),
         qty: res.derivedFromItems ? order.qty : payload.qty,
         slaDueAt: payload.slaDueAt,
-        slicerNotes: payload.notes ? { ...order.slicerNotes, notes: payload.notes } : order.slicerNotes,
+        // Espelha o merge que o servidor faz, para o card refletir a edição sem
+        // esperar o revalidate.
+        slicerNotes: {
+          ...order.slicerNotes,
+          notes: payload.notes,
+          ...(payload.layerHeight !== undefined ? { layerHeight: payload.layerHeight } : {}),
+          ...(payload.infill !== undefined ? { infill: payload.infill } : {}),
+          supports: payload.supports,
+        },
       });
     });
   }
@@ -856,6 +868,40 @@ function OsEditDialog({
             <Label htmlFor="ed-notes">Notas técnicas</Label>
             <Input id="ed-notes" value={f.notes} onChange={(e) => setF((p) => ({ ...p, notes: e.target.value }))} className="h-9 rounded-lg" />
           </div>
+
+          {/* Parâmetros de fatiamento: alimentam o bloco ESPECIFICAÇÕES TÉCNICAS da
+              Ordem de Serviço impressa. Em branco, o bloco não é impresso. */}
+          <div className="grid grid-cols-3 items-end gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ed-layer">Camada (mm)</Label>
+              <Input
+                id="ed-layer"
+                inputMode="decimal"
+                placeholder="0.2"
+                value={f.layerHeight}
+                onChange={(e) => setF((p) => ({ ...p, layerHeight: e.target.value }))}
+                className="h-9 rounded-lg"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ed-infill">Preench. (%)</Label>
+              <Input
+                id="ed-infill"
+                inputMode="numeric"
+                placeholder="15"
+                value={f.infill}
+                onChange={(e) => setF((p) => ({ ...p, infill: e.target.value }))}
+                className="h-9 rounded-lg"
+              />
+            </div>
+            <label className="flex h-9 items-center gap-2">
+              <Switch
+                checked={f.supports}
+                onCheckedChange={(v) => setF((p) => ({ ...p, supports: v }))}
+              />
+              <span className="text-xs text-foreground">Suportes</span>
+            </label>
+          </div>
         </div>
 
         {/* Emissão de documentos: leva ao editor com o tipo já selecionado. */}
@@ -905,7 +951,21 @@ function formFromOrder(o: ServiceOrderView | null) {
     qty: String(o?.qty ?? 1),
     sla: o?.slaDueAt ? o.slaDueAt.slice(0, 10) : "",
     notes: o?.slicerNotes?.notes ?? "",
+    // Parâmetros de fatiamento — o schema e o servidor já os aceitavam, faltavam
+    // os campos. Sem eles a O.S. impressa não tinha de onde tirar as
+    // especificações técnicas.
+    layerHeight: o?.slicerNotes?.layerHeight != null ? String(o.slicerNotes.layerHeight) : "",
+    infill: o?.slicerNotes?.infill != null ? String(o.slicerNotes.infill) : "",
+    supports: o?.slicerNotes?.supports ?? false,
   };
+}
+
+/** `""` vira `undefined` (não mexe no campo); número válido vira número. */
+function optionalNumber(raw: string): number | undefined {
+  const t = raw.trim();
+  if (!t) return undefined;
+  const n = Number(t.replace(",", "."));
+  return Number.isFinite(n) ? n : undefined;
 }
 
 function Card({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -954,6 +1014,9 @@ function NewOsDialog({
   const [qty, setQty] = useState("1");
   const [sla, setSla] = useState("");
   const [notes, setNotes] = useState("");
+  const [layerHeight, setLayerHeight] = useState("");
+  const [infill, setInfill] = useState("");
+  const [supports, setSupports] = useState(false);
   const [priority, setPriority] = useState<SoPriority>("media");
   const [material, setMaterial] = useState("");
   const [pending, startTransition] = useTransition();
@@ -969,6 +1032,7 @@ function NewOsDialog({
 
   function reset() {
     setTitle(""); setContactId(""); setChannelId(""); setTotal(""); setQty("1"); setSla(""); setNotes("");
+    setLayerHeight(""); setInfill(""); setSupports(false);
     setPriority("media"); setMaterial("");
   }
 
@@ -985,7 +1049,10 @@ function NewOsDialog({
       total: total ? Number(total.replace(",", ".")) : 0,
       qty: Number(qty) || 1,
       slaDueAt: sla ? new Date(sla).toISOString() : null,
-      notes: notes.trim() || undefined,
+      notes: notes.trim(),
+      layerHeight: optionalNumber(layerHeight),
+      infill: optionalNumber(infill),
+      supports,
     };
     startTransition(async () => {
       const res = await createServiceOrder(payload);
@@ -1084,7 +1151,24 @@ function NewOsDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="os-notes">Notas Técnicas do Fatiador</Label>
-            <Input id="os-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex: Altura de camada 0.2mm, preenchimento 15%, suportes orgânicos..." className="h-9 rounded-lg" />
+            <Input id="os-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observações livres sobre a produção" className="h-9 rounded-lg" />
+          </div>
+
+          {/* Parâmetros que a Ordem de Serviço impressa mostra em ESPECIFICAÇÕES
+              TÉCNICAS. Antes eram digitados como prosa dentro de "notas". */}
+          <div className="grid grid-cols-3 items-end gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="os-layer">Camada (mm)</Label>
+              <Input id="os-layer" inputMode="decimal" placeholder="0.2" value={layerHeight} onChange={(e) => setLayerHeight(e.target.value)} className="h-9 rounded-lg" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="os-infill">Preench. (%)</Label>
+              <Input id="os-infill" inputMode="numeric" placeholder="15" value={infill} onChange={(e) => setInfill(e.target.value)} className="h-9 rounded-lg" />
+            </div>
+            <label className="flex h-9 items-center gap-2">
+              <Switch checked={supports} onCheckedChange={setSupports} />
+              <span className="text-xs text-foreground">Suportes</span>
+            </label>
           </div>
         </div>
         <DialogFooter className="gap-2">

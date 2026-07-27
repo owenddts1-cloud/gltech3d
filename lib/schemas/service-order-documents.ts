@@ -45,6 +45,26 @@ export function parseDocType(raw: string | string[] | undefined): DocType {
 /** Texto livre opcional que vira string vazia em vez de `undefined` no snapshot. */
 const text = (max: number) => z.string().trim().max(max).default("");
 
+/**
+ * URL de imagem que precisa SOBREVIVER ao snapshot imutável.
+ *
+ * `blob:` e `data:` são proibidos de propósito. Um `blob:` só existe enquanto a
+ * aba que o criou estiver viva: gravado no snapshot, a imagem quebra no primeiro
+ * reload e não há conserto, porque o documento emitido não pode ser reescrito.
+ * `data:` estoura o limite de tamanho e incha o jsonb. Toda imagem tem que passar
+ * pelo Storage (`lib/media/upload.ts`) e chegar aqui como URL pública.
+ */
+const EPHEMERAL_URL = /^(blob:|data:)/i;
+const persistedImageUrl = (max = 2048) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .refine(
+      (v) => v === "" || !EPHEMERAL_URL.test(v),
+      "A imagem precisa estar salva no Storage — URL temporária (blob:/data:) não sobrevive à emissão.",
+    );
+
 export const docAddressSchema = z.object({
   street: text(200),
   number: text(20),
@@ -60,7 +80,7 @@ export const docOrgSchema = z.object({
   displayName: text(200),
   legalName: text(200),
   cnpj: text(32),
-  logoUrl: z.string().trim().max(2048).default(""),
+  logoUrl: persistedImageUrl().default(""),
   phone: text(40),
   email: text(200),
   site: text(200),
@@ -98,7 +118,7 @@ export const docItemSchema = z.object({
   description: text(600),
   qty: z.number().positive().max(1_000_000),
   unitPriceCents: z.number().int().min(0).max(1_000_000_000_00),
-  imageUrl: z.string().trim().max(2048).nullable().default(null),
+  imageUrl: persistedImageUrl().nullable().default(null),
 });
 export type DocItemInput = z.infer<typeof docItemSchema>;
 
@@ -181,7 +201,7 @@ export const documentSnapshotSchema = z.object({
   signature: docSignatureSchema,
   options: docOptionsSchema,
   description: text(2000),
-  heroImageUrl: z.string().trim().max(2048).nullable().default(null),
+  heroImageUrl: persistedImageUrl().nullable().default(null),
   meta: z.object({
     emittedByUserId: z.string().uuid().nullable().default(null),
     emittedByName: text(200),

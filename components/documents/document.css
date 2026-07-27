@@ -28,12 +28,15 @@
   line-height: 1.4;
 
   width: 210mm;
-  min-height: 297mm;
-  padding: 10mm 12mm 10mm;
+  height: 297mm;
+  max-height: 297mm;
+  padding: 6mm 10mm 6mm;
   box-sizing: border-box;
   position: relative;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
 }
 
 .doc-sheet *,
@@ -81,6 +84,22 @@
   max-width: 45mm;
   object-fit: contain;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+/* Fallback quando a organização não configurou logo: monograma das iniciais. */
+.doc-header-monogram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18mm;
+  height: 18mm;
+  border: 1.5px solid var(--doc-gold);
+  border-radius: 2mm;
+  font-family: var(--font-montserrat), sans-serif;
+  font-size: 13pt;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--doc-gold-bright);
 }
 
 .doc-header-divider {
@@ -214,6 +233,14 @@
   margin-bottom: 1.5mm;
 }
 
+/* Corpo do cartao: as linhas somem quando vazias, entao o espacamento vive aqui
+   e nao em margens fixas de cada linha. */
+.doc-party-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6mm;
+}
+
 .doc-party-row {
   font-size: 8pt;
   color: var(--doc-ink-soft);
@@ -234,6 +261,32 @@
   color: #18181b;
   margin-top: 1mm;
   line-height: 1.4;
+}
+
+/* Declaracao de quitacao — so aparece no recibo, e e o bloco que da forca
+   probatoria ao documento, entao ganha destaque proprio. */
+.doc-statement {
+  margin-bottom: 3.5mm;
+  padding: 3.5mm 4mm;
+  background: var(--doc-gold-wash);
+  border-left: 3px solid var(--doc-gold);
+  border-radius: 1.5mm;
+  font-size: 9.5pt;
+  line-height: 1.5;
+  color: var(--doc-ink);
+  break-inside: avoid;
+}
+
+.doc-statement strong {
+  font-weight: 800;
+}
+
+.doc-statement-words {
+  display: block;
+  margin-top: 1.5mm;
+  font-size: 8pt;
+  font-style: italic;
+  color: var(--doc-muted);
 }
 
 /* ── TABELA DE ITENS (LARGURA TOTAL DA FOLHA) ─────────────────────────────── */
@@ -284,6 +337,14 @@
   background: #f4f4f5;
   border-top: 2px solid var(--doc-dark);
   font-weight: 700;
+}
+
+.doc-subtotal-label {
+  text-align: right;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 8pt;
+  color: var(--doc-ink);
 }
 
 .doc-col-idx {
@@ -519,6 +580,16 @@
   break-inside: avoid;
 }
 
+.doc-gallery-title {
+  font-family: var(--font-montserrat), sans-serif;
+  font-size: 8.5pt;
+  font-weight: 800;
+  color: var(--doc-gold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 2.5mm;
+}
+
 .doc-gallery-grid {
   display: flex;
   flex-wrap: wrap;
@@ -580,17 +651,40 @@
 }
 
 /* ── ASSINATURAS ──────────────────────────────────────────────────────────── */
+/*
+ * O bloco de fecho (local/data + assinaturas) é ancorado no pé da folha pelo
+ * `.doc-spacer`, que absorve a sobra vertical. Documento curto deixa o vazio
+ * ACIMA do fecho, e não um buraco entre a data e as linhas de assinatura.
+ */
 .doc-spacer {
   flex: 1 1 auto;
   min-height: 4mm;
+}
+
+.doc-signatures-wrap {
+  padding-top: 6mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/*
+ * "Sarzedo, 26 de julho de 2026" — centralizado e destacado das linhas de
+ * assinatura. Sem estas regras a linha herdava alinhamento à esquerda e colava
+ * nas assinaturas, parecendo parte delas.
+ */
+.doc-city-date {
+  text-align: center;
+  font-size: 9pt;
+  color: var(--doc-ink-soft);
+  margin: 0 0 12mm;
 }
 
 .doc-signatures-pdf {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16mm;
-  margin-top: 4mm;
-  margin-bottom: 4mm;
+  margin-top: 0;
+  margin-bottom: 2mm;
   text-align: center;
   break-inside: avoid;
 }
@@ -704,6 +798,12 @@
   text-align: right;
 }
 
+.doc-footer-thanks-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .doc-footer-script {
   font-family: var(--font-handwriting), cursive, sans-serif;
   font-size: 16pt;
@@ -778,6 +878,9 @@
     background: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    overflow: hidden !important;
   }
 
   .doc-viewport {
@@ -785,12 +888,15 @@
     padding: 0 !important;
     display: block !important;
     min-height: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    overflow: hidden !important;
   }
 
   .doc-frame--scaled {
-    width: auto !important;
-    height: auto !important;
-    overflow: visible !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    overflow: hidden !important;
   }
 
   .doc-frame--scaled .doc-sheet {
@@ -798,9 +904,36 @@
   }
 
   .doc-sheet {
+    width: 210mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    padding: 6mm 10mm 6mm !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
     box-shadow: none !important;
     margin: 0 !important;
-    min-height: 297mm;
+    overflow: hidden !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .doc-header-pdf {
+    flex-shrink: 0 !important;
+  }
+
+  .doc-footer-pdf {
+    flex-shrink: 0 !important;
+    margin-top: auto !important;
+  }
+
+  .doc-signatures-pdf {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   .doc-sheet,

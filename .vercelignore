@@ -1,0 +1,14 @@
+# Vercel Deployment Ignore List
+Imports_github/
+*.zip
+.git
+.github
+.epic-executor
+.claude
+.vscode
+.idea
+.waha-data
+.codex
+.codex-history
+.claude-code-history
+deskcommcrm-setup-kit.zip

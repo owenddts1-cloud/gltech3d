@@ -15,6 +15,10 @@ export type AuditAction =
   | "nuvemshop.oauth_failed"
   | "nuvemshop.webhook_received"
   | "nuvemshop.webhook_invalid_signature"
+  /** Assinatura HMAC do webhook WAHA não confere — evento recusado. */
+  | "waha.webhook_invalid_signature"
+  /** Segredo do webhook ausente ou indecifrável: recusado com 503, nunca aceito sem verificar. */
+  | "waha.webhook_hmac_unavailable"
   | "lead.created"
   | "lead.updated"
   | "lead.deleted"

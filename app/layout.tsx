@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible, IBM_Plex_Mono, Montserrat, Great_Vibes } from "next/font/google";
+import { Atkinson_Hyperlegible, IBM_Plex_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/lib/theme";
 import { Providers } from "./providers";
@@ -21,19 +21,9 @@ const plexMono = IBM_Plex_Mono({
   variable: "--font-mono",
 });
 
-const montserrat = Montserrat({
-  subsets: ["latin", "latin-ext"],
-  weight: ["500", "600", "700", "800", "900"],
-  display: "swap",
-  variable: "--font-montserrat",
-});
-
-const greatVibes = Great_Vibes({
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap",
-  variable: "--font-handwriting",
-});
+// Montserrat e Great Vibes NÃO ficam aqui: são exclusivas da folha impressa e
+// viviam pesando em toda página do CRM. Agora são carregadas e aplicadas na
+// própria `.doc-sheet` — ver `components/documents/fonts.ts`.
 
 export const metadata: Metadata = {
   title: {
@@ -88,7 +78,7 @@ export default function RootLayout({
       lang="pt-BR"
       data-theme="light"
       suppressHydrationWarning
-      className={`${atkinson.variable} ${plexMono.variable} ${montserrat.variable} ${greatVibes.variable}`}
+      className={`${atkinson.variable} ${plexMono.variable}`}
     >
       <head>
         {/* Config pública do Supabase em runtime (imagem genérica self-host). */}

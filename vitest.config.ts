@@ -13,5 +13,12 @@ export default defineConfig({
     coverage: { provider: "v8", reporter: ["text", "html"] },
     exclude: ["node_modules", ".next", "dist", "tests/e2e/**"],
   },
-  resolve: { alias: { "@": path.resolve(__dirname, ".") } },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "."),
+      // `next/font/google` só existe através do transform do Next; num teste o
+      // import estoura. O stub devolve o mesmo formato ({ variable, className }).
+      "next/font/google": path.resolve(__dirname, "tests/stubs/next-font-google.ts"),
+    },
+  },
 });

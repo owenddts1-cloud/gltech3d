@@ -70,6 +70,36 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/** Campo de texto do bloco de empresa. */
+function OrgField({
+  id,
+  label,
+  value,
+  onChange,
+  className,
+  maxLength,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+  maxLength?: number;
+}) {
+  return (
+    <div className={`space-y-1.5 ${className ?? ""}`}>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        value={value}
+        maxLength={maxLength}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 rounded-lg text-xs"
+      />
+    </div>
+  );
+}
+
 export function DocumentBuilder({ context, initialDocuments, initialDocType }: Props) {
   const router = useRouter();
   const [docType, setDocType] = useState<DocType>(initialDocType);
@@ -84,6 +114,22 @@ export function DocumentBuilder({ context, initialDocuments, initialDocType }: P
   const update = useCallback((patch: Partial<DocumentSnapshot>) => {
     setDraft((prev) => withDerivedFields({ ...prev, ...patch }));
   }, []);
+
+  const setOrg = useCallback((patch: Partial<DocumentSnapshot["org"]>) => {
+    setDraft((prev) => withDerivedFields({ ...prev, org: { ...prev.org, ...patch } }));
+  }, []);
+
+  const setOrgAddress = useCallback((patch: Partial<DocumentSnapshot["org"]["address"]>) => {
+    setDraft((prev) =>
+      withDerivedFields({ ...prev, org: { ...prev.org, address: { ...prev.org.address, ...patch } } }),
+    );
+  }, []);
+
+  /** Descarta as edições locais de empresa e volta ao que está nos Ajustes. */
+  const restoreOrgFromSettings = useCallback(() => {
+    setDraft((prev) => withDerivedFields({ ...prev, org: buildDraftSnapshot(context, prev.docType).org }));
+    toast.success("Dados da empresa restaurados dos Ajustes");
+  }, [context]);
 
   /**
    * Trocar de tipo reaproveita tudo que já foi editado (itens, cliente, valores) e
@@ -243,46 +289,49 @@ export function DocumentBuilder({ context, initialDocuments, initialDocType }: P
         </Section>
 
         <Section title="Dados da Empresa (Cabeçalho & Rodapé)">
+          <p className="text-[11px] text-text-muted">
+            O padrão vem de <strong>Ajustes → Organização → Documentos impressos</strong>. O que
+            você mudar aqui vale só para este documento. Campo em branco não é impresso — o
+            sistema não preenche com dado de exemplo.
+          </p>
+
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="doc-org-name">Nome da Empresa</Label>
-              <Input
-                id="doc-org-name"
-                value={draft.org.displayName}
-                onChange={(e) => update({ org: { ...draft.org, displayName: e.target.value } })}
-                className="h-9 rounded-lg text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="doc-org-phone">Telefone</Label>
-              <Input
-                id="doc-org-phone"
-                value={draft.org.phone}
-                onChange={(e) => update({ org: { ...draft.org, phone: e.target.value } })}
-                className="h-9 rounded-lg text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="doc-org-email">E-mail</Label>
-              <Input
-                id="doc-org-email"
-                value={draft.org.email}
-                onChange={(e) => update({ org: { ...draft.org, email: e.target.value } })}
-                className="h-9 rounded-lg text-xs"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="doc-org-street">Endereço</Label>
-              <Input
-                id="doc-org-street"
-                value={draft.org.address.street}
-                onChange={(e) =>
-                  update({ org: { ...draft.org, address: { ...draft.org.address, street: e.target.value } } })
-                }
-                className="h-9 rounded-lg text-xs"
-              />
-            </div>
+            <OrgField id="doc-org-name" label="Nome da empresa" value={draft.org.displayName} onChange={(v) => setOrg({ displayName: v })} />
+            <OrgField id="doc-org-legal" label="Razão social" value={draft.org.legalName} onChange={(v) => setOrg({ legalName: v })} />
+            <OrgField id="doc-org-cnpj" label="CNPJ" value={draft.org.cnpj} onChange={(v) => setOrg({ cnpj: v })} />
+            <OrgField id="doc-org-phone" label="Telefone" value={draft.org.phone} onChange={(v) => setOrg({ phone: v })} />
+            <OrgField id="doc-org-email" label="E-mail" value={draft.org.email} onChange={(v) => setOrg({ email: v })} />
+            <OrgField id="doc-org-site" label="Site" value={draft.org.site} onChange={(v) => setOrg({ site: v })} />
+            <OrgField id="doc-org-instagram" label="Instagram" value={draft.org.instagram} onChange={(v) => setOrg({ instagram: v })} />
+            <OrgField id="doc-org-footer" label="Nota de rodapé" value={draft.org.footerNote} onChange={(v) => setOrg({ footerNote: v })} />
           </div>
+
+          <div className="grid grid-cols-6 gap-3">
+            <OrgField className="col-span-4" id="doc-org-street" label="Endereço" value={draft.org.address.street} onChange={(v) => setOrgAddress({ street: v })} />
+            <OrgField className="col-span-2" id="doc-org-number" label="Número" value={draft.org.address.number} onChange={(v) => setOrgAddress({ number: v })} />
+            <OrgField className="col-span-3" id="doc-org-district" label="Bairro" value={draft.org.address.district} onChange={(v) => setOrgAddress({ district: v })} />
+            <OrgField className="col-span-3" id="doc-org-city" label="Cidade" value={draft.org.address.city} onChange={(v) => setOrgAddress({ city: v })} />
+            <OrgField className="col-span-1" id="doc-org-state" label="UF" maxLength={2} value={draft.org.address.state} onChange={(v) => setOrgAddress({ state: v.toUpperCase().slice(0, 2) })} />
+            <OrgField className="col-span-2" id="doc-org-cep" label="CEP" value={draft.org.address.cep} onChange={(v) => setOrgAddress({ cep: v })} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Logotipo</Label>
+            <ItemPhotoField
+              value={draft.org.logoUrl || null}
+              onChange={(logoUrl) => setOrg({ logoUrl: logoUrl ?? "" })}
+            />
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full rounded-lg text-xs"
+            onClick={restoreOrgFromSettings}
+          >
+            Restaurar dados dos Ajustes
+          </Button>
         </Section>
 
         <Section title="Cliente">

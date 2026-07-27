@@ -168,27 +168,55 @@ export function seedItemFromOrder(order: DraftOrder): DraftItem {
   };
 }
 
-export function defaultTermsFor(type: DocType, branding: DocumentBranding) {
+/**
+ * Termos iniciais do documento.
+ *
+ * Garantia, prazo de entrega e condições de pagamento saem **exclusivamente** dos
+ * Ajustes da organização. São compromissos contratuais: injetar um texto padrão
+ * do código faria o documento prometer ao cliente, em nome da empresa, uma
+ * garantia dimensional ou um prazo que ninguém acordou. Vazio aqui significa que
+ * o bloco não é impresso — e a tela de Ajustes oferece o texto sugerido para o
+ * usuário aceitar de propósito.
+ *
+ * `productionNotes` também começa vazio e é digitado por O.S. no editor.
+ */
+export function defaultTermsFor(_type: DocType, branding: DocumentBranding) {
   return {
     validityDays: branding.default_validity_days,
     deliveryEstimate: branding.default_delivery_estimate,
-    warranty:
-      type === "orcamento"
-        ? "Garantia de acabamento refinado e conformidade estrita com o modelo 3D aprovado."
-        : type === "ordem_servico"
-          ? branding.default_warranty || "Garantia de precisão dimensional de ±0.1mm e estabilidade estrutural das peças."
-          : "",
+    warranty: branding.default_warranty,
     paymentConditions: branding.default_payment_terms,
-    productionNotes:
-      type === "ordem_servico"
-        ? "Produção em manufatura digital 3D de alta resolução, polímeros de engenharia e inspeção de qualidade linha a linha."
-        : "",
-    notes: "O tom de cor da matéria-prima (filamento/resina) pode variar levemente conforme o lote do fabricante.",
+    productionNotes: "",
+    notes: branding.default_notes,
   };
 }
 
 function emptyAddress() {
   return { street: "", number: "", complement: "", district: "", city: "", state: "", cep: "" };
+}
+
+/**
+ * Formatadores dos parâmetros de fatiamento para a folha impressa.
+ *
+ * `slicer_notes` guarda número (mm), inteiro (%) e booleano; o snapshot guarda
+ * texto pronto para imprimir. A ponte precisa distinguir "não informado" de
+ * "informado como zero/false" — `0%` de preenchimento e `Não` para suportes são
+ * respostas legítimas e vão para o papel; ausência não vai.
+ */
+export function formatLayerHeight(v: number | string | undefined | null): string {
+  if (v == null || v === "") return "";
+  return typeof v === "number" ? `${v} mm` : String(v).trim();
+}
+
+export function formatInfill(v: number | string | undefined | null): string {
+  if (v == null || v === "") return "";
+  return typeof v === "number" ? `${v}%` : String(v).trim();
+}
+
+export function formatSupports(v: boolean | string | undefined | null): string {
+  if (v == null || v === "") return "";
+  if (typeof v === "boolean") return v ? "Sim" : "Não";
+  return String(v).trim();
 }
 
 /**
@@ -263,9 +291,13 @@ export function buildDraftSnapshot(ctx: DocumentContext, docType: DocType): Docu
       material: ctx.order.material ?? "",
       slaDueAt: ctx.order.slaDueAt,
       createdAt: ctx.order.createdAt,
-      layerHeight: ctx.order.slicerNotes?.layerHeight ? `${ctx.order.slicerNotes.layerHeight} mm` : "0.20 mm",
-      infill: ctx.order.slicerNotes?.infill ? `${ctx.order.slicerNotes.infill}%` : "15%",
-      supports: ctx.order.slicerNotes?.supports ? "Sim" : "Não",
+      // Só o que existe de verdade na O.S. Vazio fica vazio — a folha omite a
+      // linha. Testar por truthiness aqui era duplamente errado: além de fabricar
+      // "0.20 mm"/"15%" quando não havia dado, `infill: 0` e `layerHeight: 0` são
+      // valores válidos que caíam no falso, e `supports` indefinido virava "Não".
+      layerHeight: formatLayerHeight(ctx.order.slicerNotes?.layerHeight),
+      infill: formatInfill(ctx.order.slicerNotes?.infill),
+      supports: formatSupports(ctx.order.slicerNotes?.supports),
     },
     items,
     totals,

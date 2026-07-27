@@ -108,7 +108,10 @@ function buildSlicerNotes(input: {
   notes?: string; layerHeight?: number; infill?: number; supports?: boolean;
 }): Record<string, unknown> {
   const n: Record<string, unknown> = {};
-  if (input.notes) n.notes = input.notes;
+  // `!== undefined` e não truthiness: `updateServiceOrder` faz merge com o
+  // slicer_notes atual, então uma nota apagada pela tela chega como "" e precisa
+  // sobrescrever o valor antigo — com `if (input.notes)` era impossível limpar.
+  if (input.notes !== undefined) n.notes = input.notes;
   if (input.layerHeight !== undefined) n.layerHeight = input.layerHeight;
   if (input.infill !== undefined) n.infill = input.infill;
   if (input.supports !== undefined) n.supports = input.supports;

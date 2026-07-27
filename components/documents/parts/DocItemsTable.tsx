@@ -13,7 +13,10 @@ export function DocItemsTable({ snapshot }: { snapshot: DocumentSnapshot }) {
     (mode === "table" || mode === "both") && options.showItemPhotos && items.some((i) => i.imageUrl);
   const showPrices = options.showUnitPrices;
 
-  const subtotalCents = items.reduce((acc, item) => acc + lineTotalCents(item), 0);
+  // Usa o subtotal do snapshot, que é o mesmo que o servidor recalcula na emissão
+  // (`withDerivedFields`). Recalcular aqui por fora deixava o SUBTOTAL da tabela
+  // divergir do VALOR FINAL do resumo — no mesmo papel.
+  const subtotalCents = snapshot.totals.subtotalCents;
 
   return (
     <div className="doc-items-section-pdf">
