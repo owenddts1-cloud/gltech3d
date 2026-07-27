@@ -324,7 +324,7 @@
 }
 
 .doc-items-pdf td {
-  padding: 2.2mm 3mm;
+  padding: 1.6mm 3mm;
   border: 1px solid var(--doc-line);
   vertical-align: middle;
 }
@@ -353,7 +353,7 @@
 }
 
 .doc-col-photo {
-  width: 12mm;
+  width: 10mm;
   text-align: center;
 }
 
@@ -380,8 +380,8 @@
 }
 
 .doc-item-photo {
-  width: 10mm;
-  height: 10mm;
+  width: 8mm;
+  height: 8mm;
   object-fit: cover;
   border-radius: 1mm;
   border: 1px solid var(--doc-line);
@@ -601,13 +601,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 28mm;
+  width: 23mm;
   text-align: center;
 }
 
 .doc-gallery-image-box {
-  width: 28mm;
-  height: 28mm;
+  width: 23mm;
+  height: 23mm;
   background: #fcfcfc;
   border: 1px solid var(--doc-line);
   border-radius: 1.5mm;
@@ -887,15 +887,26 @@
   margin: 0;
 }
 
+/* ═══ Impressão ═════════════════════════════════════════════════════════════
+ *
+ * O rodapé é `position: fixed`, que em mídia paginada REPETE o elemento em
+ * todas as páginas — é assim que ele fica realmente fixo no pé do papel.
+ *
+ * A versão anterior tentava resolver isso travando a folha em `height: 297mm`
+ * com `overflow: hidden`. Isso não fixava o rodapé: quando o conteúdo passava
+ * de uma página (bastava a foto de um item), o excedente era **cortado em
+ * silêncio** e o rodapé ia junto. Documento perdendo item impresso é pior do
+ * que documento com duas páginas.
+ *
+ * `padding-bottom` na folha reserva a faixa do rodapé para o texto nunca correr
+ * por baixo dele.
+ * ══════════════════════════════════════════════════════════════════════════ */
 @media print {
   html,
   body {
     background: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    overflow: hidden !important;
   }
 
   .doc-viewport {
@@ -903,15 +914,13 @@
     padding: 0 !important;
     display: block !important;
     min-height: 0 !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    overflow: hidden !important;
   }
 
+  /* Desfaz a escala do preview: no papel a folha é 1:1. */
   .doc-frame--scaled {
-    width: 210mm !important;
-    height: 297mm !important;
-    overflow: hidden !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   .doc-frame--scaled .doc-sheet {
@@ -920,20 +929,25 @@
 
   .doc-sheet {
     width: 210mm !important;
-    height: 297mm !important;
-    max-height: 297mm !important;
-    padding: 6mm 10mm 6mm !important;
+    /* min-height, não height: conteúdo maior vira página 2 em vez de sumir. */
+    min-height: 297mm !important;
+    max-height: none !important;
+    height: auto !important;
+    padding: 6mm 10mm 30mm !important;
     box-sizing: border-box !important;
-    position: relative !important;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: space-between !important;
     box-shadow: none !important;
     margin: 0 !important;
-    overflow: hidden !important;
-    page-break-after: always !important;
-    break-after: page !important;
-    page-break-inside: avoid !important;
+    overflow: visible !important;
+  }
+
+  .doc-footer-pdf {
+    position: fixed !important;
+    bottom: 6mm !important;
+    left: 10mm !important;
+    right: 10mm !important;
+    margin: 0 !important;
     break-inside: avoid !important;
   }
 
@@ -941,16 +955,18 @@
     flex-shrink: 0 !important;
   }
 
-  .doc-footer-pdf {
-    flex-shrink: 0 !important;
-    margin-top: auto !important;
-  }
-
-  .doc-signatures-pdf {
+  /* Blocos que não podem ser partidos ao meio pela quebra de página. */
+  .doc-signatures-wrap,
+  .doc-signatures-pdf,
+  .doc-summary-card-wrapper,
+  .doc-term-card-pdf,
+  .doc-gallery-card,
+  .doc-statement {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
 
+  /* Sem isto o Chrome descarta a faixa preta do cabeçalho e o dourado. */
   .doc-sheet,
   .doc-sheet * {
     -webkit-print-color-adjust: exact !important;

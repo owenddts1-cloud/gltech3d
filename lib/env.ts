@@ -101,6 +101,27 @@ const schema = z.object({
     .default("true")
     .transform((v) => v === "true"),
 
+  /**
+   * Segredos e identificadores que antes eram lidos direto de `process.env`,
+   * espalhados pelo código. Centralizados aqui para aparecerem no `.env.example`
+   * e terem acesso tipado.
+   *
+   * Todos são OPCIONAIS de propósito: hoje não estão configurados em produção, e
+   * marcá-los como obrigatórios derrubaria o boot do app. Cada consumidor já
+   * falha fechado quando o valor está ausente — o webhook do Instagram devolve
+   * 500 `UNCONFIGURED`, o das impressoras devolve 503 `webhook_not_configured`.
+   * A degradação é explícita, não silenciosa.
+   */
+  /** HMAC dos tokens de convite. Sem ele cai em INTERNAL_SECRET (ver lib/auth/invite-token.ts). */
+  INVITE_TOKEN_SECRET: z.string().optional().default(""),
+  INSTAGRAM_WEBHOOK_SECRET: z.string().optional().default(""),
+  PRINTER_WEBHOOK_SECRET: z.string().optional().default(""),
+  RESEND_API_KEY: z.string().optional().default(""),
+  RESEND_FROM_EMAIL: z.string().optional().default(""),
+  /** Org dona da landing pública, por id ou slug (ver lib/marketing/gltech-org.ts). */
+  GLTECH_ORG_ID: z.string().optional().default(""),
+  GLTECH_ORG_SLUG: z.string().optional().default(""),
+
   // Sentry
   SENTRY_DSN: z.string().optional().default(""),
 

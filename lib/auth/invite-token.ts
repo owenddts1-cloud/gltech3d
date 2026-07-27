@@ -6,14 +6,30 @@
  *   - body = base64url(JSON({invite_id, email, organization_id, role, exp}))
  *   - sig  = base64url(HMAC_SHA256(secret, body))
  *
- * Secret resolution: INVITE_TOKEN_SECRET → INTERNAL_SECRET → "dev-fallback".
- * Production deployments MUST set one of the first two. Verification uses
- * `timingSafeEqual` to avoid timing oracles.
+ * Segredo: INVITE_TOKEN_SECRET, caindo para INTERNAL_SECRET. Verificação usa
+ * `timingSafeEqual` para não abrir oráculo de tempo.
+ *
+ * Havia aqui um terceiro fallback, o literal `"dev-fallback"`. Este repositório
+ * é MIT e público: com o segredo conhecido, qualquer pessoa forjaria um token
+ * com `organization_id` e `role` arbitrários — e `acceptInviteAction` insere
+ * direto em `user_organizations`, o que dá admin em qualquer tenant. O fallback
+ * saiu; sem segredo configurado a função lança em vez de assinar com uma chave
+ * pública. Lê do `env` validado, não de `process.env` cru, para que a garantia
+ * seja estrutural e não acidental.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-const SECRET = (): string =>
-  process.env.INVITE_TOKEN_SECRET ?? process.env.INTERNAL_SECRET ?? "dev-fallback";
+import { env } from "@/lib/env";
+
+const SECRET = (): string => {
+  const secret = env.INVITE_TOKEN_SECRET || env.INTERNAL_SECRET;
+  if (!secret) {
+    throw new Error(
+      "INVITE_TOKEN_SECRET (ou INTERNAL_SECRET) é obrigatória para emitir ou validar convites.",
+    );
+  }
+  return secret;
+};
 
 export interface InvitePayload {
   invite_id: string;

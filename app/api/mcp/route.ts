@@ -15,6 +15,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 
 import { createMcpServer } from "@/lib/mcp/server";
 import { McpAuthError, validateBearerToken } from "@/lib/mcp/auth";
+import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -45,6 +46,16 @@ async function handle(req: NextRequest): Promise<Response> {
     }
     const msg = err instanceof Error ? err.message : "auth_failed";
     return jsonRpcError(-32603, msg, 500);
+  }
+
+  /**
+   * Teto por organização. A rota executa tool-calls de agente com
+   * `maxDuration = 300`: um bearer comprometido, sem limite, consome o budget de
+   * IA do tenant inteiro antes de alguém perceber.
+   */
+  const rl = await checkRateLimit(`mcp:${auth.organizationId}`, 120, 60);
+  if (!rl.allowed) {
+    return jsonRpcError(-32603, "rate_limited", 429);
   }
 
   const transport = new WebStandardStreamableHTTPServerTransport({});

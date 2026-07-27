@@ -17,6 +17,7 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchWahaEvent, verifyHmacSha512, type WahaEnvelope } from "@/lib/waha/ingest";
+import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,6 +36,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const sessionName = envelope.session;
   if (!sessionName) {
     return fail("invalid_request", "missing session field", 400, { requestId });
+  }
+
+  // Mesmo teto da rota per-tenant: 429 faz o WAHA reenviar, e um flood não
+  // consome banco nem fila de ingestão.
+  const rl = await checkRateLimit(`waha-webhook-global:${sessionName}`, 600, 60);
+  if (!rl.allowed) {
+    return fail("rate_limited", "too_many_requests", 429, {
+      requestId,
+      headers: { "Retry-After": "60" },
+    });
   }
 
   const admin = createAdminClient();

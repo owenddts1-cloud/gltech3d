@@ -16,6 +16,7 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchWahaEvent, verifyHmacSha512, type WahaEnvelope } from "@/lib/waha/ingest";
+import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,6 +31,19 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
 
   if (!token || token.length < 8) {
     return fail("not_found", "unknown webhook token", 404, { requestId });
+  }
+
+  /**
+   * Teto por token antes de qualquer trabalho: o WAHA reenvia em caso de 429, e
+   * isto impede que um flood (forjado ou não) consuma banco e fila de ingestão.
+   * 600/min cobre com folga o pico real de uma sessão de WhatsApp.
+   */
+  const rl = await checkRateLimit(`waha-webhook:${token}`, 600, 60);
+  if (!rl.allowed) {
+    return fail("rate_limited", "too_many_requests", 429, {
+      requestId,
+      headers: { "Retry-After": "60" },
+    });
   }
 
   const rawBody = await req.text();

@@ -191,6 +191,24 @@ describe("DocumentSheet", () => {
     expect([...used].filter((c) => !defined.has(c))).toEqual([]);
   });
 
+  it("a folha impressa nunca corta conteúdo e o rodapé é fixo", async () => {
+    // Regressão: o bloco @media print travava a folha em `height: 297mm` com
+    // `overflow: hidden`. Não fixava o rodapé — só cortava em silêncio tudo que
+    // passasse de uma página, rodapé incluído. Documento perdendo item impresso
+    // é pior do que documento com duas páginas.
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync("components/documents/document.css", "utf-8");
+    const print = css.slice(css.indexOf("@media print"));
+
+    expect(print).not.toMatch(/overflow:\s*hidden/);
+    expect(print).not.toMatch(/page-break-after:\s*always/);
+    expect(print).toMatch(/\.doc-sheet\s*\{[^}]*min-height:\s*297mm/);
+    // O rodapé precisa sair do fluxo para repetir em todas as páginas.
+    expect(print).toMatch(/\.doc-footer-pdf\s*\{[^}]*position:\s*fixed/);
+    // …e a folha precisa reservar a faixa dele, senão o texto corre por baixo.
+    expect(print).toMatch(/\.doc-sheet\s*\{[^}]*padding:\s*6mm 10mm 30mm/);
+  });
+
   it("renderiza o assinante e o cargo configurados", () => {
     // signerName/signerRole/city eram editáveis no gerador e ignorados na folha.
     const { container } = renderDoc("orcamento");

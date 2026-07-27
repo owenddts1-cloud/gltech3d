@@ -4,11 +4,13 @@
  * Receives notifications about new Instagram posts (e.g. from Make.com or Zapier)
  * and broadcasts an email newsletter to all contacts tagged with 'newsletter'.
  */
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 
+import { env } from "@/lib/env";
 import { fail, ok } from "@/lib/api/wrappers";
+import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveGltechOrgId } from "@/lib/marketing/gltech-org";
@@ -17,6 +19,15 @@ import { buildInstagramPostEmail } from "@/lib/email/templates/instagram-post";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+/** Comparação de segredo em tempo constante, sem vazar o tamanho por exceção. */
+function secretMatches(provided: string | null, expected: string): boolean {
+  if (!provided) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
 
 const webhookSchema = z.object({
   postUrl: z.string().url(),
@@ -27,7 +38,7 @@ const webhookSchema = z.object({
 export async function POST(req: NextRequest) {
   const requestId = randomUUID();
   const secretHeader = req.headers.get("x-instagram-webhook-secret");
-  const secretEnv = process.env.INSTAGRAM_WEBHOOK_SECRET;
+  const secretEnv = env.INSTAGRAM_WEBHOOK_SECRET;
 
   // 1) Verify authorization secret to prevent unauthorized email blasts.
   if (!secretEnv) {
@@ -40,13 +51,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (secretHeader !== secretEnv) {
+  if (!secretMatches(secretHeader, secretEnv)) {
     return fail(
       "UNAUTHORIZED",
       "Unauthorized: Invalid webhook secret token",
       401,
       { requestId }
     );
+  }
+
+  /**
+   * Rate limit — esta rota dispara `sendBatchEmails` para TODA a base marcada
+   * como `newsletter`. Sem teto, um segredo vazado (ele trafega por Make.com /
+   * Zapier) vira amplificador de spam e queima a reputação do domínio no Resend.
+   * O disparo é por post, então 3 por hora é folgado para o uso real.
+   */
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rl = await checkRateLimit(`instagram-webhook:${ip}`, 3, 3600);
+  if (!rl.allowed) {
+    return fail("rate_limited", "Too many broadcast requests", 429, {
+      requestId,
+      headers: { "Retry-After": "3600" },
+    });
   }
 
   // 2) Parse and validate body.
