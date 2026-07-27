@@ -21,6 +21,25 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   // typedRoutes moved out of experimental in Next 15.5+
   typedRoutes: true,
+
+  /**
+   * Lint e type-check NÃO rodam dentro do `next build`.
+   *
+   * Não é atalho: o build da Vercel roda num container de 2 cores e 8 GB, e com
+   * 857 arquivos TS/TSX o `next build` compilava em 106s e depois passava 33
+   * minutos na fase "Linting and checking validity of types" até ser morto por
+   * OOM (SIGKILL). Deploy de produção falhando por estouro de memória numa etapa
+   * que já roda em outro lugar é desperdício puro.
+   *
+   * As duas checagens continuam obrigatórias — só mudaram de lugar. Rodam em
+   * `.github/workflows/ci.yml` (typecheck → lint → test → build) em todo PR e
+   * push para main, e localmente via `npm run typecheck` / `npm run lint`.
+   *
+   * Se o CI for removido, estas duas linhas têm que voltar.
+   */
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
+
   experimental: {
     optimizePackageImports: ["@phosphor-icons/react", "lucide-react", "date-fns"],
   },

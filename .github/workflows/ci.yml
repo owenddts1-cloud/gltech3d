@@ -1,0 +1,65 @@
+# Gate de qualidade.
+#
+# Existe por dois motivos. O primeiro: até agora nenhum workflow rodava
+# typecheck, lint ou teste — `perf.yml` só media o tamanho do bundle e
+# `publish-image.yml` só empacotava o Docker. Nada barrava um merge.
+#
+# O segundo: `next.config.ts` desliga lint e type-check dentro do `next build`,
+# porque as duas etapas estouravam a memória do container da Vercel (SIGKILL por
+# OOM depois de 33 minutos). As checagens não sumiram — moraram para cá. Se este
+# workflow for removido, `eslint.ignoreDuringBuilds` e
+# `typescript.ignoreBuildErrors` precisam voltar a `false`.
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # --frozen-lockfile também prova que package.json e pnpm-lock.yaml estão
+      # em sincronia — já houve um merge com dependência declarada e ausente do
+      # lockfile, que teria quebrado qualquer instalação limpa.
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Testes unitários
+        run: pnpm test:unit
+
+      # Roda por último: é o passo mais caro e só interessa se o resto passou.
+      # Aqui o build é puro (sem lint/tsc), igual ao da Vercel.
+      - name: Build
+        run: pnpm build
+        env:
+          # Placeholders: o schema de lib/env.ts afrouxa durante
+          # NEXT_PHASE=phase-production-build, mas as vars sempre-obrigatórias
+          # precisam existir para o import de env não lançar.
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+          INTERNAL_SECRET: ci-internal-secret
