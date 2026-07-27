@@ -353,7 +353,7 @@
 }
 
 .doc-col-photo {
-  width: 18mm;
+  width: 12mm;
   text-align: center;
 }
 
@@ -380,8 +380,8 @@
 }
 
 .doc-item-photo {
-  width: 16mm;
-  height: 16mm;
+  width: 10mm;
+  height: 10mm;
   object-fit: cover;
   border-radius: 1mm;
   border: 1px solid var(--doc-line);
@@ -662,43 +662,65 @@
 }
 
 .doc-signatures-wrap {
-  padding-top: 6mm;
+  margin-top: 1.5mm;
+  margin-bottom: 2mm;
+  flex-shrink: 0;
   break-inside: avoid;
   page-break-inside: avoid;
 }
 
-/*
- * "Sarzedo, 26 de julho de 2026" — centralizado e destacado das linhas de
- * assinatura. Sem estas regras a linha herdava alinhamento à esquerda e colava
- * nas assinaturas, parecendo parte delas.
- */
-.doc-city-date {
-  text-align: center;
-  font-size: 9pt;
+.doc-signature-line-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5mm;
+}
+
+.doc-sig-border-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--doc-dark);
+  z-index: 1;
+}
+
+.doc-city-date-center {
+  position: relative;
+  z-index: 2;
+  background: #ffffff;
+  padding: 0 4mm;
+  font-size: 8pt;
+  font-weight: 500;
   color: var(--doc-ink-soft);
-  margin: 0 0 12mm;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .doc-signatures-pdf {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16mm;
-  margin-top: 0;
-  margin-bottom: 2mm;
-  text-align: center;
-  break-inside: avoid;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0 4mm;
 }
 
-.doc-signature-line {
+.doc-signature-col {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  text-align: center;
+  width: 42%;
 }
 
-.doc-sig-border {
-  width: 80%;
-  border-top: 1px solid var(--doc-dark);
-  margin-bottom: 1.5mm;
+.doc-sig-left {
+  text-align: center;
+}
+
+.doc-sig-right {
+  text-align: center;
 }
 
 .doc-signature-title {
@@ -708,13 +730,6 @@
   color: var(--doc-dark);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-.doc-signature-subtitle {
-  font-size: 8pt;
-  font-weight: 700;
-  color: #18181b;
-  margin-top: 0.5mm;
 }
 
 .doc-signature-role {
