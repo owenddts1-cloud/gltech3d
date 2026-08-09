@@ -78,6 +78,9 @@ export interface ProductView {
   // Interno
   observations: string | null;
   buyerProfile: string | null;
+  /** Origem do modelo (0073): decide o que pode virar arquivo distribuível. */
+  modelSource: "proprio" | "livre" | "terceiro" | "desconhecido";
+  modelLicense: string | null;
   pricing: ProductPricingResult;
 }
 
@@ -168,6 +171,11 @@ export async function fetchProductsData() {
       // `buyer_profile` chega como undefined enquanto a migration 0069 não for
       // aplicada; `str()` normaliza para null e a tela não quebra.
       buyerProfile: str(r.buyer_profile),
+      modelSource:
+        r.model_source === "proprio" || r.model_source === "livre" || r.model_source === "terceiro"
+          ? r.model_source
+          : "desconhecido",
+      modelLicense: str(r.model_license),
       pricing,
     };
   });

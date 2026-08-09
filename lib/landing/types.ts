@@ -47,6 +47,12 @@ export interface LandingProduct {
   /** Grupos de atributos da vitrine (migration 0059). `observations` NUNCA entra aqui. */
   variations: ProductVariationGroup[];
   links: ProductLinks;
+  /**
+   * Peças prontas em estoque. NÃO é dado de custo — é disponibilidade, e o feed
+   * de catálogo (Meta) precisa dela para não anunciar "em estoque" o que é
+   * impresso sob demanda.
+   */
+  stockQty: number;
 }
 
 /**

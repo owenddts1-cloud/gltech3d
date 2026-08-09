@@ -94,7 +94,27 @@ export const reassignCategorySchema = z.object({
   to: z.string().trim().max(80),
 });
 
+/**
+ * Reordenação da vitrine.
+ *
+ * `writes` traz SÓ as peças cuja posição mudou — normalmente uma, graças ao
+ * índice fracionário (`app/app/landing-edit/_lib/order.ts`). A versão anterior
+ * mandava a lista inteira de ids e renumerava tudo a cada arraste: 18 UPDATEs
+ * paralelos por gesto e, se um falhasse no meio, a vitrine ficava com metade da
+ * ordem nova.
+ *
+ * O array maior só aparece na renumeração, que é rara (posições empatadas ou
+ * precisão esgotada).
+ */
 export const reorderProductsSchema = z.object({
-  orderedIds: z.array(z.string().uuid()).min(1).max(500),
+  writes: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        sortOrder: z.coerce.number().finite(),
+      }),
+    )
+    .min(1)
+    .max(500),
 });
 

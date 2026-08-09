@@ -63,6 +63,7 @@ const PUBLIC_PRODUCT_COLUMNS = [
   "is_top",
   "bestseller_rank",
   "sort_order",
+  "stock_qty",
   "created_at",
 ].join(", ");
 
@@ -85,6 +86,7 @@ interface ProductRow {
   is_top: boolean;
   bestseller_rank: number | null;
   sort_order: number | null;
+  stock_qty: number | null;
   created_at: string;
 }
 
@@ -134,6 +136,7 @@ function toLandingProduct(row: ProductRow, fallbackLinks: ProductLinks): Landing
     variations: asVariations(row.variations),
     // Link próprio do produto vence; o global da org preenche o resto.
     links: mergeProductLinks(fallbackLinks, row.links),
+    stockQty: Number(row.stock_qty ?? 0),
   };
 }
 

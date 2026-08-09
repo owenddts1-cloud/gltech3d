@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import type { LandingProductAdmin } from '@/app/actions/landing/actions';
 import { reorderLandingProducts } from '@/app/actions/landing/actions';
+import { reorder, sortForDisplay } from '../_lib/order';
 
 interface OrderPanelProps {
   products: LandingProductAdmin[];
@@ -15,61 +16,65 @@ interface OrderPanelProps {
 }
 
 export default function OrderPanel({ products, onReordered }: OrderPanelProps) {
-  const [items, setItems] = useState<LandingProductAdmin[]>(() => [...products]);
+  const [items, setItems] = useState<LandingProductAdmin[]>(() => sortForDisplay(products) as LandingProductAdmin[]);
   const [saving, setSaving] = useState(false);
 
   // Sync if length or IDs changed externally
   if (items.length !== products.length || items.some((it, i) => it.id !== products[i]?.id)) {
-    setItems([...products]);
+    setItems(sortForDisplay(products) as LandingProductAdmin[]);
   }
 
-  async function persistOrder(nextItems: LandingProductAdmin[]) {
+  /**
+   * Grava e reflete no preview. Só as posições que MUDARAM vão ao servidor —
+   * `reorder` usa índice fracionário, então o arraste comum é um UPDATE só. A
+   * lista inteira só viaja quando é preciso renumerar (posições empatadas).
+   */
+  async function persist(
+    nextItems: LandingProductAdmin[],
+    writes: Array<{ id: string; sortOrder: number }>,
+  ) {
+    if (writes.length === 0) return;
+    const previous = items;
     setItems(nextItems);
     onReordered(nextItems);
     setSaving(true);
 
-    const orderedIds = nextItems.map((p) => p.id);
-    const result = await reorderLandingProducts({ orderedIds });
+    const result = await reorderLandingProducts({ writes });
     setSaving(false);
 
     if (!result.ok) {
       toast.error(result.error ?? 'Falha ao salvar ordem');
-      setItems(products);
-      onReordered(products);
-    } else {
-      toast.success('Nova sequência da vitrine salva!');
+      setItems(previous); // desfaz para o que estava na tela, não para a prop
+      onReordered(previous);
+      return;
     }
+    toast.success(
+      writes.length === 1 ? 'Ordem salva.' : `Ordem salva (${writes.length} peças renumeradas).`,
+    );
+  }
+
+  function move(fromIndex: number, toIndex: number) {
+    const result = reorder(items, fromIndex, toIndex);
+    void persist(result.items as LandingProductAdmin[], result.writes);
   }
 
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
-    const fromIndex = result.source.index;
-    const toIndex = result.destination.index;
-    if (fromIndex === toIndex) return;
-
-    const list = [...items];
-    const [moved] = list.splice(fromIndex, 1);
-    if (!moved) return;
-    list.splice(toIndex, 0, moved);
-
-    void persistOrder(list);
+    move(result.source.index, result.destination.index);
   }
 
   function moveItem(index: number, direction: 'up' | 'down') {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= items.length) return;
-
-    const list = [...items];
-    const [moved] = list.splice(index, 1);
-    if (!moved) return;
-    list.splice(targetIndex, 0, moved);
-
-    void persistOrder(list);
+    move(index, direction === 'up' ? index - 1 : index + 1);
   }
 
+  /** A-Z reposiciona tudo: aqui a renumeração completa é o comportamento certo. */
   function resetAlphabetical() {
     const list = [...items].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-    void persistOrder(list);
+    const renumbered = list.map((p, i) => ({ ...p, sortOrder: (i + 1) * 1000 }));
+    void persist(
+      renumbered,
+      renumbered.map((p) => ({ id: p.id, sortOrder: p.sortOrder as number })),
+    );
   }
 
   return (
@@ -133,7 +138,7 @@ export default function OrderPanel({ products, onReordered }: OrderPanelProps) {
 
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
                           {img ? (
-                            // eslint-disable-next-next/no-img-element
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={img} alt="" className="h-full w-full object-cover" />
                           ) : (
                             <span className="text-[10px] text-muted-foreground">Sem foto</span>

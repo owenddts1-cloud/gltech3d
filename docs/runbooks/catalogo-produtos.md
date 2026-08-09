@@ -24,23 +24,22 @@ Três grupos de campo, com destinos diferentes:
 
 ---
 
-## Passo 0 — Aplicar as migrations pendentes
+## Passo 0 — Migrations (já aplicadas)
 
-**Faça isto antes de tudo.** Três migrations acompanham esta entrega e ainda não
-foram aplicadas:
+Quatro migrations sustentam este runbook. **Todas já estão no banco de produção**
+— confirmado por consulta. Ficam listadas para quem clonar o repo:
 
-| Migration | O que faz | Se não aplicar |
-|---|---|---|
-| `0069_products_buyer_profile` | Cria a coluna `buyer_profile` | O campo "Geralmente quem compra" dá erro ao salvar |
-| `0070_landing_settings_links_fallback` | Preenche os links da loja | Peça nova entra na vitrine sem botão de compra |
-| `0071_v_products_costed_energy_key` | Corrige a chave de energia na view SQL | Nada visível — a view não tem consumidor |
+| Migration | O que faz |
+|---|---|
+| `0069_products_buyer_profile` | Coluna `buyer_profile` (quem costuma comprar) |
+| `0070_landing_settings_links_fallback` | Preenche os links da loja derivando do catálogo |
+| `0071_v_products_costed_energy_key` | Converge a chave de energia na view SQL |
+| `0072_product_sales_delta_trigger` | **Conserta o contador de vendas** — ver Passo 5 |
+| `0073_products_model_source` | Origem do modelo (próprio/livre/terceiro) — ver abaixo |
 
-```bash
-npx supabase db push          # pede a senha do banco
-```
-
-As três são aditivas e idempotentes. A 0070 **nunca sobrescreve** canal já
-configurado. Nenhuma apaga dado.
+Em clone novo: `npx supabase db push` (ou aplique o `supabase/baseline.sql`, que
+já traz as quatro no apêndice). Todas são aditivas e idempotentes; a 0070 nunca
+sobrescreve canal já configurado.
 
 ---
 
@@ -163,25 +162,142 @@ Detalhes que importam:
 
 `/app/sales` → abrir a venda → campo **Produto**.
 
-Vendas novas já saem vinculadas (o seletor está no diálogo de nova venda). O que
-falta é passar nas vendas antigas.
+### Antes de sair vinculando: nem toda venda é peça de catálogo
 
-O que você ganha em cada venda vinculada:
+Vale conferir o que as vendas registradas realmente são. Na base atual, as 26
+lançadas são quase todas **encomenda B2B sob medida** — chaveiro de paróquia, ímã
+para microfone, letreiro, maxilar 3D, porta-polaroid — e nove estão descritas só
+como "Peça 3D". **Nenhuma delas corresponde a uma peça do catálogo.**
+
+Isso não é falha de cadastro; são dois negócios diferentes:
+
+| | Onde vive | Contador |
+|---|---|---|
+| Serviço sob medida | O.S. (`/app/service-orders`) | não alimenta `sold_qty` de catálogo |
+| Peça de catálogo (varejo) | Venda com produto vinculado | alimenta `sold_qty` |
+
+**Vincule só quando a venda foi mesmo aquela peça do catálogo.** Forçar vínculo
+para "preencher o número" produz um ranking de mais vendidos que não corresponde
+a nada — e o pódio derivado passa a mentir na vitrine.
+
+Enquanto o varejo não estiver lançado, o botão "Aplicar os 3 mais vendidos" fica
+desabilitado de propósito. Nesse cenário o pódio manual é a escolha honesta.
+
+O que realmente destrava o contador é **lançar as vendas de Shopee e Mercado
+Livre** (as abas já existem) escolhendo a peça no ato — aí o número cresce sozinho
+e vira dado real.
+
+### O que você ganha em cada venda genuinamente vinculada
 
 1. **Custo e margem reais** na venda, calculados do custo da peça.
-2. **`sold_qty` sobe sozinho** quando o status vira *pago* ou *concluído* — um
-   gatilho no banco cuida disso. É o que alimenta o ranking de mais vendidos.
-3. **Estoque baixa sozinho** na mesma transição.
+2. **`sold_qty` sobe na hora em que você vincula**, se a venda já estiver *paga*
+   ou *concluída*. É o que alimenta o ranking de mais vendidos.
+3. **Estoque baixa junto.**
+
+> **Isto só funciona a partir da migration 0072.** O gatilho original só reagia a
+> *mudança de status*: vincular uma peça a uma venda que já estava paga não
+> contava nada, e como venda histórica nasce `concluído`, o contador nunca subia.
+> Ele também nunca descontava quando uma venda paga era cancelada ou apagada.
+> Agora o gatilho calcula a diferença entre o antes e o depois, e cobre os seis
+> casos: vincular, desvincular, trocar de peça, mudar quantidade, cancelar e
+> apagar.
 
 > Vincular só faz sentido depois do passo 2. Sem custo preenchido, a margem da
 > venda aparece como 100%, que é o default, não a realidade.
 
+**Sobre o estoque:** `sold_qty` é exato. `stock_qty` é *best-effort* — como a
+coluna não pode ficar negativa, uma baixa que bateu no zero não é "lembrada", e
+um estorno pode devolver mais do que tirou. Rastrear isso com precisão exigiria
+uma tabela de movimentação de estoque, que não existe.
+
+**Se desconfiar do contador:** `select public.fn_reconcile_product_sales(null);`
+recalcula `sold_qty` a partir das vendas. Só toca peças com ao menos uma venda
+vinculada — peça sem vínculo tem contador digitado à mão e não é zerada.
+
 ---
 
-## Passo 6 — Ordem e pódio na vitrine
+## Passo 6 — Catálogo no Instagram e no WhatsApp
 
-`/app/landing-edit`: pódio de mais vendidos, nichos, textos das seções, banners
-e comissões por plataforma.
+Um arquivo só alimenta os três canais da Meta. **Não precisa de API nem de app
+aprovado** — você cola uma URL no painel e a Meta busca sozinha.
+
+```
+https://SEU-DOMINIO/api/v1/public/feed/products.csv
+```
+
+Onde colar: **Commerce Manager › Catálogo › Fontes de dados › Feed agendado**.
+Com o catálogo criado, você conecta a conta do Instagram (Instagram Shopping) e o
+WhatsApp Business ao mesmo catálogo.
+
+> **Antes de colar, confira `NEXT_PUBLIC_APP_URL` na Vercel** (Settings ›
+> Environment Variables). É dela que saem os links e as URLs de imagem do feed.
+> Precisa ser o domínio real, com `https://` e **sem barra no fim**. Se ficar em
+> `http://localhost:3000`, a Meta recusa todos os itens.
+>
+> É variável `NEXT_PUBLIC_`, então é embutida no build: mudar exige **novo
+> deploy**. Para conferir sem abrir o painel:
+> `curl -s https://SEU-DOMINIO/api/v1/public/feed/products.csv | head -2`
+> — a coluna `link` tem que mostrar o seu domínio.
+
+Regras que o feed aplica sozinho:
+
+- Só entra peça **publicada, com preço e com foto**. Hoje isso dá **10 das 18** —
+  as 8 sem foto ficam de fora de propósito, porque entrariam como anúncio
+  quebrado. Suba as fotos (passo 4) e elas entram sozinhas.
+- Disponibilidade sai de `stock_qty`: com peça pronta vira *in stock*; sem, vira
+  *available for order*. É a verdade de quem imprime sob demanda.
+- Os cabeçalhos `X-Feed-Items` e `X-Feed-Skipped` dizem quantas entraram e
+  quantas ficaram de fora, sem precisar abrir o arquivo.
+
+**Catálogo nativo do WhatsApp pelo sistema não dá.** A integração atual (WAHA) só
+envia texto — não tem catálogo, lista nem botão. O catálogo do WhatsApp vem do
+mesmo feed da Meta, pelo app do WhatsApp Business. O que o sistema consegue
+gerar é uma **mensagem por nicho**, com nome, preço e link de cada peça
+(`buildNicheCatalogMessages` em `lib/landing/feed.ts`).
+
+---
+
+## Passo 7 — Ordem e pódio na vitrine
+
+`/app/landing-edit`:
+
+- **Ordem** — arraste as peças para definir a sequência do site. Cada arraste
+  grava **uma linha só** (índice fracionário), então é instantâneo mesmo com
+  catálogo grande. "Ordem A-Z" renumera tudo de uma vez.
+- **Pódio** — os três blocos de "Mais Vendidos". O botão **"Aplicar os 3 mais
+  vendidos"** troca a escolha manual pelo que as vendas dizem; ele fica
+  desabilitado enquanto nenhuma venda estiver vinculada a peça (passo 5), em vez
+  de aplicar um pódio de zeros.
+- Nichos, textos das seções, banners, links da loja e comissões por plataforma.
+
+> A edição de **peça** não fica mais aqui — é tudo em `/app/products`. Esta tela
+> cuida da *página*: ordem, destaque e texto.
+
+---
+
+## Origem do modelo — antes de pensar em vender arquivo
+
+Aba **Interno** › **Origem do modelo**.
+
+Vender a peça **impressa** e distribuir o **arquivo STL** são coisas
+juridicamente diferentes. Um pack de arquivos é obra derivada redistribuída, e
+boa parte do catálogo é de personagem licenciado (Batman, Charizard, Naruto,
+Banguela, Toy Story). Marcar a origem transforma "o que pode entrar no pack" numa
+consulta, em vez de uma decisão tomada de memória a cada vez.
+
+| Valor | Significa | Pode distribuir o arquivo? |
+|---|---|---|
+| Modelo próprio | Modelado por você | Sim |
+| Licença livre | CC-BY, CC0, domínio público | Sim, respeitando a licença (anote em "Licença / fonte") |
+| De terceiro | Sem permissão de redistribuir | **Não** |
+| Não classificado | Ainda não avaliado — **é o padrão** | Não |
+
+**As 18 peças nascem "Não classificado"**, de propósito: classificar o catálogo
+seria afirmar um dado jurídico no seu lugar. A marcação é sua, peça a peça.
+
+Quando quiser montar o pack, o filtro é `model_source in ('proprio','livre')`.
+Nada mais do produto digital existe ainda — nem entrega de arquivo ao cliente,
+nem cobrança (o sistema não tem gateway de pagamento nenhum).
 
 ---
 
@@ -209,14 +325,19 @@ Só corrige quando o nome do arquivo tem **exatamente uma** correspondência em
 
 ---
 
-## Ordenação da Vitrine
-
-- **Aba Ordem em `/app/landing-edit`**: Permite reordenar a sequência exata em que as peças aparecem na vitrine do site via **Drag & Drop** ou botões de seta. Atualiza a coluna `sort_order` no banco via Server Action `reorderLandingProducts`.
-
----
-
 ## O que ainda não existe
 
-- **Vínculo peça ↔ filamento é 1:1.** Peça multi-material precisa ser aproximada pelo filamento principal + insumos multi-linha.
+- **Produto digital**: não há entrega de arquivo ao cliente, licença nem
+  cobrança. O sistema não tem gateway de pagamento nenhum. A migration 0073
+  entrega só a base de dados (origem do modelo).
+- **Catálogo nativo do WhatsApp pelo sistema**: a integração atual só envia
+  texto. O catálogo vem do feed da Meta, pelo app do WhatsApp Business.
+- **Envio de mídia pelo WhatsApp**: o schema aceita `media_url`, mas o despacho
+  manda só texto. Mandar foto ainda é manual.
+- **Integração com a API do Instagram**: não existe. O que existe é o feed.
+- **Vínculo peça ↔ filamento é 1:1.** Peça multi-material precisa ser aproximada
+  pelo filamento principal + insumos multi-linha.
 - **`category_id`** existe como FK mas a tela grava só o texto do nicho.
+- **Movimentação de estoque**: `stock_qty` é um saldo, não um histórico — por
+  isso é best-effort (ver Passo 5).
 

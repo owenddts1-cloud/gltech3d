@@ -132,6 +132,13 @@ const productFieldsShape = {
   observations: z.string().trim().max(2000).nullable(),
   /** Quem costuma comprar a peça (migration 0069). Interno, como observations. */
   buyerProfile: z.string().trim().max(2000).nullable(),
+  /**
+   * Origem do modelo 3D (migration 0073). Decide o que pode ser distribuído como
+   * ARQUIVO — vender a peça impressa e redistribuir o STL são coisas diferentes.
+   */
+  modelSource: z.enum(["proprio", "livre", "terceiro", "desconhecido"]),
+  /** Licença ou fonte do modelo, em texto livre. Interno. */
+  modelLicense: z.string().trim().max(500).nullable(),
 
   // ── Ordenação na vitrine ─────────────────────────────────────────────────
   sortOrder: z.coerce.number(),

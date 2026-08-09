@@ -87,6 +87,8 @@ export function toProductRowPatch(d: ProductFullPatch): Record<string, unknown> 
   // ── Interno ──────────────────────────────────────────────────────────────
   if (d.observations !== undefined) patch.observations = orNull(d.observations);
   if (d.buyerProfile !== undefined) patch.buyer_profile = orNull(d.buyerProfile);
+  if (d.modelSource !== undefined) patch.model_source = d.modelSource;
+  if (d.modelLicense !== undefined) patch.model_license = orNull(d.modelLicense);
 
   // ── Ordenação ────────────────────────────────────────────────────────────
   if (d.sortOrder !== undefined) patch.sort_order = d.sortOrder;

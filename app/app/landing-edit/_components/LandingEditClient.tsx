@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Trophy, TriangleAlert, X } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -190,6 +191,58 @@ export default function LandingEditClient({
     [products],
   );
 
+  const [applyingTop, setApplyingTop] = useState(false);
+
+  /**
+   * As três peças publicadas com mais vendas registradas. Vazio enquanto ninguém
+   * vinculou venda a produto — e aí o botão fica desabilitado em vez de aplicar
+   * um pódio de zeros.
+   */
+  const topThree = useMemo(
+    () =>
+      products
+        .filter((p) => p.isPublished && p.soldQty > 0)
+        .sort((a, b) => b.soldQty - a.soldQty || a.name.localeCompare(b.name, 'pt-BR'))
+        .slice(0, 3),
+    [products],
+  );
+
+  /**
+   * Troca a curadoria manual do pódio pelo que as vendas dizem.
+   *
+   * Aplica em SÉRIE, e limpando antes: `bestseller_rank` tem índice único
+   * parcial por org (migration 0041), então dois updates concorrentes disputando
+   * o mesmo degrau estouram 23505. Limpar primeiro deixa os três degraus livres.
+   */
+  async function applyTopSellers() {
+    if (topThree.length === 0) return;
+    setApplyingTop(true);
+    try {
+      for (const current of products) {
+        if (current.bestsellerRank != null && !topThree.some((t) => t.id === current.id)) {
+          const cleared = await setBestsellerRank({ productId: current.id, rank: null });
+          if (!cleared.ok) {
+            toast.error(cleared.error);
+            return;
+          }
+        }
+      }
+      for (const [index, piece] of topThree.entries()) {
+        const rank = (index + 1) as 1 | 2 | 3;
+        const result = await setBestsellerRank({ productId: piece.id, rank });
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
+      }
+      const ranked = new Map(topThree.map((p, i) => [p.id, (i + 1) as 1 | 2 | 3]));
+      setProducts((prev) => prev.map((p) => ({ ...p, bestsellerRank: ranked.get(p.id) ?? null })));
+      toast.success(`Pódio atualizado: ${topThree.map((p) => p.name).join(', ')}`);
+    } finally {
+      setApplyingTop(false);
+    }
+  }
+
   async function handleRank(productId: string, rank: 1 | 2 | 3 | null) {
     const result = await setBestsellerRank({ productId, rank });
     if (!result.ok) {
@@ -316,13 +369,38 @@ export default function LandingEditClient({
                 ))}
               </div>
 
-              <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Ranking por vendas lançadas
-              </h3>
-              <p className="mb-2 text-[11px] text-muted-foreground">
-                As mais vendidas primeiro. Use os botões <strong>1º / 2º / 3º</strong> para colocar a
-                peça direto no pódio.
-              </p>
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Ranking por vendas lançadas
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    As mais vendidas primeiro. Use os botões <strong>1º / 2º / 3º</strong> para
+                    colocar a peça direto no pódio.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 shrink-0 gap-1.5 text-xs"
+                  disabled={applyingTop || topThree.length === 0}
+                  onClick={() => void applyTopSellers()}
+                  title={
+                    topThree.length === 0
+                      ? "Nenhuma peça publicada tem venda registrada ainda"
+                      : "Coloca no pódio as três peças mais vendidas"
+                  }
+                >
+                  <Trophy className="h-3.5 w-3.5" />
+                  {applyingTop ? "Aplicando…" : "Aplicar os 3 mais vendidos"}
+                </Button>
+              </div>
+              {topThree.length === 0 && (
+                <p className="mb-2 rounded-md border border-border bg-surface-elevated p-2 text-[11px] text-muted-foreground">
+                  O contador zera enquanto as vendas não estiverem vinculadas às peças. Abra cada
+                  venda em <strong>Vendas</strong> e escolha o produto — o número sobe na hora.
+                </p>
+              )}
               <div className="space-y-1">
                 {[...products]
                   .filter((p) => p.isPublished)

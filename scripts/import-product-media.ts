@@ -38,6 +38,7 @@ import { join, basename } from "node:path";
 
 import { requireServiceRoleEnv } from "./_env";
 import { slugify } from "../lib/utils/slug";
+import { matchProductByFolder, nearestSlugs } from "../lib/products/media-match";
 import {
   LANDING_MEDIA_BUCKET,
   LANDING_MEDIA_MAX_BYTES,
@@ -69,23 +70,6 @@ function parseArgs(argv: string[]): Args {
     map: flag("--map"),
     only: flag("--only"),
   };
-}
-
-/** Distância de edição — só para sugerir "você quis dizer X?" em pasta órfã. */
-function editDistance(a: string, b: string): number {
-  const rows = Array.from({ length: a.length + 1 }, (_, i) =>
-    Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
-  );
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      rows[i]![j] = Math.min(
-        rows[i - 1]![j]! + 1,
-        rows[i]![j - 1]! + 1,
-        rows[i - 1]![j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1),
-      );
-    }
-  }
-  return rows[a.length]![b.length]!;
 }
 
 interface Candidate {
@@ -150,10 +134,11 @@ function proposeMapFromPublic(products: ProductRow[]): void {
       for (const piece of readdirSync(categoryDir)) {
         const pieceDir = join(categoryDir, piece);
         if (!statSync(pieceDir).isDirectory()) continue;
-        const target = products.find(
-          (p) => (p.slug ?? "") === slugify(piece) || slugify(p.name) === slugify(piece),
-        );
-        proposal[`${category}/${piece}`] = target?.slug ?? `??? (${piece})`;
+        const match = matchProductByFolder(piece, products);
+        proposal[`${category}/${piece}`] =
+          match.kind === "exact" || match.kind === "contained"
+            ? (match.product.slug ?? slugify(match.product.name))
+            : `??? (${piece} — ${match.kind === "ambiguous" ? "ambiguo" : "sem correspondencia"})`;
       }
     }
   }
@@ -216,17 +201,28 @@ async function main(): Promise<void> {
   let reusedCount = 0;
 
   for (const folder of folders) {
+    // Mapa explícito vence sempre: se o usuário apontou, não há o que inferir.
     const mapped = folderToSlug[folder];
     const key = mapped ?? slugify(folder);
-    const product = bySlug.get(key) ?? byNameSlug.get(key);
+    let product = mapped ? (bySlug.get(mapped) ?? byNameSlug.get(mapped)) : undefined;
 
     if (!product) {
-      const near = products
-        .map((p) => ({ slug: p.slug ?? slugify(p.name), d: editDistance(key, p.slug ?? slugify(p.name)) }))
-        .sort((a, b) => a.d - b.d)
-        .slice(0, 3)
-        .map((c) => c.slug);
-      orphans.push(`${folder}  →  sem peça correspondente. Próximos: ${near.join(", ")}`);
+      const match = matchProductByFolder(folder, products);
+      if (match.kind === "exact" || match.kind === "contained") {
+        product = products.find((p) => p.id === match.product.id);
+      } else if (match.kind === "ambiguous") {
+        orphans.push(
+          `${folder}  →  ambíguo, casa com ${match.candidates.length} peças: ` +
+            match.candidates.map((c) => c.slug ?? slugify(c.name)).join(", "),
+        );
+        continue;
+      }
+    }
+
+    if (!product) {
+      orphans.push(
+        `${folder}  →  sem peça correspondente. Próximos: ${nearestSlugs(folder, products).join(", ")}`,
+      );
       continue;
     }
     if (args.only && product.slug !== args.only && key !== args.only) continue;

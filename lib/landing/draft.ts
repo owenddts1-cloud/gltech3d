@@ -46,6 +46,7 @@ export function adminToLandingProduct(
     // Mesmo filtro do repository: grupo sem nome ou sem opções não vai à vitrine.
     variations: p.variations.filter((g) => g.name.length > 0 && g.options.length > 0),
     links: mergeProductLinks(fallbackLinks, p.links),
+    stockQty: p.stockQty,
   };
 }
 

@@ -67,6 +67,8 @@ export interface ProductFormPayload {
   marginPct: number;
   observations: string;
   buyerProfile?: string;
+  modelSource: "proprio" | "livre" | "terceiro" | "desconhecido";
+  modelLicense: string;
 }
 
 interface Props {
@@ -130,6 +132,8 @@ export function ProductFormDialog({
   const [margin, setMargin] = useState(product ? String(product.marginPct) : "100");
   const [observations, setObservations] = useState(product?.observations ?? "");
   const [buyerProfile, setBuyerProfile] = useState(product?.buyerProfile ?? "");
+  const [modelSource, setModelSource] = useState(product?.modelSource ?? "desconhecido");
+  const [modelLicense, setModelLicense] = useState(product?.modelLicense ?? "");
 
   const [tab, setTab] = useState("custo");
   const [pending, startTransition] = useTransition();
@@ -202,6 +206,8 @@ export function ProductFormDialog({
       ...(buyerProfile.trim() || product?.buyerProfile
         ? { buyerProfile: buyerProfile.trim() }
         : {}),
+      modelSource,
+      modelLicense: modelLicense.trim(),
     };
   }
 
@@ -440,6 +446,39 @@ export function ProductFormDialog({
               >
                 <Textarea id="p-buyer" rows={3} value={buyerProfile} onChange={(e) => setBuyerProfile(e.target.value)} />
               </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label="Origem do modelo"
+                  htmlFor="p-model-source"
+                  hint="Decide se o ARQUIVO pode ser distribuído."
+                >
+                  <Combobox
+                    id="p-model-source"
+                    value={modelSource}
+                    onChange={(v) => setModelSource(v as typeof modelSource)}
+                    options={[
+                      { value: "desconhecido", label: "Não classificado" },
+                      { value: "proprio", label: "Modelo próprio", hint: "pode distribuir" },
+                      { value: "livre", label: "Licença livre", hint: "pode distribuir" },
+                      { value: "terceiro", label: "De terceiro", hint: "não distribuir arquivo" },
+                    ]}
+                    searchPlaceholder="Buscar…"
+                  />
+                </Field>
+                <Field label="Licença / fonte" htmlFor="p-model-license" hint="Ex.: CC-BY 4.0 — printables.com/model/123">
+                  <Input
+                    id="p-model-license"
+                    value={modelLicense}
+                    onChange={(e) => setModelLicense(e.target.value)}
+                  />
+                </Field>
+              </div>
+              <p className="rounded-md border border-border bg-surface-elevated p-2 text-[11px] leading-snug text-muted-foreground">
+                Vender a peça <strong>impressa</strong> e distribuir o <strong>arquivo STL</strong>
+                {" "}são coisas diferentes. Esta marcação é o que separa o que pode entrar num pack
+                de arquivos. Nada é classificado automaticamente.
+              </p>
+
               <Field label="Observações" htmlFor="p-obs" hint="Notas de produção, fornecedor, ajustes de slicer.">
                 <Textarea id="p-obs" rows={4} value={observations} onChange={(e) => setObservations(e.target.value)} />
               </Field>

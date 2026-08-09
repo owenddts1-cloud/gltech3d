@@ -462,21 +462,22 @@ export async function reorderLandingProducts(raw: unknown) {
   const parsed = reorderProductsSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
 
-  const { orderedIds } = parsed.data;
+  const { writes } = parsed.data;
   const { supabase, orgId } = c.ctx;
 
-  // Atualização paralela respeitando a ordem recebida (multiplicadores de 10)
-  const updates = orderedIds.map((id, index) =>
-    supabase
+  // Índice fracionário: o arraste normal manda UMA linha, então é um UPDATE só —
+  // atômico por definição. A lista maior só chega na renumeração, e aí a ordem
+  // sequencial das escritas importa (executa em série, não em paralelo, para o
+  // erro apontar exatamente onde parou).
+  const now = new Date().toISOString();
+  for (const write of writes) {
+    const { error } = await supabase
       .from("products")
-      .update({ sort_order: (index + 1) * 10, updated_at: new Date().toISOString() })
+      .update({ sort_order: write.sortOrder, updated_at: now })
       .eq("organization_id", orgId)
-      .eq("id", id)
-  );
-
-  const results = await Promise.all(updates);
-  const failed = results.find((r) => r.error);
-  if (failed?.error) return { ok: false as const, error: failed.error.message };
+      .eq("id", write.id);
+    if (error) return { ok: false as const, error: error.message };
+  }
 
   refresh();
   return { ok: true as const };
