@@ -14,6 +14,7 @@ import {
   landingSettingsPatchSchema,
   renameCategorySchema,
   reassignCategorySchema,
+  reorderProductsSchema,
   PLATFORMS,
 } from "@/lib/schemas/landing-edit";
 import type { LandingSection } from "@/lib/landing/types";
@@ -450,3 +451,34 @@ export async function reassignCategory(raw: unknown) {
   refresh();
   return { ok: true as const, moved: data?.length ?? 0 };
 }
+
+/**
+  * Reordena as peças na vitrine pública atualizando `sort_order` em lote.
+  */
+export async function reorderLandingProducts(raw: unknown) {
+  const c = await requireCtx();
+  if (!c.ok) return { ok: false as const, error: c.error };
+
+  const parsed = reorderProductsSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
+
+  const { orderedIds } = parsed.data;
+  const { supabase, orgId } = c.ctx;
+
+  // Atualização paralela respeitando a ordem recebida (multiplicadores de 10)
+  const updates = orderedIds.map((id, index) =>
+    supabase
+      .from("products")
+      .update({ sort_order: (index + 1) * 10, updated_at: new Date().toISOString() })
+      .eq("organization_id", orgId)
+      .eq("id", id)
+  );
+
+  const results = await Promise.all(updates);
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { ok: false as const, error: failed.error.message };
+
+  refresh();
+  return { ok: true as const };
+}
+

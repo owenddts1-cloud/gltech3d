@@ -13,19 +13,9 @@ import type {
   ProductLinks,
 } from '@/lib/landing/types';
 import type { LandingProductAdmin } from '@/app/actions/landing/actions';
+import { asLinks, mergeProductLinks } from '@/lib/landing/links';
 
 const PHOTO_PENDING_IMAGE = '/images/placeholder-model.svg';
-
-function asLinks(raw: Record<string, string> | undefined): ProductLinks {
-  if (!raw) return {};
-  const pick = (k: string): string | undefined => (raw[k] ? raw[k] : undefined);
-  return {
-    shopee: pick('shopee'),
-    mercadoLivre: pick('mercadoLivre'),
-    whatsapp: pick('whatsapp'),
-    instagram: pick('instagram'),
-  };
-}
 
 function isRank(v: number | null): v is BestsellerRank {
   return v === 1 || v === 2 || v === 3;
@@ -55,7 +45,7 @@ export function adminToLandingProduct(
     colors: p.colors,
     // Mesmo filtro do repository: grupo sem nome ou sem opções não vai à vitrine.
     variations: p.variations.filter((g) => g.name.length > 0 && g.options.length > 0),
-    links: { ...fallbackLinks, ...asLinks(p.links) },
+    links: mergeProductLinks(fallbackLinks, p.links),
   };
 }
 

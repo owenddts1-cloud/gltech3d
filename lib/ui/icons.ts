@@ -119,11 +119,26 @@ export {
   Globe,
   Coins,
   ArrowsDownUp,
-  // hub multi-app
+  // hub multi-app & editor icons
   VideoCamera,
   SquaresFour,
   Scissors,
   EnvelopeSimple,
   MapPin,
   User,
+  InstagramLogo,
+  TiktokLogo,
+  YoutubeLogo,
+  MagicWand,
+  Crop,
+  Sliders,
+  TextT,
+  Stack as Layers,
+  FilmStrip,
+  Sparkle as Sparkles,
+  SpeakerHigh,
+  SpeakerSimpleX,
+  MagnifyingGlassPlus,
+  MagnifyingGlassMinus,
 } from "@phosphor-icons/react/dist/ssr";
+

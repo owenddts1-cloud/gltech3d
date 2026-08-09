@@ -184,7 +184,7 @@ export function Sidebar({ collapsed, nav }: { collapsed: boolean; nav: NavEntry[
                   <span className="truncate text-[10px] text-sidebar-text font-medium">
                     {activeOrg?.name || "Workspace"}
                   </span>
-                  <span className="flex items-center gap-0.5 bg-accent/10 text-accent text-[8px] font-bold px-1 py-0.2 rounded uppercase border border-accent/20 tracking-wider">
+                  <span className="flex items-center gap-0.5 bg-sidebar-accent/10 text-sidebar-accent text-[8px] font-bold px-1 py-0.2 rounded uppercase border border-sidebar-accent/25 tracking-wider">
                     <Lightning size={6} weight="fill" />
                     PRO
                   </span>

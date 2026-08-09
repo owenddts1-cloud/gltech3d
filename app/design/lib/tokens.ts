@@ -161,8 +161,8 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
       dark:  { success: "#10b981", warning: "#f59e0b", error: "#f87171", info: "#38bdf8" },
     },
     surfaces: {
-      light: { bg: "#ececec", surface: "#ffffff", surfaceElevated: "#dedee0", text: "#18181b", textMuted: "#52525b", border: "#c9c9cc" },
-      dark:  { bg: "#09090b", surface: "#141416", surfaceElevated: "#1c1c20", text: "#fafafa", textMuted: "#a1a1aa", border: "#27272a" },
+      light: { bg: "#f4f4f5", surface: "#ffffff", surfaceElevated: "#e9e9ec", text: "#18181b", textMuted: "#52525b", border: "#d4d4d8" },
+      dark:  { bg: "#16161a", surface: "#1f1f24", surfaceElevated: "#292930", text: "#fafafa", textMuted: "#a1a1aa", border: "#3a3a42" },
     },
   },
   mist: {

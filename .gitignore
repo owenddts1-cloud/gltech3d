@@ -75,3 +75,8 @@ deskcommcrm-setup-kit.zip
 
 Imports_github/
 *.zip
+
+# Fotos/videos brutos para scripts/import-product-media.ts. A midia final vive no
+# Supabase Storage, nao no repositorio.
+/media-import/
+/media-map.json

@@ -2,33 +2,18 @@
  * Zod da fronteira das Server Actions do Landing Edit. Todo input externo passa
  * por aqui (CLAUDE.md: Zod em todo input externo).
  *
- * Separado de `products-catalog.ts` porque aquele valida `images` como URL
- * absoluta, e a landing usa caminhos relativos servidos de /public
- * (ex.: "/images/Luminarias/Lua Cheia/luminarialuacheia1.png").
+ * O que é do PRODUTO mora em `products-catalog.ts` — `products` é uma tabela só,
+ * servindo o CRM e a vitrine. Este módulo ficou com o que é da PÁGINA: seções,
+ * banners, comissões de plataforma, nichos e o pódio.
+ *
+ * Historicamente havia aqui uma segunda definição dos campos de produto, e ela
+ * divergiu da de `products-catalog.ts` em `images` — divergência que quebrou a
+ * edição de todo produto com foto. Por isso agora há um schema só.
  */
 import { z } from "zod";
-import { productVariationGroupSchema } from "./products-catalog";
+import { mediaPath, linksSchema, productFullPatchSchema } from "./products-catalog";
 
-/** Caminho de /public ou URL absoluta (Supabase Storage, quando houver upload). */
-const mediaPath = z
-  .string()
-  .trim()
-  .min(1)
-  .max(1000)
-  .refine((v) => v.startsWith("/") || /^https?:\/\//.test(v), {
-    message: "Use um caminho de /public ou uma URL http(s).",
-  });
-
-const externalUrl = z.string().trim().url().max(1000).or(z.literal(""));
-
-export const linksSchema = z
-  .object({
-    shopee: externalUrl,
-    mercadoLivre: externalUrl,
-    whatsapp: externalUrl,
-    instagram: externalUrl,
-  })
-  .partial();
+export { linksSchema };
 
 /** Plataformas conhecidas — espelha o check de platform_commissions (0041). */
 export const PLATFORMS = [
@@ -44,49 +29,12 @@ export const PLATFORMS = [
 export const platformSchema = z.enum(PLATFORMS);
 
 /**
- * Patch parcial de um produto. Todo campo é opcional de propósito: o autosave
- * manda só o que sujou, não o objeto inteiro.
+ * @deprecated Use `productFullPatchSchema` de `./products-catalog`. Alias mantido
+ * para os callers do Landing Edit — é literalmente o mesmo schema.
  */
-export const landingProductPatchSchema = z
-  .object({
-    name: z.string().trim().min(1).max(200),
-    slug: z
-      .string()
-      .trim()
-      .min(1)
-      .max(60)
-      .regex(/^[a-z0-9-]+$/, "Só minúsculas, números e hífen."),
-    description: z.string().trim().max(2000),
-    category: z.string().trim().max(80),
-    heroCopy: z.string().trim().max(2000).nullable(),
-    priceRange: z.string().trim().max(60).nullable(),
-    material: z.string().trim().max(120),
-    dimensions: z.string().trim().max(120),
-    salePriceCents: z.coerce.number().int().nonnegative().max(100_000_000).nullable(),
-    colors: z.array(z.string().trim().min(1).max(60)).max(20),
-    images: z.array(mediaPath).max(20),
-    videos: z.array(mediaPath).max(10),
-    links: linksSchema,
-    isPublished: z.boolean(),
-    isTop: z.boolean(),
-    stockQty: z.coerce.number().int().nonnegative().max(1_000_000),
-    soldQty: z.coerce.number().int().nonnegative().max(1_000_000),
-    sortOrder: z.coerce.number(),
-    // Engenharia de custo (mesmos campos de /app/products — a tabela é a mesma)
-    filamentClientId: z.string().max(64).nullable(),
-    filamentGrams: z.coerce.number().nonnegative().max(1_000_000),
-    printTimeMinutes: z.coerce.number().nonnegative().max(100_000),
-    printerClientId: z.string().max(64).nullable(),
-    extraCost: z.coerce.number().nonnegative().max(1_000_000),
-    marginPct: z.coerce.number().min(0).max(100_000),
-    // Vitrine: grupos de atributos (migration 0059) + observação interna (fora da landing).
-    variations: z.array(productVariationGroupSchema).max(20),
-    observations: z.string().trim().max(2000).nullable(),
-  })
-  .partial()
-  .refine((v) => Object.keys(v).length > 0, { message: "Patch vazio." });
+export const landingProductPatchSchema = productFullPatchSchema;
 
-export type LandingProductPatch = z.infer<typeof landingProductPatchSchema>;
+export type LandingProductPatch = z.infer<typeof productFullPatchSchema>;
 
 const landingSectionItemSchema = z
   .object({
@@ -145,3 +93,8 @@ export const reassignCategorySchema = z.object({
   from: categoryName,
   to: z.string().trim().max(80),
 });
+
+export const reorderProductsSchema = z.object({
+  orderedIds: z.array(z.string().uuid()).min(1).max(500),
+});
+

@@ -3,83 +3,62 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────────────────────
-   GLTECH CRM — Design System tokens (Sage palette · density Aerada)
-   Source of truth: /app/design/lib/tokens.ts (PALETTES.sage)
-   Light + dark drawn separately (NOT inverted).
+   GLTECH CRM — tokens do design system.
+
+   AS CORES NÃO MORAM AQUI. A fonte única é `PALETTES` em
+   /app/design/lib/tokens.ts, materializada por `paletteVars()`
+   (lib/theme-vars.ts) e escrita INLINE no <html> — pelo script anti-FOUC do
+   app/layout.tsx e pelo ThemeProvider a cada troca de tema/paleta.
+
+   Estilo inline vence qualquer seletor de folha de estilo. Este arquivo já teve
+   ~100 linhas de cor que NUNCA tiveram efeito e que divergiam da paleta real
+   (bege quente + verde aqui, off-white frio + roxo na paleta). Isso levou a
+   diagnósticos errados e a um tema claro sem contraste em produção. Foram
+   removidas.
+
+   O que resta abaixo: o fallback de no-JS (idêntico à paleta padrão `clay`) e
+   os tokens que `paletteVars()` NÃO emite — overlay, glass, grid, sombras,
+   espaçamento, raio, densidade, motion e z-index.
    ───────────────────────────────────────────────────────────────────────── */
 
 :root {
-  /* Surfaces (light) */
-  --color-bg: #f0ede6;
+  /* ── Fallback de no-JS ────────────────────────────────────────────────────
+     Espelha PALETTES.clay (modo claro). Se o JS não rodar, a interface abre
+     legível em vez de sem cor. Com JS, `paletteVars()` sobrescreve tudo isto
+     inline. Manter em sincronia com tokens.ts — o teste em
+     lib/theme-vars.test.ts garante o contraste dos valores de origem.
+     ─────────────────────────────────────────────────────────────────────── */
+  --color-bg: #f4f4f5;
   --color-surface: #ffffff;
-  --color-surface-elevated: #e3dfd5;
-  --color-overlay: rgba(28, 26, 22, 0.42);
-
-  /* Text (light) */
-  --color-text: #1c1a16;
-  --color-text-muted: #5d594f;
-  --color-text-subtle: #7d786c;
-
-  /* Borders (light) */
-  --color-border: #b5af9f;
-  --color-border-strong: #9e9786;
-  --color-border-glass: rgba(181, 175, 159, 0.75);
-  --color-border-grid: rgba(181, 175, 159, 0.6);
-  --color-surface-glass: rgba(255, 255, 255, 0.85);
-
-  /* Sidebar — grafite QUENTE (tinta laranja) nos DOIS temas. Texto legível SEM
-     hover (~9:1); acento laranja suave fixo, independente da paleta da página. */
-  --color-sidebar: #221b14;
-  --color-sidebar-elevated: #302518;
-  --color-sidebar-border: #453521;
-  --color-sidebar-text: #ece5da;
-  --color-sidebar-text-active: #ffa25c;
-  --color-sidebar-accent: #ff8c42;
-  --color-sidebar-hover: #322718;
-
-  /* Accent — Sage (11 stops) */
-  --color-accent-50:  #f3f6f1;
-  --color-accent-100: #e4ebe0;
-  --color-accent-200: #c8d6c1;
-  --color-accent-300: #a4ba9a;
-  --color-accent-400: #82a077;
-  --color-accent-500: #67885d;
-  --color-accent-600: #506d48;
-  --color-accent-700: #41573b;
-  --color-accent-800: #374731;
-  --color-accent-900: #2f3c2b;
-  --color-accent-950: #171f15;
-  --color-accent: var(--color-accent-600);
+  --color-surface-elevated: #e9e9ec;
+  --color-text: #18181b;
+  --color-text-muted: #52525b;
+  --color-text-subtle: #71717a;
+  --color-border: #d4d4d8;
+  --color-border-strong: #a1a1aa;
+  --color-accent: #c2410c;
   --color-accent-fg: #ffffff;
-  --color-accent-soft: var(--color-accent-100);
-  --color-accent-hover: var(--color-accent-700);
+  --color-accent-soft: #ffedd5;
+  --color-accent-hover: #9a3412;
+  --color-accent-500: #f97316;
+  --color-success: #166534;
+  --color-warning: #854d0e;
+  --color-error: #991b1b;
+  --color-info: #1e40af;
+  /* Rail tingida pelo acento, escura nos dois modos (espelha clay). */
+  --color-sidebar: #462f25;
+  --color-sidebar-elevated: #5a433d;
+  --color-sidebar-border: #70584f;
+  --color-sidebar-text: #e4e4e7;
+  --color-sidebar-text-active: #fdba74;
+  --color-sidebar-accent: #fb923c;
+  --color-sidebar-hover: #5a433d;
 
-  /* Neutrals — greige (11 stops, light) */
-  --color-neutral-50:  #faf9f6;
-  --color-neutral-100: #f3f1ec;
-  --color-neutral-200: #e7e3da;
-  --color-neutral-300: #d2cdbf;
-  --color-neutral-400: #a9a395;
-  --color-neutral-500: #7d786c;
-  --color-neutral-600: #5d594f;
-  --color-neutral-700: #46433b;
-  --color-neutral-800: #2e2c26;
-  --color-neutral-900: #1c1a16;
-  --color-neutral-950: #0e0d0a;
-
-  /* States (light) */
-  --color-success: #5a8a5f;
-  --color-success-bg: rgba(90, 138, 95, 0.12);
-  --color-success-fg: #41673f;
-  --color-warning: #b07a2b;
-  --color-warning-bg: rgba(176, 122, 43, 0.12);
-  --color-warning-fg: #875a1a;
-  --color-error: #a94a3c;
-  --color-error-bg: rgba(169, 74, 60, 0.12);
-  --color-error-fg: #8a3a2e;
-  --color-info: #4a7a93;
-  --color-info-bg: rgba(74, 122, 147, 0.12);
-  --color-info-fg: #355d72;
+  /* ── Tokens que a paleta não emite ─────────────────────────────────────── */
+  --color-overlay: rgba(9, 9, 11, 0.5);
+  --color-border-glass: rgba(212, 212, 216, 0.75);
+  --color-border-grid: rgba(212, 212, 216, 0.6);
+  --color-surface-glass: rgba(255, 255, 255, 0.85);
 
   /* Spacing (4-base) */
   --space-0: 0px;
@@ -157,75 +136,43 @@
 }
 
 [data-theme="dark"] {
-  /* Surfaces (dark — absolute zinc/slate) */
-  --color-bg: #09090b;
-  --color-surface: #121214;
-  --color-surface-elevated: #18181b;
-  --color-overlay: rgba(0, 0, 0, 0.75);
-
-  /* Text (dark) */
+  /* ── Fallback de no-JS (espelha PALETTES.clay, modo escuro) ──────────────
+     Mesma regra do :root: com JS, `paletteVars()` sobrescreve tudo inline.
+     O bloco que existia aqui (acento laranja #ff6b00, neutros Zinc próprios)
+     nunca chegava a aparecer — a paleta vencia — e só confundia a leitura.
+     ─────────────────────────────────────────────────────────────────────── */
+  --color-bg: #16161a;
+  --color-surface: #1f1f24;
+  --color-surface-elevated: #292930;
   --color-text: #fafafa;
-  --color-text-muted: #a1a1aa;
-  --color-text-subtle: #71717a;
+  --color-text-muted: #e4e4e7;
+  --color-text-subtle: #a1a1aa;
+  --color-border: #52525b;
+  --color-border-strong: #71717a;
+  --color-accent: #fb923c;
+  --color-accent-fg: #09090b;
+  --color-accent-soft: #7c2d12;
+  --color-accent-hover: #fdba74;
+  --color-accent-400: #fb923c;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #60a5fa;
+  /* Rail tingida pelo acento, escura nos dois modos (espelha clay). */
+  --color-sidebar: #462f25;
+  --color-sidebar-elevated: #5a433d;
+  --color-sidebar-border: #70584f;
+  --color-sidebar-text: #e4e4e7;
+  --color-sidebar-text-active: #fdba74;
+  --color-sidebar-accent: #fb923c;
+  --color-sidebar-hover: #5a433d;
 
-  /* Borders (dark) */
-  --color-border: #27272a;
-  --color-border-strong: #3f3f46;
-  --color-border-glass: rgba(63, 63, 70, 0.4);
-  --color-border-grid: rgba(39, 39, 42, 0.4);
-  --color-surface-glass: rgba(18, 18, 20, 0.7);
+  /* ── Tokens que a paleta não emite ─────────────────────────────────────── */
+  --color-overlay: rgba(0, 0, 0, 0.75);
+  --color-border-glass: rgba(82, 82, 91, 0.4);
+  --color-border-grid: rgba(63, 63, 70, 0.4);
+  --color-surface-glass: rgba(20, 20, 22, 0.7);
 
-  /* Sidebar (dark) — grafite quente, distinto do fundo escuro p/ não sumir. */
-  --color-sidebar: #251d15;
-  --color-sidebar-elevated: #342919;
-  --color-sidebar-border: #4a3a24;
-  --color-sidebar-hover: #372c1c;
-
-  /* Accent — Cyber Amber / Vibrant Orange (#FF6B00) */
-  --color-accent-50:  #fff7ed;
-  --color-accent-100: #ffedd5;
-  --color-accent-200: #fed7aa;
-  --color-accent-300: #fdbb74;
-  --color-accent-400: #f97316;
-  --color-accent-500: #ff6b00;
-  --color-accent-600: #ea580c;
-  --color-accent-700: #c2410c;
-  --color-accent-800: #9a3412;
-  --color-accent-900: #7c2d12;
-  --color-accent-950: #431407;
-  --color-accent: #ff6b00;
-  --color-accent-fg: #ffffff;
-  --color-accent-soft: rgba(255, 107, 0, 0.12);
-  --color-accent-hover: #ff8533;
-
-  /* Neutrals — Zinc */
-  --color-neutral-50:  #fafafa;
-  --color-neutral-100: #f4f4f5;
-  --color-neutral-200: #e4e4e7;
-  --color-neutral-300: #d4d4d8;
-  --color-neutral-400: #a1a1aa;
-  --color-neutral-500: #71717a;
-  --color-neutral-600: #52525b;
-  --color-neutral-700: #3f3f46;
-  --color-neutral-800: #27272a;
-  --color-neutral-900: #18181b;
-  --color-neutral-950: #09090b;
-
-  /* States (dark) */
-  --color-success: #10b981;
-  --color-success-bg: rgba(16, 185, 129, 0.15);
-  --color-success-fg: #34d399;
-  --color-warning: #f59e0b;
-  --color-warning-bg: rgba(245, 158, 11, 0.15);
-  --color-warning-fg: #fbbf24;
-  --color-error: #ef4444;
-  --color-error-bg: rgba(239, 68, 68, 0.15);
-  --color-error-fg: #f87171;
-  --color-info: #3b82f6;
-  --color-info-bg: rgba(59, 130, 246, 0.15);
-  --color-info-fg: #60a5fa;
-
-  /* Shadows — heavier in dark */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.40), 0 1px 1px 0 rgba(0, 0, 0, 0.20);
   --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.45), 0 2px 4px -1px rgba(0, 0, 0, 0.30);

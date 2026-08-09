@@ -16,48 +16,14 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { products } from "../lib/marketing/products";
-
-function loadEnvFiles(): void {
-  for (const file of [".env.local", ".env"]) {
-    let content: string;
-    try {
-      content = readFileSync(file, "utf8");
-    } catch {
-      continue; // ausência é esperada conforme o ambiente
-    }
-    for (const line of content.split("\n")) {
-      const match = line.match(/^([A-Z_0-9]+)\s*=\s*(.*)$/);
-      if (match && !process.env[match[1]]) {
-        process.env[match[1]] = match[2].trim().replace(/^["']|["']$/g, "");
-      }
-    }
-  }
-}
-
-/** "Luminária Lua Cheia - Alta Qualidade" → "luminaria-lua-cheia-alta-qualidade" */
-export function slugify(input: string): string {
-  return input
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // tira os diacriticos separados pelo NFD
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-}
+import { slugify } from "../lib/utils/slug";
+import { requireServiceRoleEnv } from "./_env";
 
 async function main(): Promise<void> {
-  loadEnvFiles();
   const dryRun = process.argv.includes("--dry-run");
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    throw new Error("Faltam NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.");
-  }
-  const orgSlug = process.env.LANDING_ORG_SLUG ?? "gltech3d";
+  const { url, serviceKey, orgSlug } = requireServiceRoleEnv();
 
   const db = createClient(url, serviceKey, { auth: { persistSession: false } });
 

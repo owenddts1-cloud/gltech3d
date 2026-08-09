@@ -2,47 +2,93 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { z } from "zod";
 import { productCreateSchema, productPatchSchema, type ProductVariationGroup } from "@/lib/schemas/products-catalog";
+import {
+  toProductRowPatch,
+  salePriceCentsAfter,
+  publishBlockReason,
+  sumExtraCostCents,
+  extraCostsFromRow,
+} from "@/lib/products/patch";
+import { asLinks, inheritedChannels, type LinkChannel } from "@/lib/landing/links";
+import { slugifyWithSuffix } from "@/lib/utils/slug";
 import { computeProductPricing, type ProductPricingResult } from "@/lib/pricing/engine";
+import { revalidateLanding } from "@/lib/landing/repository";
 import { revalidatePath } from "next/cache";
 
-export interface ExtraCost { label: string; cost_cents: number }
+/**
+ * A vitrine pública lê por `unstable_cache` com tag, não por rota — então
+ * `revalidatePath("/")` sozinho NÃO derruba o catálogo, e a peça editada aqui
+ * continuava velha no site. `revalidateLanding()` é o caminho canônico
+ * (lib/landing/repository.ts) e alcança tanto a home quanto `/product/[slug]`.
+ */
+function revalidateProductSurfaces(): void {
+  revalidatePath("/app/products");
+  revalidateLanding();
+}
 
+/** Insumo no formato do editor (camelCase). O banco guarda `cost_cents`. */
+export interface ExtraCostView { label: string; costCents: number }
+
+/**
+ * Visão administrativa completa de uma peça.
+ *
+ * Traz TODAS as colunas editáveis — antes esta tela expunha só as de custo, e o
+ * que estava na vitrine (descrição, links, slug, material) só era editável pelo
+ * Landing Edit. `products` é uma tabela só; a visão também.
+ */
 export interface ProductView {
   id: string;
   name: string;
+  slug: string | null;
   category: string | null;
   categoryId: string | null;
   categoryName: string | null;
   description: string | null;
+  heroCopy: string | null;
+  // Vitrine
+  material: string | null;
+  dimensions: string | null;
+  priceRange: string | null;
+  colors: string[];
+  variations: ProductVariationGroup[];
+  isTop: boolean;
+  isPublished: boolean;
+  sortOrder: number | null;
+  // Mídia
   images: string[];
+  videos: string[];
+  // Comercial
+  salePriceCents: number | null;
+  stockQty: number;
+  soldQty: number;
+  links: Record<string, string>;
+  /** Canais que esta peça herda da loja — a UI mostra como placeholder. */
+  inheritedLinkChannels: LinkChannel[];
+  // Custo
   filamentClientId: string | null;
   filamentName: string | null;
   filamentGrams: number;
   printTimeSeconds: number;
   printerClientId: string | null;
-  extraCosts: ExtraCost[];
+  extraCosts: ExtraCostView[];
   extraCostTotal: number; // reais
   marginPct: number;
-  salePriceCents: number | null;
-  isPublished: boolean;
-  variations: ProductVariationGroup[];
+  // Interno
   observations: string | null;
+  buyerProfile: string | null;
   pricing: ProductPricingResult;
 }
 
-interface ProdRow {
-  id: string; name: string; category: string | null; category_id: string | null; description: string | null;
-  images: unknown; filament_client_id: string | null; filament_grams: number | string;
-  print_time_seconds: number | string; printer_client_id: string | null; extra_costs: unknown;
-  margin_pct: number | string; sale_price_cents: number | string | null;
-  is_published: boolean | null; variations: unknown; observations: string | null;
-}
 interface FilRow { client_id: string; name: string; cost_per_gram: number | string }
 interface PrnRow { client_id: string; name: string; power_draw: number | string; depreciation_per_hour: number | string }
 interface CatRow { id: string; name: string; slug: string }
 
-const num = (v: number | string | null | undefined) => (v == null ? 0 : Number(v));
+const num = (v: unknown) => (v == null ? 0 : Number(v));
+const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
+const strArray = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.length > 0) : [];
 
 export async function fetchProductsData() {
   const authUser = await loadAuthUser();
@@ -51,12 +97,15 @@ export async function fetchProductsData() {
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
 
   const supabase = await createClient();
-  const [prodRes, filRes, prnRes, orgRes, catRes] = await Promise.all([
+  const [prodRes, filRes, prnRes, orgRes, catRes, setRes] = await Promise.all([
     supabase.from("products").select("*").order("created_at", { ascending: false }),
     supabase.from("filaments").select("client_id, name, cost_per_gram"),
     supabase.from("printers").select("client_id, name, power_draw, depreciation_per_hour"),
     supabase.from("organizations").select("settings").eq("id", activeOrg.orgId).single(),
     supabase.from("categories").select("id, name, slug").order("sort_order", { ascending: true }),
+    // Links globais da loja: o formulário mostra o que a peça vai HERDAR se o
+    // campo ficar vazio, em vez de deixar o usuário adivinhar.
+    supabase.from("landing_settings").select("links").eq("organization_id", activeOrg.orgId).maybeSingle(),
   ]);
 
   const filaments = ((filRes.data as FilRow[] | null) ?? []);
@@ -66,13 +115,13 @@ export async function fetchProductsData() {
   const categories = ((catRes.data as CatRow[] | null) ?? []);
   const catMap = new Map(categories.map((c) => [c.id, c]));
   const kEnergy = ((orgRes.data?.settings as Record<string, unknown>)?.k_energy as number) || 0.85;
+  const globalLinks = asLinks((setRes.data as { links: unknown } | null)?.links);
 
-  const products = ((prodRes.data as ProdRow[] | null) ?? []).map((r): ProductView => {
-    const fil = r.filament_client_id ? filMap.get(r.filament_client_id) : undefined;
-    const prn = r.printer_client_id ? prnMap.get(r.printer_client_id) : undefined;
-    const cat = r.category_id ? catMap.get(r.category_id) : undefined;
-    const extras = (Array.isArray(r.extra_costs) ? (r.extra_costs as ExtraCost[]) : []);
-    const extraCents = extras.reduce((s, e) => s + num(e.cost_cents), 0);
+  const products = ((prodRes.data as Record<string, unknown>[] | null) ?? []).map((r): ProductView => {
+    const fil = r.filament_client_id ? filMap.get(r.filament_client_id as string) : undefined;
+    const prn = r.printer_client_id ? prnMap.get(r.printer_client_id as string) : undefined;
+    const cat = r.category_id ? catMap.get(r.category_id as string) : undefined;
+    const extraCents = sumExtraCostCents(r.extra_costs);
     const pricing = computeProductPricing({
       filamentGrams: num(r.filament_grams),
       costPerGram: fil ? num(fil.cost_per_gram) : 0,
@@ -84,25 +133,41 @@ export async function fetchProductsData() {
       marginPct: num(r.margin_pct),
     });
     return {
-      id: r.id,
-      name: r.name,
-      category: r.category,
-      categoryId: r.category_id,
+      id: r.id as string,
+      name: r.name as string,
+      slug: str(r.slug),
+      category: str(r.category),
+      categoryId: str(r.category_id),
       categoryName: cat?.name ?? null,
-      description: r.description,
-      images: Array.isArray(r.images) ? (r.images as string[]) : [],
-      filamentClientId: r.filament_client_id,
+      description: str(r.description),
+      heroCopy: str(r.hero_copy),
+      material: str(r.material),
+      dimensions: str(r.dimensions),
+      priceRange: str(r.price_range),
+      colors: strArray(r.colors),
+      variations: Array.isArray(r.variations) ? (r.variations as ProductVariationGroup[]) : [],
+      isTop: Boolean(r.is_top),
+      isPublished: Boolean(r.is_published),
+      sortOrder: r.sort_order == null ? null : num(r.sort_order),
+      images: strArray(r.images),
+      videos: strArray(r.videos),
+      salePriceCents: r.sale_price_cents == null ? null : num(r.sale_price_cents),
+      stockQty: num(r.stock_qty),
+      soldQty: num(r.sold_qty),
+      links: asLinks(r.links) as Record<string, string>,
+      inheritedLinkChannels: inheritedChannels(globalLinks, r.links),
+      filamentClientId: str(r.filament_client_id),
       filamentName: fil?.name ?? null,
       filamentGrams: num(r.filament_grams),
       printTimeSeconds: num(r.print_time_seconds),
-      printerClientId: r.printer_client_id,
-      extraCosts: extras,
+      printerClientId: str(r.printer_client_id),
+      extraCosts: extraCostsFromRow(r.extra_costs),
       extraCostTotal: extraCents / 100,
       marginPct: num(r.margin_pct),
-      salePriceCents: r.sale_price_cents == null ? null : num(r.sale_price_cents),
-      isPublished: Boolean(r.is_published),
-      variations: Array.isArray(r.variations) ? (r.variations as ProductVariationGroup[]) : [],
-      observations: r.observations ?? null,
+      observations: str(r.observations),
+      // `buyer_profile` chega como undefined enquanto a migration 0069 não for
+      // aplicada; `str()` normaliza para null e a tela não quebra.
+      buyerProfile: str(r.buyer_profile),
       pricing,
     };
   });
@@ -111,15 +176,45 @@ export async function fetchProductsData() {
     ok: true as const,
     orgId: activeOrg.orgId,
     products,
+    globalLinks: globalLinks as Record<string, string>,
     filaments: filaments.map((f) => ({ id: f.client_id, name: f.name, costPerGram: num(f.cost_per_gram) })),
     printers: printers.map((p) => ({ id: p.client_id, name: p.name })),
     categories: categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
+    kEnergy,
   };
 }
 
-function extrasFromReais(extraCost?: number): ExtraCost[] {
-  if (!extraCost || extraCost <= 0) return [];
-  return [{ label: "Insumos", cost_cents: Math.round(extraCost * 100) }];
+/**
+ * Resolve o slug de uma peça nova. Sem isso, `createProduct` deixava `slug` nulo
+ * e a landing caía no fallback `slug ?? id` — a URL pública virava um UUID.
+ *
+ * Nome sem nenhum caractere alfanumérico (ex.: "★★★") produz slug vazio; nesse
+ * caso devolve `null` e o fallback do repositório assume, que é melhor do que
+ * gravar string vazia numa coluna com índice único.
+ */
+function slugCandidate(name: string, attempt: number): string | null {
+  const slug = slugifyWithSuffix(name, attempt);
+  return slug.length > 0 ? slug : null;
+}
+
+/** Primeira mensagem do Zod — bem mais útil que um "Dados inválidos" genérico. */
+function firstIssue(error: z.ZodError): string {
+  return error.issues[0]?.message ?? "Dados inválidos";
+}
+
+/**
+ * Traduz o erro cru do Postgres em algo acionável.
+ *
+ * `42703` = coluna inexistente. Na prática significa uma migration desta entrega
+ * ainda não aplicada — sem esta tradução o usuário veria só
+ * `column "buyer_profile" of relation "products" does not exist`.
+ */
+function humanizeDbError(error: { code?: string; message: string }): string {
+  if (error.code === "23505") return "Esse endereço (slug) já existe em outra peça.";
+  if (error.code === "42703") {
+    return `Falta aplicar uma migration do banco (${error.message}). Rode: npx supabase db push`;
+  }
+  return error.message;
 }
 
 export async function createProduct(raw: unknown) {
@@ -129,40 +224,38 @@ export async function createProduct(raw: unknown) {
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
 
   const parsed = productCreateSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
+  if (!parsed.success) return { ok: false as const, error: firstIssue(parsed.error) };
   const d = parsed.data;
 
-  const salePriceCents = d.salePrice == null ? null : Math.round(d.salePrice * 100);
-  // Publicar na landing exige preço (mesma regra do Landing Edit).
-  if (d.isPublished && (salePriceCents == null || salePriceCents <= 0)) {
-    return { ok: false as const, error: "Defina um preço de venda para publicar na landing." };
-  }
+  // Peça nova ainda não tem preço no banco, então o "preço atual" é null.
+  const blocked = publishBlockReason(d, null);
+  if (blocked) return { ok: false as const, error: blocked };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("products").insert({
-    organization_id: activeOrg.orgId,
-    name: d.name,
-    category: d.category || null,
-    category_id: d.categoryId ?? null,
-    description: d.description || null,
-    images: d.images ?? [],
-    filament_client_id: d.filamentClientId ?? null,
-    filament_grams: d.filamentGrams,
-    print_time_seconds: Math.round((d.printTimeMinutes ?? 0) * 60),
-    printer_client_id: d.printerClientId ?? null,
-    extra_costs: extrasFromReais(d.extraCost),
-    margin_pct: d.marginPct,
-    sale_price_cents: salePriceCents,
-    is_published: d.isPublished ?? false,
-    variations: d.variations ?? [],
-    observations: d.observations || null,
-    created_by: authUser.id,
-  });
-  if (error) return { ok: false as const, error: error.message };
+  const base = toProductRowPatch(d);
 
-  revalidatePath("/app/products");
-  revalidatePath("/");
-  return { ok: true as const };
+  // O índice único de slug é parcial (`where slug is not null`), então o Postgres
+  // não infere ON CONFLICT a partir dele — o desempate é por tentativa.
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    const slug = d.slug ?? slugCandidate(d.name, attempt);
+    const { error } = await supabase.from("products").insert({
+      ...base,
+      organization_id: activeOrg.orgId,
+      slug,
+      created_by: authUser.id,
+    });
+    if (!error) {
+      revalidateProductSurfaces();
+      return { ok: true as const };
+    }
+    if (error.code !== "23505") return { ok: false as const, error: humanizeDbError(error) };
+    // Slug escolhido a dedo pelo usuário não deve ser "consertado" pelas costas.
+    if (d.slug) return { ok: false as const, error: "Esse slug já existe em outra peça." };
+  }
+  return {
+    ok: false as const,
+    error: "Não consegui gerar um endereço único para esta peça — mude o nome.",
+  };
 }
 
 export async function updateProduct(id: string, raw: unknown) {
@@ -172,56 +265,33 @@ export async function updateProduct(id: string, raw: unknown) {
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
 
   const parsed = productPatchSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
+  if (!parsed.success) return { ok: false as const, error: firstIssue(parsed.error) };
   const d = parsed.data;
-
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (d.name !== undefined) patch.name = d.name;
-  if (d.category !== undefined) patch.category = d.category || null;
-  if (d.categoryId !== undefined) patch.category_id = d.categoryId;
-  if (d.description !== undefined) patch.description = d.description || null;
-  if (d.images !== undefined) patch.images = d.images;
-  if (d.filamentClientId !== undefined) patch.filament_client_id = d.filamentClientId;
-  if (d.filamentGrams !== undefined) patch.filament_grams = d.filamentGrams;
-  if (d.printTimeMinutes !== undefined) patch.print_time_seconds = Math.round(d.printTimeMinutes * 60);
-  if (d.printerClientId !== undefined) patch.printer_client_id = d.printerClientId;
-  if (d.extraCost !== undefined) patch.extra_costs = extrasFromReais(d.extraCost);
-  if (d.marginPct !== undefined) patch.margin_pct = d.marginPct;
-  if (d.variations !== undefined) patch.variations = d.variations;
-  if (d.observations !== undefined) patch.observations = d.observations || null;
-  if (d.salePrice !== undefined) patch.sale_price_cents = d.salePrice == null ? null : Math.round(d.salePrice * 100);
 
   const supabase = await createClient();
 
-  // Publicar exige preço: usa o novo salePrice se veio, senão o preço atual do produto.
-  if (d.isPublished !== undefined) {
-    if (d.isPublished) {
-      let effectiveCents = d.salePrice == null ? null : Math.round(d.salePrice * 100);
-      if (effectiveCents == null) {
-        const { data: cur } = await supabase
-          .from("products")
-          .select("sale_price_cents")
-          .eq("organization_id", activeOrg.orgId)
-          .eq("id", id)
-          .single();
-        effectiveCents = (cur as { sale_price_cents: number | null } | null)?.sale_price_cents ?? null;
-      }
-      if (effectiveCents == null || effectiveCents <= 0) {
-        return { ok: false as const, error: "Defina um preço de venda para publicar na landing." };
-      }
-    }
-    patch.is_published = d.isPublished;
+  // Só consulta o preço atual quando o patch não traz preço próprio.
+  let currentCents: number | null = null;
+  if (d.isPublished === true && salePriceCentsAfter(d) === undefined) {
+    const { data: cur } = await supabase
+      .from("products")
+      .select("sale_price_cents")
+      .eq("organization_id", activeOrg.orgId)
+      .eq("id", id)
+      .maybeSingle();
+    currentCents = (cur as { sale_price_cents: number | null } | null)?.sale_price_cents ?? null;
   }
+  const blocked = publishBlockReason(d, currentCents);
+  if (blocked) return { ok: false as const, error: blocked };
 
   const { error } = await supabase
     .from("products")
-    .update(patch)
+    .update(toProductRowPatch(d))
     .eq("organization_id", activeOrg.orgId)
     .eq("id", id);
-  if (error) return { ok: false as const, error: error.message };
+  if (error) return { ok: false as const, error: humanizeDbError(error) };
 
-  revalidatePath("/app/products");
-  revalidatePath("/");
+  revalidateProductSurfaces();
   return { ok: true as const };
 }
 
@@ -239,6 +309,6 @@ export async function deleteProduct(id: string) {
     .eq("id", id);
   if (error) return { ok: false as const, error: error.message };
 
-  revalidatePath("/app/products");
+  revalidateProductSurfaces();
   return { ok: true as const };
 }

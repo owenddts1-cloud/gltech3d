@@ -23,9 +23,6 @@ export default async function LandingEditPage() {
       initialProducts={r.products}
       initialSettings={r.settings}
       initialCommissions={r.commissions}
-      filaments={r.filaments}
-      printers={r.printers}
-      kEnergy={r.kEnergy}
     />
   );
 }

@@ -21,6 +21,7 @@
 import "server-only";
 import { unstable_cache, revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { asLinks, mergeProductLinks } from "@/lib/landing/links";
 import { env } from "@/lib/env";
 import type {
   BestsellerRank,
@@ -92,19 +93,6 @@ function asStringArray(value: unknown): string[] {
   return value.filter((v): v is string => typeof v === "string" && v.length > 0);
 }
 
-function asLinks(value: unknown): ProductLinks {
-  if (typeof value !== "object" || value === null) return {};
-  const raw = value as Record<string, unknown>;
-  const pick = (k: string): string | undefined =>
-    typeof raw[k] === "string" && raw[k] ? (raw[k] as string) : undefined;
-  return {
-    shopee: pick("shopee"),
-    mercadoLivre: pick("mercadoLivre"),
-    whatsapp: pick("whatsapp"),
-    instagram: pick("instagram"),
-  };
-}
-
 /** Grupos de variação do jsonb (0059). Grupo sem nome ou sem opções é descartado. */
 function asVariations(value: unknown): ProductVariationGroup[] {
   if (!Array.isArray(value)) return [];
@@ -123,7 +111,6 @@ function isBestsellerRank(value: number | null): value is BestsellerRank {
 
 function toLandingProduct(row: ProductRow, fallbackLinks: ProductLinks): LandingProduct {
   const images = asStringArray(row.images);
-  const ownLinks = asLinks(row.links);
 
   return {
     id: row.id,
@@ -146,7 +133,7 @@ function toLandingProduct(row: ProductRow, fallbackLinks: ProductLinks): Landing
     colors: asStringArray(row.colors),
     variations: asVariations(row.variations),
     // Link próprio do produto vence; o global da org preenche o resto.
-    links: { ...fallbackLinks, ...ownLinks },
+    links: mergeProductLinks(fallbackLinks, row.links),
   };
 }
 

@@ -9,6 +9,8 @@ import {
   LANDING_MEDIA_BUCKET,
   LANDING_MEDIA_MAX_BYTES,
   LANDING_MEDIA_MIME,
+  safeName,
+  mediaKindOf,
   type MediaAsset,
 } from "@/lib/landing/media-config";
 
@@ -27,23 +29,6 @@ const uploadRequestSchema = z.object({
   contentType: z.enum(LANDING_MEDIA_MIME),
   sizeBytes: z.number().int().positive().max(LANDING_MEDIA_MAX_BYTES),
 });
-
-/** Nome de arquivo seguro: sem acento, sem espaço, sem path traversal. */
-function safeName(input: string): string {
-  const base = input.split(/[\\/]/).pop() ?? "arquivo";
-  return (
-    base
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9._-]/g, "-")
-      .replace(/-+/g, "-")
-      .slice(-120) || "arquivo"
-  );
-}
-
-function kindOf(name: string): "image" | "video" {
-  return /\.(mp4|webm)$/i.test(name) ? "video" : "image";
-}
 
 async function ctx() {
   const authUser = await loadAuthUser();
@@ -102,7 +87,7 @@ export async function listMedia() {
         url: pub.publicUrl,
         sizeBytes: (f.metadata?.size as number) ?? 0,
         createdAt: f.created_at ?? null,
-        kind: kindOf(f.name),
+        kind: mediaKindOf(f.name),
       };
     });
 

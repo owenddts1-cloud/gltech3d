@@ -1,10 +1,8 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2, Trophy, EyeOff, Search, TriangleAlert, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Trophy, TriangleAlert, X } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,20 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { useAutosave } from '@/hooks/useAutosave';
 import { buildDraftCatalog } from '@/lib/landing/draft';
 import type { LandingProductAdmin, PlatformCommission } from '@/app/actions/landing/actions';
 import {
-  createLandingProduct,
-  deleteLandingProduct,
   setBestsellerRank,
-  updateLandingProduct,
   updateLandingSettings,
   updatePlatformCommission,
 } from '@/app/actions/landing/actions';
-import type { LandingProductPatch } from '@/lib/schemas/landing-edit';
 import type { LandingSection, LandingSectionItem } from '@/lib/landing/types';
-import ProductEditor from './ProductEditor';
+import OrderPanel from './OrderPanel';
 import LivePreview from './LivePreview';
 import SaveIndicator from './SaveIndicator';
 import CategoryPanel from './CategoryPanel';
@@ -43,9 +38,6 @@ interface Props {
   initialProducts: LandingProductAdmin[];
   initialSettings: { sections: Record<string, LandingSection>; links: Record<string, string> };
   initialCommissions: PlatformCommission[];
-  filaments: { id: string; name: string; costPerGram: number }[];
-  printers: { id: string; name: string }[];
-  kEnergy: number;
 }
 
 /** Seções da landing que têm texto editável. */
@@ -164,28 +156,10 @@ export default function LandingEditClient({
   initialProducts,
   initialSettings,
   initialCommissions,
-  filaments,
-  printers,
-  kEnergy,
 }: Props) {
   const [products, setProducts] = useState(initialProducts);
   const [settings, setSettings] = useState(initialSettings);
   const [commissions, setCommissions] = useState(initialCommissions);
-  const [selectedId, setSelectedId] = useState(initialProducts[0]?.id ?? null);
-  const [query, setQuery] = useState('');
-
-  // O autosave pode disparar depois de trocar de peça; o id vai por ref para o
-  // patch nunca cair no produto errado.
-  const selectedIdRef = useRef(selectedId);
-  selectedIdRef.current = selectedId;
-
-  const saveProduct = useCallback(async (patch: LandingProductPatch) => {
-    const id = selectedIdRef.current;
-    if (!id) return { ok: false, error: 'Nenhuma peça selecionada' };
-    return updateLandingProduct(id, patch);
-  }, []);
-
-  const productSave = useAutosave<LandingProductPatch>({ onSave: saveProduct });
 
   const saveSettings = useCallback(
     async (patch: { sections?: Record<string, LandingSection>; links?: Record<string, string> }) =>
@@ -202,20 +176,10 @@ export default function LandingEditClient({
     settingsSave.queue({ links: next });
   }
 
-  const selected = products.find((p) => p.id === selectedId) ?? null;
-
   const draftCatalog = useMemo(
     () => buildDraftCatalog(products, settings),
     [products, settings],
   );
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) => p.name.toLowerCase().includes(q) || (p.category ?? '').toLowerCase().includes(q),
-    );
-  }, [products, query]);
 
   const podium = useMemo(
     () =>
@@ -226,90 +190,12 @@ export default function LandingEditClient({
     [products],
   );
 
-  /** Otimista: aplica no estado local na hora e enfileira a gravação. */
-  function patchSelected(patch: LandingProductPatch) {
-    if (!selectedId) return;
-    setProducts((prev) =>
-      prev.map((p) => (p.id === selectedId ? { ...p, ...(patch as Partial<LandingProductAdmin>) } : p)),
-    );
-    productSave.queue(patch);
-  }
-
-  async function selectProduct(id: string) {
-    // Grava o pendente antes de trocar: senão o patch da peça anterior sairia
-    // depois da troca (o ref evita gravar no alvo errado, mas o flush é mais
-    // previsível para quem está olhando o indicador).
-    await productSave.flush();
-    setSelectedId(id);
-  }
-
-  async function handleCreate() {
-    const result = await createLandingProduct({ name: 'Nova peça', category: '' });
-    if (!result.ok) {
-      toast.error(result.error);
-      return;
-    }
-    const fresh: LandingProductAdmin = {
-      id: result.id,
-      slug: null,
-      name: 'Nova peça',
-      description: null,
-      category: null,
-      heroCopy: null,
-      priceRange: null,
-      material: null,
-      dimensions: null,
-      salePriceCents: null,
-      colors: [],
-      images: [],
-      videos: [],
-      links: {},
-      isPublished: false,
-      isTop: false,
-      bestsellerRank: null,
-      variations: [],
-      observations: null,
-      sortOrder: null,
-      stockQty: 0,
-      soldQty: 0,
-      filamentClientId: null,
-      filamentGrams: 0,
-      printTimeMinutes: 0,
-      printerClientId: null,
-      extraCost: 0,
-      marginPct: 100,
-      pricing: {
-        materialCost: 0, energyCost: 0, depreciationCost: 0, extrasCost: 0,
-        totalCost: 0, suggestedPrice: 0, profit: 0,
-      },
-    };
-    setProducts((prev) => [fresh, ...prev]);
-    setSelectedId(result.id);
-    toast.success('Peça criada como rascunho');
-  }
-
-  async function handleDelete(id: string) {
-    const target = products.find((p) => p.id === id);
-    if (!target) return;
-    if (!window.confirm(`Excluir "${target.name}" do catálogo? Isso não tem desfazer.`)) return;
-
-    const result = await deleteLandingProduct(id);
-    if (!result.ok) {
-      toast.error(result.error);
-      return;
-    }
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    if (selectedId === id) setSelectedId(null);
-    toast.success('Peça excluída');
-  }
-
   async function handleRank(productId: string, rank: 1 | 2 | 3 | null) {
     const result = await setBestsellerRank({ productId, rank });
     if (!result.ok) {
       toast.error(result.error);
       return;
     }
-    // Espelha a regra do servidor: o degrau é exclusivo, quem estava lá sai.
     setProducts((prev) =>
       prev.map((p) => {
         if (p.id === productId) return { ...p, bestsellerRank: rank };
@@ -344,13 +230,13 @@ export default function LandingEditClient({
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Landing Edit</h1>
           <p className="text-xs text-muted-foreground">
-            {publishedCount} de {products.length} peças publicadas · alterações vão ao ar ao salvar
+            {publishedCount} de {products.length} peças publicadas · edições vão ao ar ao salvar
           </p>
         </div>
         <SaveIndicator
-          status={productSave.status === 'idle' ? settingsSave.status : productSave.status}
-          error={productSave.error ?? settingsSave.error}
-          lastSavedAt={productSave.lastSavedAt ?? settingsSave.lastSavedAt}
+          status={settingsSave.status}
+          error={settingsSave.error}
+          lastSavedAt={settingsSave.lastSavedAt}
         />
       </header>
 
@@ -368,9 +254,9 @@ export default function LandingEditClient({
       <div className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,460px)_1fr]">
         {/* ── Esquerda: formulários ─────────────────────────────────── */}
         <div className="flex min-h-0 flex-col border-r border-border">
-          <Tabs defaultValue="produtos" className="flex min-h-0 flex-1 flex-col">
+          <Tabs defaultValue="ordem" className="flex min-h-0 flex-1 flex-col">
             <TabsList className="mx-4 mt-3 grid w-auto grid-cols-6">
-              <TabsTrigger value="produtos">Peças</TabsTrigger>
+              <TabsTrigger value="ordem">Ordem</TabsTrigger>
               <TabsTrigger value="podio">Pódio</TabsTrigger>
               <TabsTrigger value="nichos">Nichos</TabsTrigger>
               <TabsTrigger value="textos">Textos</TabsTrigger>
@@ -378,110 +264,9 @@ export default function LandingEditClient({
               <TabsTrigger value="comissoes">Comissões</TabsTrigger>
             </TabsList>
 
-            {/* Peças */}
-            <TabsContent value="produtos" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-              <div className="sticky top-0 z-10 -mx-4 mb-3 bg-background px-4 pb-2 pt-2">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Buscar peça…"
-                      className="h-9 pl-8"
-                    />
-                  </div>
-                  <Button size="sm" onClick={handleCreate}>
-                    <Plus className="mr-1 h-3.5 w-3.5" />
-                    Nova
-                  </Button>
-                </div>
-              </div>
-
-              {/* Altura limitada de propósito: com 18 peças, a lista inteira
-                  empurrava o editor para fora da tela e dava a impressão de que
-                  não dava para editar nada. */}
-              <div className="mb-4 max-h-52 space-y-1 overflow-y-auto rounded-lg border border-border p-1">
-                {filtered.map((p) => (
-                  <div
-                    key={p.id}
-                    className={`group flex items-center gap-2 rounded-lg border px-2.5 py-2 transition-colors ${
-                      p.id === selectedId
-                        ? 'border-accent bg-accent-soft'
-                        : 'border-transparent hover:bg-muted'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => void selectProduct(p.id)}
-                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                    >
-                      <span className="min-w-0 flex-1 truncate text-xs font-medium">{p.name}</span>
-                      {p.bestsellerRank && (
-                        <Badge variant="secondary" className="shrink-0 gap-0.5 text-[10px]">
-                          <Trophy className="h-2.5 w-2.5" />
-                          {p.bestsellerRank}º
-                        </Badge>
-                      )}
-                      {!p.isPublished && (
-                        <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(p.id)}
-                      aria-label={`Excluir ${p.name}`}
-                      className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-error group-hover:opacity-100"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-                {filtered.length === 0 && (
-                  <p className="py-8 text-center text-xs text-muted-foreground">
-                    Nenhuma peça encontrada.
-                  </p>
-                )}
-              </div>
-
-              {selected ? (
-                <div className="border-t border-border pt-4">
-                  {/* Deixa explícito qual peça está aberta: sem isto, com a lista
-                      rolada, não dá para saber o que se está editando. */}
-                  <div className="mb-4 flex items-center gap-2">
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                      Editando
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                      {selected.name}
-                    </span>
-                    {selected.isPublished ? (
-                      <Badge variant="secondary" className="shrink-0 text-[10px]">
-                        No ar
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="shrink-0 gap-1 text-[10px]">
-                        <EyeOff className="h-2.5 w-2.5" />
-                        Rascunho
-                      </Badge>
-                    )}
-                  </div>
-                  <ProductEditor
-                    key={selected.id}
-                    product={selected}
-                    filaments={filaments}
-                    printers={printers}
-                    commissions={commissions}
-                    kEnergy={kEnergy}
-                    onChange={patchSelected}
-                    onBlurFlush={() => void productSave.flush()}
-                  />
-                </div>
-              ) : (
-                <p className="py-8 text-center text-xs text-muted-foreground">
-                  Selecione uma peça para editar.
-                </p>
-              )}
+            {/* Ordem (Vitrine) */}
+            <TabsContent value="ordem" className="min-h-0 flex-1 overflow-y-auto p-4">
+              <OrderPanel products={products} onReordered={setProducts} />
             </TabsContent>
 
             {/* Pódio */}
@@ -550,7 +335,6 @@ export default function LandingEditClient({
                     >
                       <span className="w-4 text-muted-foreground">{i + 1}</span>
                       <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                      {/* Rotulado: um "0" solto ao lado de botões parecia mais um botão. */}
                       <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">
                         {p.soldQty} {p.soldQty === 1 ? 'venda' : 'vendas'}
                       </span>

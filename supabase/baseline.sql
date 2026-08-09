@@ -6549,3 +6549,173 @@ drop trigger if exists trg_service_order_documents_freeze on public.service_orde
 create trigger trg_service_order_documents_freeze
   before update on public.service_order_documents
   for each row execute function public.fn_service_order_documents_freeze();
+
+
+-- ---- products.buyer_profile: perfil de quem compra, interno (migration 0069) ----
+-- Anotacao em texto livre de quem costuma comprar a peca. Irma de
+-- products.observations (0059): INTERNA, fora de PUBLIC_PRODUCT_COLUMNS
+-- (lib/landing/repository.ts). Aditiva, idempotente, sem backfill: nasce nula.
+
+alter table public.products
+  add column if not exists buyer_profile text;
+
+comment on column public.products.buyer_profile is
+  'Perfil de quem costuma comprar esta peca. Uso INTERNO do CRM: nunca vai para a '
+  'landing publica (a lista de colunas publicas e fechada em lib/landing/repository.ts).';
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'products_buyer_profile_len'
+  ) then
+    alter table public.products
+      add constraint products_buyer_profile_len
+      check (buyer_profile is null or char_length(buyer_profile) <= 2000);
+  end if;
+end $$;
+
+
+-- ---- landing_settings.links: fallback derivado dos links dos produtos (migration 0070) ----
+-- Deriva os canais de venda da LOJA a partir do link mais repetido entre os
+-- products.links da propria org (>= 2 pecas = link da loja; 1x = deep link do
+-- anuncio). Generico, sem citar tenant. Nunca sobrescreve canal ja configurado.
+-- Em banco novo nao ha produtos: no-op, correto.
+
+update public.landing_settings
+   set links = (
+         select coalesce(jsonb_object_agg(t.k, t.v), '{}'::jsonb)
+         from jsonb_each_text(links) as t(k, v)
+         where coalesce(t.v, '') <> ''
+       ),
+       updated_at = now()
+ where exists (
+   select 1 from jsonb_each_text(links) as t(k, v) where coalesce(t.v, '') = ''
+ );
+
+-- ── Passo 2 ────────────────────────────────────────────────────────────────
+-- Deriva e grava. `excluded.links || landing_settings.links` põe o derivado por
+-- baixo: qualquer canal que a org já tenha vence, porque em jsonb o operando da
+-- DIREITA prevalece.
+with pairs as (
+  select
+    p.organization_id,
+    k.key,
+    k.value
+  from public.products p
+  cross join lateral jsonb_each_text(coalesce(p.links, '{}'::jsonb)) as k(key, value)
+  where k.key in ('shopee', 'mercadoLivre', 'whatsapp', 'instagram')
+    and coalesce(k.value, '') <> ''
+),
+tally as (
+  select
+    organization_id,
+    key,
+    value,
+    count(*) as n,
+    -- Desempate por `value` deixa o resultado determinístico: re-rodar noutro
+    -- servidor não pode escolher um link diferente.
+    row_number() over (
+      partition by organization_id, key
+      order by count(*) desc, value
+    ) as rn
+  from pairs
+  group by organization_id, key, value
+),
+winner as (
+  select
+    organization_id,
+    jsonb_object_agg(key, value) as links
+  from tally
+  where rn = 1
+    and n >= 2
+  group by organization_id
+)
+insert into public.landing_settings (organization_id, sections, links)
+select w.organization_id, '{}'::jsonb, w.links
+from winner w
+on conflict (organization_id) do update
+  set links = excluded.links || landing_settings.links,
+      updated_at = now();
+
+comment on column public.landing_settings.links is
+  'Canais de venda da LOJA (shopee/mercadoLivre/whatsapp/instagram). Produto sem '
+  'link proprio herda daqui: ver mergeProductLinks em lib/landing/links.ts.';
+
+
+-- ---- v_products_costed: energia le k_energy + fórmula completa (migration 0071) ----
+-- k_energy e a chave que a UI escreve; a view lia kwh_rate (sem nenhum escritor).
+-- Converge com fallback, faz backfill defensivo e passa a expor depreciacao,
+-- insumos e total, que antes faltavam.
+
+update public.organizations
+   set settings = jsonb_set(
+         coalesce(settings, '{}'::jsonb),
+         '{k_energy}',
+         to_jsonb((settings->>'kwh_rate')::numeric)
+       )
+ -- `->> is not null` em vez do operador `?`: alguns drivers tratam "?" como
+ -- placeholder de bind e quebrariam a migration antes de o Postgres a ver.
+ where (settings->>'kwh_rate') is not null
+   and (settings->>'k_energy') is null
+   -- Valor não numérico faria o cast estourar e derrubar a migration inteira.
+   and (settings->>'kwh_rate') ~ '^[0-9]+(\.[0-9]+)?$';
+
+-- 2 e 3) View convergida e completa.
+-- `create or replace view` só permite ACRESCENTAR colunas no fim; as existentes
+-- mantêm nome, tipo e ordem.
+create or replace view public.v_products_costed as
+select p.id, p.organization_id, p.name, p.sale_price_cents,
+       p.filament_grams, p.print_time_seconds, p.category_id,
+       c.name as category_name,
+       -- material_cost: gramas × custo/grama do filamento vinculado
+       round(p.filament_grams * coalesce(f.cost_per_gram, 0), 2) as material_cost,
+       -- energy_cost: horas × potência_kW × tarifa_kWh da org.
+       -- k_energy é a chave escrita pela UI; kwh_rate fica como último recurso
+       -- para clone antigo. Default 0.85 = lib/pricing/engine.ts.
+       round(
+         (p.print_time_seconds / 3600.0)
+         * (coalesce(pr.power_draw, 200) / 1000.0)
+         * coalesce(
+             (o.settings->>'k_energy')::numeric,
+             (o.settings->>'kwh_rate')::numeric,
+             0.85
+           ),
+       2) as energy_cost,
+       -- depreciation_cost: horas × R$/h da impressora (default 0.40, igual ao TS)
+       round(
+         (p.print_time_seconds / 3600.0) * coalesce(pr.depreciation_per_hour, 0.40),
+       2) as depreciation_cost,
+       -- extras_cost: soma do BOM em `extra_costs` (centavos no jsonb → reais)
+       round(coalesce((
+         select sum((e->>'cost_cents')::numeric)
+         from jsonb_array_elements(
+           case when jsonb_typeof(p.extra_costs) = 'array'
+                then p.extra_costs else '[]'::jsonb end
+         ) as e
+       ), 0) / 100.0, 2) as extras_cost,
+       -- total_cost: a fórmula inteira, igual a computeProductPricing
+       round(
+         p.filament_grams * coalesce(f.cost_per_gram, 0)
+         + (p.print_time_seconds / 3600.0)
+           * (coalesce(pr.power_draw, 200) / 1000.0)
+           * coalesce(
+               (o.settings->>'k_energy')::numeric,
+               (o.settings->>'kwh_rate')::numeric,
+               0.85
+             )
+         + (p.print_time_seconds / 3600.0) * coalesce(pr.depreciation_per_hour, 0.40)
+         + coalesce((
+             select sum((e->>'cost_cents')::numeric)
+             from jsonb_array_elements(
+               case when jsonb_typeof(p.extra_costs) = 'array'
+                    then p.extra_costs else '[]'::jsonb end
+             ) as e
+           ), 0) / 100.0,
+       2) as total_cost
+from public.products p
+left join public.categories  c  on c.id = p.category_id
+left join public.filaments   f  on f.client_id = p.filament_client_id
+                               and f.organization_id = p.organization_id
+left join public.printers    pr on pr.client_id = p.printer_client_id
+                               and pr.organization_id = p.organization_id
+left join public.organizations o on o.id = p.organization_id;

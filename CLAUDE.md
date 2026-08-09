@@ -131,6 +131,7 @@ DeskcommCRM é um CRM operacional multi-tenant para e-commerce com IA conversaci
 | `docs/business-rules/` | Regras de negócio fora do código |
 | `docs/research/reference-synthesis.md` | Arquitetura herdada do curso WAHA |
 | `tasks/todo.md` | Workflow de construção atual |
+| `docs/runbooks/catalogo-produtos.md` | Como operar o catálogo: custo real, mídia por pastas, links herdados, vínculo venda↔peça |
 | `lib/api/wrappers.ts` | `ok()`, `fail()`, tipos `ApiSuccess<T>` / `ApiError` |
 | `lib/api/errors.ts` | Códigos de erro canônicos |
 | `lib/env.ts` | Validação Zod das env vars (lança no startup se faltar crítica) |
@@ -214,7 +215,7 @@ Antes de declarar uma task pronta:
 7. Zod valida todo input externo
 8. Sem `console.log` esquecido
 9. Env vars novas adicionadas em `.env.example` + `lib/env.ts`
-10. Doc atualizada se mudou contrato (PRD/spec)
+10. Doc atualizada se mudou contrato (PRD/spec/runbooks — ver `docs/runbooks/catalogo-produtos.md`)
 11. **Mudança de schema saiu como migration versionada + linha no MANIFEST** (ver Doutrina de Migrations) — clones conseguem atualizar
 
 Um staff engineer aprovaria? Se não, itera.
