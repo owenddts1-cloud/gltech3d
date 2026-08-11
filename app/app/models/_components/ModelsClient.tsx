@@ -46,6 +46,8 @@ import {
   type StudioAngle,
 } from "@/lib/models/viewer-presets";
 import type { ViewerApi } from "./ThreeViewer";
+import { EditPanel } from "./EditPanel";
+import { boundsOf as boundsOfMesh } from "@/lib/models/stl";
 
 // Lazy-load ThreeViewer to keep initial page bundle small and prevent SSR errors
 const ThreeViewer = dynamicImport(() => import("./ThreeViewer"), {
@@ -369,6 +371,36 @@ export function ModelsClient({
     }
   };
 
+  /**
+   * A peça mudou de versão: atualiza o que está na tela.
+   *
+   * Ao GRAVAR, a geometria nova vem junto e entra direto — baixá-la de novo
+   * seria pedir ao servidor o que acabamos de calcular aqui. Ao RESTAURAR não
+   * vem geometria: limpamos o cache e reabrimos, e o `openInspector` resolve o
+   * caminho atual pelo ID no servidor, que já aponta para a versão restaurada.
+   */
+  const applyVersionChange = async (positions?: Float32Array) => {
+    const atual = activeInspector;
+    if (!atual) return;
+
+    if (positions) {
+      const bb = boundsOfMesh(positions);
+      const atualizado: StlModel = {
+        ...atual,
+        positions,
+        triangles: positions.length / 9,
+        boundingBox: bb,
+      };
+      setModels((prev) => prev.map((m) => (m.id === atualizado.id ? atualizado : m)));
+      setActiveInspector(atualizado);
+      return;
+    }
+
+    const semGeometria: StlModel = { ...atual, positions: undefined };
+    setModels((prev) => prev.map((m) => (m.id === semGeometria.id ? semGeometria : m)));
+    await openInspector(semGeometria);
+  };
+
   /** Baixa o arquivo original. Mesma URL assinada; o servidor manda o nome. */
   const downloadModel = async (model: StlModel) => {
     setDownloading(model.id);
@@ -653,6 +685,21 @@ export function ModelsClient({
               {/* Viewport Config panel */}
               <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-5 flex flex-col justify-between overflow-y-auto">
                 <div className="space-y-4">
+                  <details className="group rounded-lg border border-border bg-surface/60">
+                    <summary className="cursor-pointer list-none px-3 py-2 text-xs font-bold uppercase tracking-wider text-foreground">
+                      Editar peça
+                      <span className="ml-1 font-normal normal-case text-muted-foreground">
+                        — girar, escalar, espelhar
+                      </span>
+                    </summary>
+                    <div className="border-t border-border p-3">
+                      <EditPanel
+                        model={activeInspector}
+                        onChanged={(positions) => { void applyVersionChange(positions); }}
+                      />
+                    </div>
+                  </details>
+
                   <h4 className="font-bold text-xs uppercase tracking-wider text-foreground flex items-center gap-1.5 border-b border-border pb-2">
                     <Gear className="text-accent" />
                     Controles e Fatiamento

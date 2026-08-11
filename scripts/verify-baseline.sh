@@ -137,6 +137,17 @@ fi
 echo "OK — re-aplicação só gerou erro benigno"
 
 echo
+echo "== invariantes da 0075 (model_versions) =="
+psql_run -v ON_ERROR_STOP=1 -q -t -c "
+  select 'tabela: '        || count(*) from pg_tables   where schemaname='public' and tablename='model_versions';
+  select 'rls: '           || relrowsecurity from pg_class where relname='model_versions';
+  select 'policies: '      || count(*) from pg_policies where tablename='model_versions';
+  select 'unique por peca: '|| count(*) from pg_indexes where indexname='model_versions_model_number_key';
+  select 'ponteiro ativo: '|| count(*) from information_schema.columns
+    where table_name='models_3d' and column_name='current_version_id';
+" || exit 1
+
+echo
 echo "== invariantes da 0074 =="
 psql_run -v ON_ERROR_STOP=1 -q -t -c "
   select 'tabela: '   || count(*) from pg_tables  where schemaname='public' and tablename='user_trusted_devices';

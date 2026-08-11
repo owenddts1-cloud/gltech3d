@@ -183,3 +183,60 @@ export function signedMeshVolume(positions: Float32Array): number {
   }
   return Math.abs(volume);
 }
+
+/**
+ * Escreve STL binário a partir de triângulos soltos.
+ *
+ * A NORMAL É CALCULADA DA GEOMETRIA, não copiada da entrada. O campo de normal
+ * do STL é notoriamente não confiável — metade dos exportadores grava zero — e,
+ * depois de uma transformação que espelha, uma normal herdada apontaria para
+ * dentro. Recalcular é barato e elimina a classe inteira de erro.
+ *
+ * Formato: 80 bytes de cabeçalho, uint32 com a contagem, e 50 bytes por
+ * triângulo (12 floats + 2 bytes de atributo).
+ */
+export function writeBinaryStl(positions: Float32Array, header = "DeskcommCRM"): ArrayBuffer {
+  const count = Math.floor(positions.length / 9);
+  const buffer = new ArrayBuffer(84 + count * 50);
+  const view = new DataView(buffer);
+
+  // Cabeçalho de 80 bytes. Cortado em 79 de propósito: o byte final fica zero,
+  // e leitor que trata o cabeçalho como texto não sai lendo lixo adiante.
+  const bytes = new Uint8Array(buffer);
+  const text = new TextEncoder().encode(header.slice(0, 79));
+  bytes.set(text.subarray(0, 79), 0);
+
+  view.setUint32(80, count, true);
+
+  let at = 84;
+  for (let i = 0; i + 8 < positions.length; i += 9) {
+    const ax = positions[i]!,     ay = positions[i + 1]!, az = positions[i + 2]!;
+    const bx = positions[i + 3]!, by = positions[i + 4]!, bz = positions[i + 5]!;
+    const cx = positions[i + 6]!, cy = positions[i + 7]!, cz = positions[i + 8]!;
+
+    const ux = bx - ax, uy = by - ay, uz = bz - az;
+    const vx = cx - ax, vy = cy - ay, vz = cz - az;
+    let nx = uy * vz - uz * vy;
+    let ny = uz * vx - ux * vz;
+    let nz = ux * vy - uy * vx;
+    const len = Math.hypot(nx, ny, nz);
+    if (len > 1e-12) {
+      nx /= len;
+      ny /= len;
+      nz /= len;
+    } else {
+      nx = 0;
+      ny = 0;
+      nz = 0; // triângulo degenerado: normal zero é o que a spec manda
+    }
+
+    for (const value of [nx, ny, nz, ax, ay, az, bx, by, bz, cx, cy, cz]) {
+      view.setFloat32(at, value, true);
+      at += 4;
+    }
+    view.setUint16(at, 0, true); // contagem de atributo
+    at += 2;
+  }
+
+  return buffer;
+}
