@@ -21,6 +21,8 @@ export type Contour = Point2[];
 
 export interface Layer {
   z: number;
+  /** Espessura desta camada, em mm. Varia com `thicknesses`. */
+  thickness: number;
   /** Contornos fechados. Externos e furos — a distinção é feita por `isHole`. */
   contours: Contour[];
   /** Trechos que não fecharam, por buraco na malha. Vazio numa malha sã. */
@@ -313,6 +315,14 @@ export interface SliceOptions {
   layerHeight: number;
   /** Altura da primeira camada. Costuma ser maior, para colar na mesa. */
   firstLayerHeight?: number;
+  /**
+   * Espessura de cada camada, de baixo para cima. Quando presente, manda em
+   * `layerHeight` e `firstLayerHeight` — ver `adaptive.ts`.
+   *
+   * Se a lista acabar antes do topo da peca, o resto usa `layerHeight`: melhor
+   * terminar de fatiar com altura fixa do que parar no meio do modelo.
+   */
+  thicknesses?: readonly number[];
 }
 
 /**
@@ -342,7 +352,13 @@ export function sliceMesh(positions: Float32Array, options: SliceOptions): Layer
   let bottom = minZ;
   let index = 0;
   while (bottom < maxZ) {
-    const thickness = index === 0 ? firstHeight : layerHeight;
+    const scheduled = options.thicknesses?.[index];
+    const thickness =
+      scheduled !== undefined && scheduled > 0
+        ? scheduled
+        : index === 0
+          ? firstHeight
+          : layerHeight;
     const z = bottom + thickness / 2;
     if (z >= maxZ) break;
 
@@ -373,7 +389,7 @@ export function sliceMesh(positions: Float32Array, options: SliceOptions): Layer
     // (9,8999… em vez de 9,9), e o plano acabava acima do topo do modelo: uma
     // camada vazia que viraria `;LAYER:` sem percurso nenhum no G-code.
     if (contours.length > 0 || rescued.openPaths.length > 0) {
-      layers.push({ z: bottom + thickness, contours, openPaths: rescued.openPaths });
+      layers.push({ z: bottom + thickness, thickness, contours, openPaths: rescued.openPaths });
     }
 
     bottom += thickness;

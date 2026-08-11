@@ -32,6 +32,15 @@ export interface PrinterProfile {
   retractionSpeedMmS: number;
   /** Salto menor que isto não retrai: gasta tempo e mói o filamento à toa. */
   retractionMinTravelMm: number;
+  /**
+   * Quanto levantar o bico no salto retraído, em mm. 0 desliga.
+   *
+   * Serve para o bico não RASPAR no que já foi depositado. Sem z-hop, uma peça
+   * que empenou um décimo de milímetro vira colisão a cada travessia, e a
+   * colisão desloca a peça na mesa. Custa tempo (sobe e desce a cada salto), por
+   * isso só acontece junto com a retração, nunca num salto curto.
+   */
+  zHopMm: number;
 
   // ── Resfriamento ─────────────────────────────────────────────────────────
   /** Velocidade cheia da ventoinha, em %. */
@@ -40,6 +49,14 @@ export interface PrinterProfile {
   fanOffLayers: number;
   /** Camada em que a ventoinha atinge a velocidade cheia (rampa linear). */
   fanFullAtLayer: number;
+
+  // ── Velocidades especiais ────────────────────────────────────────────────
+  /** mm/s sobre ponte. Devagar, senão o filete cai antes de solidificar. */
+  bridgeSpeed: number;
+  /** mm/s do alisamento. */
+  ironingSpeed: number;
+  /** Vazão do alisamento, em % — só o suficiente para preencher os vales. */
+  ironingFlowPct: number;
 
   // ── Limites da máquina ───────────────────────────────────────────────────
   /** Só para avisar na tela. Não bloqueia nada aqui. */
@@ -78,9 +95,13 @@ export const DEFAULT_PROFILE: PrinterProfile = {
   retractionMm: 2,
   retractionSpeedMmS: 30,
   retractionMinTravelMm: 1.5,
+  zHopMm: 0.2,
   fanSpeedPct: 100,
   fanOffLayers: 1,
   fanFullAtLayer: 3,
+  bridgeSpeed: 20,
+  ironingSpeed: 25,
+  ironingFlowPct: 12,
   minLayerHeight: 0.08,
   maxLayerHeight: 0.28,
 };
@@ -182,8 +203,19 @@ export type PerimeterPath = Contour | {
 
 export interface LayerPlan {
   z: number;
+  /** Espessura desta camada. Ausente = usa a altura fixa das configurações. */
+  thickness?: number;
   perimeters: PerimeterPath[];
   infill: InfillLine[];
+  /**
+   * Trechos sobre vazio, ancorados dos dois lados. Saem devagar e com a
+   * ventoinha no máximo — o filete precisa endurecer antes de cair.
+   */
+  bridges?: InfillLine[];
+  /** Passada de alisamento sobre a superfície de topo. */
+  ironing?: InfillLine[];
+  /** Camada de raft: material sacrificial embaixo da peça. */
+  isRaft?: boolean;
   /** Percursos de suporte desta camada. Ausente = sem suporte. */
   supports?: InfillLine[];
   /** Laços de skirt. Só na primeira camada. */
@@ -259,6 +291,9 @@ export function generateGcode(
    * Vazio durante skirt e brim: ali o salto é por fora mesmo, e retrair é certo.
    */
   let boundary: Contour[] = [];
+  /** Z da camada atual e se o bico está levantado pelo z-hop. */
+  let layerZ = 0;
+  let hopped = false;
 
   const retractionMm = Math.max(0, profile.retractionMm);
   const retractionFeed = Math.max(1, profile.retractionSpeedMmS) * 60;
@@ -278,10 +313,21 @@ export function generateGcode(
     seconds += retractionMm / profile.retractionSpeedMmS;
     retracted = true;
     retractionCount++;
+
+    // Z-hop só junto da retração: levantar o bico sem recolher o filamento
+    // escorreria material no ar durante a subida.
+    if (profile.zHopMm > 0) {
+      out.push(`G0 Z${(layerZ + profile.zHopMm).toFixed(3)}`);
+      hopped = true;
+    }
   };
 
   const prime = () => {
     if (!retracted) return;
+    if (hopped) {
+      out.push(`G0 Z${layerZ.toFixed(3)}`);
+      hopped = false;
+    }
     out.push(`G1 F${retractionFeed.toFixed(0)} E${extruded.toFixed(5)}`);
     seconds += retractionMm / profile.retractionSpeedMmS;
     retracted = false;
@@ -337,10 +383,20 @@ export function generateGcode(
 
   layers.forEach((layer, index) => {
     const isFirst = index === 0;
-    const layerHeight = isFirst ? settings.firstLayerHeight : settings.layerHeight;
+    // A espessura vem da CAMADA quando existe: com altura variável ou raft, o
+    // valor fixo das configurações estaria errado, e `E` errado não dá erro
+    // nenhum — dá parede fina.
+    const layerHeight =
+      layer.thickness && layer.thickness > 0
+        ? layer.thickness
+        : isFirst
+          ? settings.firstLayerHeight
+          : settings.layerHeight;
     const printFeed = (isFirst ? profile.firstLayerSpeed : profile.printSpeed) * 60;
     const travelFeed = profile.travelSpeed * 60;
 
+    layerZ = layer.z;
+    hopped = false; // o G0 Z abaixo já reposiciona o bico
     out.push(`;LAYER:${index}`, `G0 Z${layer.z.toFixed(3)}`);
 
     // Fronteira do combing: a parede EXTERNA da camada (furos inclusos, que
@@ -408,10 +464,39 @@ export function generateGcode(
     }
 
     if (layer.infill.length > 0) {
-      emitType("FILL");
+      emitType(layer.isRaft ? "RAFT" : "FILL");
       for (const line of orderByProximity(layer.infill, cursor)) {
         emitTravel(line.from, travelFeed);
         emitExtrude(line.to, printFeed, layerHeight);
+      }
+    }
+
+    // Ponte antes do suporte e depois do preenchimento: o trecho sobre vazio
+    // precisa das duas âncoras já depositadas para ter onde se segurar.
+    if (layer.bridges && layer.bridges.length > 0) {
+      emitType("BRIDGE");
+      // Ventoinha no máximo, independente da rampa: filete sobre o ar só para
+      // de cair se endurecer imediatamente. Volta ao valor da camada depois.
+      if (currentFan < 255) out.push("M106 S255");
+      const bridgeFeed = profile.bridgeSpeed * 60;
+      for (const line of orderByProximity(layer.bridges, cursor)) {
+        emitTravel(line.from, travelFeed);
+        emitExtrude(line.to, bridgeFeed, layerHeight);
+      }
+      if (currentFan < 255) {
+        out.push(currentFan <= 0 ? "M107" : `M106 S${currentFan}`);
+      }
+    }
+
+    // Alisamento por último entre os percursos da peça: passa por cima do topo
+    // já pronto, derretendo os vales com quase nada de material.
+    if (layer.ironing && layer.ironing.length > 0) {
+      emitType("IRONING");
+      const ironFeed = profile.ironingSpeed * 60;
+      const flow = Math.max(0, profile.ironingFlowPct) / 100;
+      for (const line of orderByProximity(layer.ironing, cursor)) {
+        emitTravel(line.from, travelFeed);
+        emitExtrude(line.to, ironFeed, layerHeight, flow);
       }
     }
 

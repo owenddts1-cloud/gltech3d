@@ -320,8 +320,27 @@ PAYLOAD o proxy dá 178 cm³ contra 22,85 reais). O volume exato sai do
 `generateSupports`, que exige o fatiamento inteiro e é caro demais para 60
 candidatos.
 
-**Ainda falta:** z-hop, detecção de ponte, raft, altura de camada variável e
-ironing.
+**Acabamento** — todos implementados:
+
+| Recurso | Onde | Nota |
+|---|---|---|
+| z-hop | `gcode.ts` | só junto da retração; levantar sem recolher escorreria no ar |
+| ponte | `pipeline.ts` | devagar + ventoinha máxima; ver limitação abaixo |
+| alisamento | `pipeline.ts` | densidade 250% e vazão 12% sobre a face de topo |
+| raft | `pipeline.ts` | empurra a peça para cima; skirt e brim descem para o raft |
+| altura variável | `adaptive.ts` | `h = degrau / |n_z|`, direto da geometria |
+
+**Limitação da ponte, medida:** o critério é "sólido sem apoio embaixo", que pega
+ponte de verdade E o anel de balanço de superfície que abre para cima. No
+PAYLOAD, 198 das 324 camadas caem aí, quase todas anel de cone. Separar os dois
+exigiria provar ancoragem em lados opostos. Não corrigido de propósito: o
+tratamento (devagar + resfriamento máximo) é o certo para os dois casos. O que
+está errado é o rótulo, não a impressão.
+
+**Altura variável não é velocidade de graça.** Medido: no Acoplamento (parede
+vertical) 357 → 258 camadas e 1h52 → 1h31. No PAYLOAD (quase tudo superfície
+inclinada) 324 → 637 camadas e 3h04 → 6h04. Ela mantém o degrau CONSTANTE; em
+peça inclinada isso custa tempo em vez de economizar.
 
 **Aceite (NÃO cumprido):** G-code gerado imprime numa impressora real da
 GLTech3D. Nenhuma peça foi impressa a partir deste código até agora. A validação

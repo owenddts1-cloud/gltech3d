@@ -305,6 +305,44 @@ export function SlicerClient({
               </label>
             </Section>
 
+            {/* ── Acabamento ───────────────────────────────────────────── */}
+            <Section title="Acabamento">
+              <Toggle
+                label="Altura de camada variável"
+                hint={`Camada fina onde a superfície é rasa, grossa na parede vertical. Degrau alvo ${settings.adaptiveCuspMm} mm.`}
+                checked={settings.adaptiveLayers}
+                onChange={(v) => patch({ adaptiveLayers: v })}
+              />
+              {settings.adaptiveLayers && (
+                <Field label="Degrau máximo" hint="mm. Menor = mais liso e mais lento.">
+                  <Input
+                    inputMode="decimal"
+                    value={String(settings.adaptiveCuspMm)}
+                    onChange={(e) => patch({ adaptiveCuspMm: parseDecimal(e.target.value) })}
+                  />
+                </Field>
+              )}
+              <Toggle
+                label="Pontes"
+                hint="Trecho sobre vazio sai devagar e com ventoinha máxima."
+                checked={settings.bridgesEnabled}
+                onChange={(v) => patch({ bridgesEnabled: v })}
+              />
+              <Toggle
+                label="Alisar o topo"
+                hint="Passada extra com quase nada de material. Deixa a face lisa e demora mais."
+                checked={settings.ironingEnabled}
+                onChange={(v) => patch({ ironingEnabled: v })}
+              />
+              <Field label="Raft" hint="camadas sacrificiais sob a peça. 0 desliga.">
+                <Input
+                  inputMode="numeric"
+                  value={String(settings.raftLayers)}
+                  onChange={(e) => patch({ raftLayers: Math.round(parseDecimal(e.target.value)) })}
+                />
+              </Field>
+            </Section>
+
             {/* ── Aderência ────────────────────────────────────────────── */}
             <Section title="Aderência">
               <div className="grid grid-cols-2 gap-3">
@@ -557,6 +595,25 @@ function Field({
         <p className={`text-[10px] ${warn ? "text-warning-fg" : "text-muted-foreground"}`}>{hint}</p>
       )}
     </div>
+  );
+}
+
+function Toggle({
+  label, hint, checked, onChange,
+}: { label: string; hint: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer items-start justify-between gap-3 text-xs">
+      <span>
+        <span className="font-medium">{label}</span>
+        <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">{hint}</span>
+      </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 shrink-0 rounded border-border bg-surface text-accent"
+      />
+    </label>
   );
 }
 

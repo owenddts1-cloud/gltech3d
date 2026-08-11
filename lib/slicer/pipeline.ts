@@ -7,10 +7,17 @@
  */
 
 import { sliceMesh, type Contour, type Layer } from "./slice";
-import { generatePerimeters, subtractRegions, intersectRegions, regionArea } from "./perimeters";
+import {
+  generatePerimeters,
+  subtractRegions,
+  intersectRegions,
+  regionArea,
+  offsetRegion,
+} from "./perimeters";
 import { generateInfill, type InfillLine, type InfillPattern } from "./infill";
 import { generateSupports, supportVolumeCm3, DEFAULT_SUPPORT_OPTIONS } from "./supports";
 import { footprintOf, generateBrim, generateSkirt } from "./adhesion";
+import { layerSchedule, DEFAULT_ADAPTIVE_OPTIONS } from "./adaptive";
 import type { SeamMode } from "./seam";
 import type { LayerPlan, PerimeterPath } from "./gcode";
 
@@ -37,6 +44,24 @@ export interface SliceSettings {
   seamMode: SeamMode;
   /** Rampa da costura tipo cachecol, em mm. 0 desliga. */
   scarfLengthMm: number;
+
+  /** Altura de camada variável conforme a inclinação da superfície. */
+  adaptiveLayers: boolean;
+  /** Degrau máximo tolerado, em mm. Só vale com `adaptiveLayers`. */
+  adaptiveCuspMm: number;
+  /** Piso e teto da máquina para a altura variável. */
+  minLayerHeight: number;
+  maxLayerHeight: number;
+
+  /** Camadas de raft embaixo da peça. 0 desliga. */
+  raftLayers: number;
+  /** Quanto o raft avança para fora da silhueta, em mm. */
+  raftMarginMm: number;
+
+  /** Imprimir devagar e com ventoinha máxima sobre vazio. */
+  bridgesEnabled: boolean;
+  /** Passada de alisamento sobre as superfícies de topo. */
+  ironingEnabled: boolean;
 }
 
 export const DEFAULT_SLICE_SETTINGS: SliceSettings = {
@@ -54,6 +79,14 @@ export const DEFAULT_SLICE_SETTINGS: SliceSettings = {
   brimWidthMm: 0,
   seamMode: "canto",
   scarfLengthMm: 0,
+  adaptiveLayers: false,
+  adaptiveCuspMm: 0.05,
+  minLayerHeight: 0.08,
+  maxLayerHeight: 0.28,
+  raftLayers: 0,
+  raftMarginMm: 3,
+  bridgesEnabled: true,
+  ironingEnabled: false,
 };
 
 export interface SlicedLayer extends LayerPlan {
@@ -67,6 +100,10 @@ export interface SliceResult {
   layers: SlicedLayer[];
   /** Volume de suporte, em cm³. Zero quando desligado. */
   supportVolumeCm3: number;
+  /** Quantas camadas têm trecho sobre vazio. Diagnóstico. */
+  bridgeLayerCount: number;
+  /** Quantas camadas de raft foram acrescentadas na frente. */
+  raftLayerCount: number;
   /** Somatório de contornos abertos — sintoma de buraco na malha. */
   openContourCount: number;
   /** Camadas em que nem parede coube (peça mais fina que o bico). */
@@ -124,9 +161,21 @@ function solidRegionFor(
 
 /** Fatia a malha e monta o plano completo de cada camada. */
 export function sliceToPlan(positions: Float32Array, settings: SliceSettings): SliceResult {
+  // Altura variável ANTES de fatiar: o cronograma define onde cada plano cai.
+  const thicknesses = settings.adaptiveLayers
+    ? layerSchedule(positions, {
+        ...DEFAULT_ADAPTIVE_OPTIONS,
+        minLayerHeight: settings.minLayerHeight,
+        maxLayerHeight: settings.maxLayerHeight,
+        cuspMm: settings.adaptiveCuspMm,
+        firstLayerHeight: settings.firstLayerHeight,
+      })
+    : undefined;
+
   const layers: Layer[] = sliceMesh(positions, {
     layerHeight: settings.layerHeight,
     firstLayerHeight: settings.firstLayerHeight,
+    thicknesses,
   });
 
   // Passo 1: paredes de cada camada. A região de preenchimento de uma camada é
@@ -175,6 +224,7 @@ export function sliceToPlan(positions: Float32Array, settings: SliceSettings): S
 
     return {
       z: layer.z,
+      thickness: layer.thickness,
       perimeters: perimeterPaths,
       infill,
       solidRegion,
@@ -198,6 +248,79 @@ export function sliceToPlan(positions: Float32Array, settings: SliceSettings): S
       if (support.lines.length > 0) layersOut[index]!.supports = support.lines;
     });
     supportVolume = supportVolumeCm3(supports, supportOptions);
+  }
+
+  // Passo 4: pontes. Trecho SÓLIDO sem material embaixo. Sai devagar e com a
+  // ventoinha no máximo; a área sai do preenchimento normal para não ser
+  // depositada duas vezes.
+  //
+  // LIMITAÇÃO MEDIDA E DECLARADA: o critério é "sólido sem apoio embaixo", o
+  // que pega ponte de verdade (vão entre duas colunas) E o anel de balanço de
+  // uma superfície que abre para cima. No PAYLOAD, 198 das 324 camadas caem
+  // aqui — quase todas são o anel do cone, não vão.
+  //
+  // Distinguir os dois exigiria provar que a região está ANCORADA em lados
+  // opostos, o que é bem mais geometria do que isto. Não corrigi porque o
+  // tratamento é o mesmo nos dois casos: devagar e com resfriamento máximo é o
+  // que balanço também precisa. O que está errado é o RÓTULO, não a impressão.
+  let bridgeLayers = 0;
+  if (settings.bridgesEnabled) {
+    for (let index = 1; index < layersOut.length; index++) {
+      const own = layersOut[index]!;
+      if (own.solidRegion.length === 0) continue;
+
+      const below = infillRegions[index - 1] ?? [];
+      const overVoid = subtractRegions(own.solidRegion, below);
+      if (overVoid.length === 0 || regionArea(overVoid) < settings.lineWidth * 2) continue;
+
+      // Ângulo fixo por camada. O ideal seria alinhar as linhas com o VÃO MAIS
+      // CURTO de cada ponte, que é o que dá mais resistência — não implementado,
+      // e a diferença aparece em vão largo e comprido. Fica declarado.
+      const bridges = generateInfill(overVoid, {
+        densityPct: 100,
+        lineWidth: settings.lineWidth,
+        pattern: "linhas",
+        angleDeg: 0,
+      });
+      if (bridges.length === 0) continue;
+
+      own.bridges = bridges;
+      // Tira a área da ponte do preenchimento sólido normal desta camada.
+      const rest = subtractRegions(own.solidRegion, overVoid);
+      own.infill = [
+        ...generateInfill(rest, {
+          densityPct: 100,
+          lineWidth: settings.lineWidth,
+          pattern: "linhas",
+          angleDeg: index % 2 === 0 ? 45 : 135,
+        }),
+        ...own.infill.filter((line) => !bridges.includes(line)),
+      ];
+      bridgeLayers++;
+    }
+  }
+
+  // Passo 5: alisamento. Passada extra sobre a superfície de TOPO — a que fica
+  // exposta — com quase nada de vazão, só para derreter os vales entre filetes.
+  // Só onde há topo de verdade: a região sólida que NÃO está coberta acima.
+  if (settings.ironingEnabled) {
+    for (let index = 0; index < layersOut.length; index++) {
+      const own = layersOut[index]!;
+      if (own.solidRegion.length === 0) continue;
+      const above = infillRegions[index + 1] ?? [];
+      const topSurface = subtractRegions(own.solidRegion, above);
+      if (topSurface.length === 0) continue;
+
+      // Espaçamento menor que a largura do filete: o bico tem de PASSAR por
+      // cima do vale, não ao lado dele. Por isso a densidade acima de 100.
+      const lines = generateInfill(topSurface, {
+        densityPct: 250,
+        lineWidth: settings.lineWidth,
+        pattern: "linhas",
+        angleDeg: 90,
+      });
+      if (lines.length > 0) own.ironing = lines;
+    }
   }
 
   // Passo 4: aderência. Só na primeira camada — é a única que toca a mesa.
@@ -225,9 +348,63 @@ export function sliceToPlan(positions: Float32Array, settings: SliceSettings): S
     }
   }
 
+  // Passo 7: raft. Camadas sacrificiais embaixo da peça, para quem tem mesa
+  // empenada ou peça de contato pequeno. Empurra TUDO para cima — o z das
+  // camadas da peça muda, e é por isso que o raft entra por último, depois de
+  // aderência e suporte já terem sido calculados na geometria original.
+  let raftCount = 0;
+  if (settings.raftLayers > 0 && layers.length > 0) {
+    const footprint = footprintOf(layers[0]!.contours);
+    const raftRegion = footprint.length > 0
+      ? offsetRegion(footprint, Math.max(0, settings.raftMarginMm))
+      : [];
+
+    if (raftRegion.length > 0) {
+      const raftThickness = Math.max(settings.firstLayerHeight, settings.layerHeight);
+      const raftHeight = raftThickness * settings.raftLayers;
+
+      // A peça sobe. Skirt e brim sobem junto porque vivem dentro da camada.
+      for (const layer of layersOut) layer.z += raftHeight;
+
+      const raft: SlicedLayer[] = [];
+      for (let i = 0; i < settings.raftLayers; i++) {
+        // A primeira camada do raft é esparsa (descola fácil da mesa) e a de
+        // cima é densa e cruzada, para a peça ter onde assentar.
+        const ultima = i === settings.raftLayers - 1;
+        raft.push({
+          z: raftThickness * (i + 1),
+          thickness: raftThickness,
+          isRaft: true,
+          perimeters: raftRegion.map((contour) => ({ contour, kind: "externa" as const })),
+          infill: generateInfill(raftRegion, {
+            densityPct: ultima ? 100 : 45,
+            lineWidth: settings.lineWidth,
+            pattern: "linhas",
+            angleDeg: i % 2 === 0 ? 0 : 90,
+          }),
+          solidRegion: [],
+          openPaths: [],
+        });
+      }
+
+      // Skirt e brim passam para a primeira camada do RAFT: é ela que toca a
+      // mesa agora. Deixá-los na peça faria o skirt sair no ar.
+      const first = layersOut[0];
+      if (first && raft[0]) {
+        if (first.skirt) { raft[0].skirt = first.skirt; delete first.skirt; }
+        if (first.brim) { raft[0].brim = first.brim; delete first.brim; }
+      }
+
+      layersOut.unshift(...raft);
+      raftCount = raft.length;
+    }
+  }
+
   return {
     layers: layersOut,
     supportVolumeCm3: supportVolume,
+    bridgeLayerCount: bridgeLayers,
+    raftLayerCount: raftCount,
     openContourCount: layers.reduce((sum, l) => sum + l.openPaths.length, 0),
     layersWithoutWalls: perimeters.filter((p, i) => p.walls.length === 0 && layers[i]!.contours.length > 0).length,
   };
