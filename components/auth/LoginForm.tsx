@@ -72,7 +72,15 @@ export function LoginForm({ next }: { next?: string }) {
         )}
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="password">Senha</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Senha</Label>
+          <a
+            href="mailto:suporte@gltech3d.com.br?subject=Recuperacao%20de%20Senha%20CRM"
+            className="text-xs text-muted-foreground hover:text-foreground hover:underline transition-colors"
+          >
+            Esqueci minha senha
+          </a>
+        </div>
         <Input
           id="password"
           type="password"
