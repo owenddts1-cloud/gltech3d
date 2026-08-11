@@ -4909,6 +4909,7 @@ create trigger trg_calendar_events_audit
   for each row execute function public.fn_audit_log_row();
 
 -- ---- models_3d: repositorio de STL (tabela + bucket privado) (migration 0045) ----
+create table if not exists public.models_3d (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   name text not null,
@@ -4991,6 +4992,7 @@ create policy "tenant_delete_models_3d" on storage.objects for delete
   );
 
 -- ---- avatars: bucket publico de foto de perfil, escopo por usuario (migration 0046) ----
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'avatars',
   'avatars',
@@ -5388,6 +5390,14 @@ do $$ begin
   create index if not exists products_org_name_trgm on public.products using gin (name public.gin_trgm_ops);
 exception when others then null; end $$;
 
+-- `drop` antes do `create`: mais abaixo, o apendice da migration 0071 substitui
+-- esta view por uma com MAIS colunas. Numa RE-APLICACAO (o update.sh roda o
+-- baseline inteiro de novo) este bloco vem depois daquele e tentaria voltar a
+-- versao curta -- e `create or replace view` recusa remover coluna, com
+-- "cannot drop columns from view". Sem o drop, todo self-hoster que atualiza ve
+-- esse erro. Nao ha objeto dependente desta view (conferido no catalogo), entao
+-- o drop dispensa `cascade`.
+drop view if exists public.v_products_costed;
 create or replace view public.v_products_costed as
 select p.id, p.organization_id, p.name, p.sale_price_cents, p.filament_grams, p.print_time_seconds, p.category_id,
        c.name as category_name,

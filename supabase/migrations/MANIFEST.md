@@ -82,6 +82,25 @@ Migrations applied to Supabase project `rrydmwnporysaiysiztn` (sa-east-1, Postgr
 | `20260809120100` | `0073_products_model_source` | Adiciona `products.model_source text not null default 'desconhecido'` (CHECK `proprio|livre|terceiro|desconhecido`) e `products.model_license text` (CHECK ≤500). Existe porque **vender a peça impressa e distribuir o ARQUIVO STL são coisas juridicamente diferentes**: um pack de arquivos é obra derivada redistribuída, e parte do catálogo é de personagem licenciado. Com a coluna, o filtro do pack vira cláusula de query (`model_source in ('proprio','livre')`) em vez de julgamento repetido de memória. **Backfill = zero classificações**: tudo nasce `desconhecido`, de propósito — classificar o catálogo seria inventar um dado jurídico que só o dono da operação pode afirmar, e o default é o valor mais restritivo na prática (nada entra no pack até ser marcado). Interna: fora de `PUBLIC_PRODUCT_COLUMNS`, como `observations` (0059) e `buyer_profile` (0069). Aditiva e idempotente. |
 | `20260811000000` | `0074_trusted_devices` | Cria `public.user_trusted_devices`: permite pular o desafio TOTP num dispositivo que o usuario marcou como confiavel, e listar/revogar esses dispositivos em `/app/settings/security`. Guarda **apenas o hash** do token (`device_token_hash`); o plaintext vive no cookie httpOnly do dispositivo — mesmo padrao dos bearer tokens da API (nunca plaintext no banco). RLS por **usuario**, nao por organizacao (`auth.uid() = user_id`): dispositivo confiavel pertence ao dono da sessao, nao ao tenant. `expires_at` obrigatorio — confianca sem prazo vira porta destrancada permanente. Aditiva e idempotente. |
 
+
+## Correcoes do baseline.sql (nao sao migrations)
+
+O kit self-host aplica **somente** `supabase/baseline.sql`. Estas correcoes nao
+mudam schema nenhum — consertam o proprio arquivo, que estava quebrado e nunca
+tinha sido aplicado num banco limpo.
+
+| Data | O que | Por que importava |
+|---|---|---|
+| 2026-08-11 | Restaurada a linha `create table if not exists public.models_3d (`, ausente no apendice da 0045 | Com `ON_ERROR_STOP=1`, o `install.sh` **abortava ali**. Tudo da 0045 em diante (models_3d, model_folders, colunas de produto, gatilho de vendas por delta, model_source, dispositivos confiaveis) nunca chegava a quem clonava |
+| 2026-08-11 | Restaurada a linha `insert into storage.buckets (...)` antes do `values (` do bucket `avatars` (0046) | Mesmo efeito: erro de sintaxe que parava o install |
+| 2026-08-11 | `drop view if exists public.v_products_costed;` antes da definicao antiga (0055) | O apendice da 0071 substitui a view por uma com MAIS colunas. Na RE-APLICACAO o bloco antigo vinha depois e tentava encurtar a view; `create or replace view` recusa remover coluna. Todo self-hoster que rodasse `update.sh` via o erro |
+
+Validado com `bash scripts/verify-baseline.sh` — sobe um `pgvector/pgvector:pg17`
+descartavel e roda os DOIS caminhos do kit: `install` (banco novo,
+`ON_ERROR_STOP=1`) e `update` (re-aplicacao, sem a flag). **Rode isso antes de
+mexer no baseline.**
+
+
 ## Reproducibility
 
 > **Banco novo: aplique `supabase/baseline.sql`, não `supabase db push`.**
