@@ -148,6 +148,27 @@ psql_run -v ON_ERROR_STOP=1 -q -t -c "
 " || exit 1
 
 echo
+echo "== invariantes da 0076 (um default por org) =="
+psql_run -v ON_ERROR_STOP=1 -q -t -c "
+  select 'indice parcial: ' || count(*) from pg_indexes
+    where indexname='crm_pipelines_one_default_per_org';
+" || exit 1
+
+echo
+echo "== a 0076 e mesmo UNIQUE e PARCIAL? =="
+# Prova pela definicao, nao por insercao: `crm_pipelines` tem colunas
+# obrigatorias que mudam com o tempo, e um teste que insere linha quebraria a
+# cada coluna nova sem que a invariante tivesse mudado.
+psql_run -v ON_ERROR_STOP=1 -q -t -c "
+  select case
+    when indexdef ilike '%UNIQUE%' and indexdef ilike '%WHERE is_default%'
+      then 'OK: unique + parcial'
+    else 'FALHOU: ' || indexdef
+  end
+  from pg_indexes where indexname='crm_pipelines_one_default_per_org';
+" | sed 's/^/      /'
+
+echo
 echo "== invariantes da 0074 =="
 psql_run -v ON_ERROR_STOP=1 -q -t -c "
   select 'tabela: '   || count(*) from pg_tables  where schemaname='public' and tablename='user_trusted_devices';

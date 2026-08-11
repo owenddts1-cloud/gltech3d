@@ -79,7 +79,7 @@ export default function Hero() {
         >
           <button
             onClick={() => scrollTo('produtos')}
-            className="w-full sm:w-auto px-8 py-4 bg-[#A6815C] hover:bg-[#8E6D4D] hover:-translate-y-0.5 transition-all text-white rounded-2xl font-bold shadow-lg shadow-[#A6815C]/20"
+            className="w-full sm:w-auto px-8 py-4 bg-[#8E6D4D] hover:bg-[#6F5439] hover:-translate-y-0.5 transition-all text-white rounded-2xl font-bold shadow-lg shadow-[#A6815C]/20"
           >
             Ver Produtos
           </button>

@@ -1,3 +1,4 @@
+import { priceLabelWithoutSymbol } from "@/lib/format/money";
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
   const baseUrl = siteUrl();
   const canonicalUrl = `${baseUrl}/product/${product.slug || product.id}`;
-  const priceStr = product.priceRange ? product.priceRange : `R$ ${product.price.toFixed(2)}`;
+  const priceStr = `R$ ${priceLabelWithoutSymbol(product.price, product.priceRange)}`;
 
   return {
     title: `${product.name} — ${priceStr}`,
@@ -163,7 +164,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                     />
                   </div>
                   <h3 className="font-bold text-sm mb-1 group-hover:text-[#A6815C] transition-colors">{p.name}</h3>
-                  <span className="text-base font-bold font-sora">R$ {p.priceRange ? p.priceRange : p.price.toFixed(2)}</span>
+                  <span className="text-base font-bold font-sora">R$ {priceLabelWithoutSymbol(p.price, p.priceRange)}</span>
                 </Link>
               ))}
             </div>

@@ -181,3 +181,26 @@ export function centsToWordsPtBr(cents: number): string {
   if (centavosPart) return centavosPart;
   return "zero reais";
 }
+
+/**
+ * Preço de produto da vitrine: faixa livre quando existe, valor formatado quando não.
+ *
+ * DEFEITO QUE ISTO CORRIGE. A landing tinha dois caminhos de formatação. O campo
+ * `price_range` é texto livre que o operador digita ("12,90 - 74,90", com
+ * vírgula), e o `price` numérico era renderizado com `toFixed(2)`, que devolve
+ * ponto. Resultado publicado: **"R$ 44.90" ao lado de "R$ 12,90 - 74,90"**, na
+ * mesma página — e o ponto também vazava para o `<title>` da página de produto,
+ * que é o que aparece no Google.
+ *
+ * A faixa é devolvida como o operador escreveu, de propósito: normalizar texto
+ * livre daria margem a mutilar um valor legítimo ("sob consulta", "a partir de
+ * 30"). O que se padroniza é o caminho numérico.
+ *
+ * DEVOLVE SEM O "R$": os componentes da vitrine já escrevem o símbolo no JSX.
+ * Uma versão com prefixo duplicaria em três lugares.
+ */
+export function priceLabelWithoutSymbol(price: number, priceRange?: string | null): string {
+  const range = priceRange?.trim();
+  if (range) return range;
+  return brlNumberFromCents(Math.round((Number.isFinite(price) ? price : 0) * 100));
+}

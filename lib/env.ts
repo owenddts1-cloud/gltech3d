@@ -123,6 +123,10 @@ const schema = z.object({
   GLTECH_ORG_ID: z.string().optional().default(""),
   GLTECH_ORG_SLUG: z.string().optional().default(""),
 
+  /** Analytics com cookie. Opcionais: sem eles o banner nao carrega script algum. */
+  NEXT_PUBLIC_GA_ID: z.string().optional().default(""),
+  NEXT_PUBLIC_META_PIXEL_ID: z.string().optional().default(""),
+
   // Sentry
   SENTRY_DSN: z.string().optional().default(""),
 

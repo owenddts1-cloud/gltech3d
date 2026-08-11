@@ -1,5 +1,7 @@
 'use client';
 
+import { priceLabelWithoutSymbol } from "@/lib/format/money";
+
 import { useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -17,7 +19,7 @@ interface ProductGridProps {
 }
 
 function formatPrice(product: LandingProduct): string {
-  return product.priceRange ? product.priceRange : product.price.toFixed(2);
+  return priceLabelWithoutSymbol(product.price, product.priceRange);
 }
 
 /**

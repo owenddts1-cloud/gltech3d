@@ -1,5 +1,7 @@
 'use client';
 
+import { track } from "@/lib/analytics/track";
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,6 +42,7 @@ export default function LeadForm({ settings }: { settings?: LandingSettings }) {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   async function onSubmit(values: FormValues) {
+    track('submit_orcamento', { origem: 'lead_form' });
     try {
       const res = await fetch('/api/v1/public/leads', {
         method: 'POST',
@@ -107,50 +110,73 @@ export default function LeadForm({ settings }: { settings?: LandingSettings }) {
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
               <div>
-                <label className="block text-sm font-medium text-[#3F342C] mb-1.5">Nome</label>
-                <input className={inputCls} placeholder="Seu nome" {...register('name')} />
-                {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
+                <label htmlFor="lead-name" className="block text-sm font-medium text-[#3F342C] mb-1.5">Nome</label>
+                <input
+                  id="lead-name"
+                  className={inputCls}
+                  placeholder="Seu nome"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  aria-invalid={errors.name ? true : undefined}
+                  aria-describedby={errors.name ? 'lead-name-erro' : undefined}
+                  {...register('name')}
+                />
+                {errors.name && <p id="lead-name-erro" className="mt-1 text-xs text-red-700">{errors.name.message}</p>}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-[#3F342C] mb-1.5">E-mail</label>
+                  <label htmlFor="lead-email" className="block text-sm font-medium text-[#3F342C] mb-1.5">E-mail</label>
                   <input
+                    id="lead-email"
                     className={inputCls}
                     placeholder="voce@email.com"
+                    type="email"
                     inputMode="email"
+                    required
+                    autoComplete="email"
+                    aria-invalid={errors.email ? true : undefined}
+                    aria-describedby={errors.email ? 'lead-email-erro' : undefined}
                     {...register('email')}
                   />
-                  {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
+                  {errors.email && <p id="lead-email-erro" className="mt-1 text-xs text-red-700">{errors.email.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#3F342C] mb-1.5">Telefone</label>
+                  <label htmlFor="lead-phone" className="block text-sm font-medium text-[#3F342C] mb-1.5">Telefone</label>
                   <input
+                    id="lead-phone"
                     className={inputCls}
                     placeholder="(31) 99999-9999"
+                    type="tel"
                     inputMode="tel"
+                    required
+                    autoComplete="tel"
+                    aria-invalid={errors.phone ? true : undefined}
+                    aria-describedby={errors.phone ? 'lead-phone-erro' : undefined}
                     {...register('phone', {
                       onChange: (e) => setValue('phone', maskPhone(e.target.value)),
                     })}
                   />
-                  {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
+                  {errors.phone && <p id="lead-phone-erro" className="mt-1 text-xs text-red-700">{errors.phone.message}</p>}
                 </div>
               </div>
 
               <label className="flex items-start gap-3 text-sm text-[#6B5E55] cursor-pointer">
                 <input
                   type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-[#D1C7B7] accent-[#A6815C]"
+                  required
+                  className="mt-0.5 h-4 w-4 rounded border-[#D1C7B7] accent-[#8E6D4D]"
                   {...register('consent')}
                 />
                 <span>Autorizo a GLTech3D a entrar em contato comigo, conforme a LGPD.</span>
               </label>
-              {errors.consent && <p className="text-xs text-red-600">{errors.consent.message}</p>}
+              {errors.consent && <p className="text-xs text-red-700">{errors.consent.message}</p>}
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#A6815C] hover:bg-[#8E6D4D] disabled:opacity-60 transition-all text-white rounded-2xl font-bold shadow-lg shadow-[#A6815C]/20"
+                className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#8E6D4D] hover:bg-[#6F5439] disabled:opacity-60 transition-all text-white rounded-2xl font-bold shadow-lg shadow-[#8E6D4D]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6F5439]"
               >
                 {isSubmitting ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Enviando…</>

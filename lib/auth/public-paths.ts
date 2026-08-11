@@ -16,7 +16,11 @@ export const PUBLIC_PATHS: RegExp[] = [
   /^\/404$/,
   /^\/500$/,
   /^\/503$/,
+  // Liveness para monitor externo. Sem esta linha o middleware devolve 401 e
+  // UptimeRobot/Better Stack não conseguem sequer perguntar se o site está de pé.
+  /^\/api\/health$/,
   /^\/api\/v1\/health$/,
+  /^\/manifest\.webmanifest$/,
   /^\/api\/v1\/public\//,
   /^\/api\/v1\/webhooks\//,
   /^\/api\/v1\/cron\//,

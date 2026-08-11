@@ -61,7 +61,7 @@ export default function HowItWorks({ settings }: { settings?: LandingSettings })
                 <span className="absolute top-6 right-6 text-5xl font-extrabold font-sora text-[#E8E2D9] select-none">
                   {i + 1}
                 </span>
-                <div className="w-12 h-12 rounded-xl bg-[#A6815C] text-white flex items-center justify-center mb-5">
+                <div className="w-12 h-12 rounded-xl bg-[#8E6D4D] text-white flex items-center justify-center mb-5">
                   <Icon className="w-6 h-6" />
                 </div>
                 <h3 className="text-lg font-bold font-sora text-[#2D241E] mb-2">{step.title}</h3>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { costFromHourlyInputs, depreciationPerHour } from "@/lib/pricing/engine";
 
 /** Where "Salvar configurações" persists the user's own defaults. */
 const SAVED_INPUTS_KEY = "gltech3d-calculator-inputs";
@@ -131,16 +132,23 @@ function calculate(inputs: CalculatorInputs): CalculatorOutputs {
     horasManuais, quantidade, margemLucro, riscoFalha,
   } = inputs;
 
-  // 1. Custo de Filamento
-  const custoFilamento = (pesoPeca / 1000) * precoFilamento;
-
-  // 2. Custo de Energia
-  const custoEnergia = tempoImpressao * (potenciaMedia / 1000) * tarifaEnergia;
-
-  // 3. Custo de Depreciação da Máquina
-  const custoDepreciacao = vidaUtil > 0
-    ? tempoImpressao * (valorMaquina / vidaUtil)
-    : 0;
+  // 1, 2 e 3 — filamento, energia e depreciação vêm do motor de precificação.
+  //
+  // Estas três parcelas viviam repetidas aqui, no simulador de Projetos e no
+  // `lib/pricing/engine`, cada cópia com sua constante: a mesma peça custava
+  // diferente conforme a tela aberta. A conta é a mesma; agora tem um dono só.
+  // Mão de obra e risco de falha continuam abaixo — são exclusivos desta tela.
+  const parcelas = costFromHourlyInputs({
+    grams: pesoPeca,
+    filamentCostPerKg: precoFilamento,
+    printHours: tempoImpressao,
+    wattage: potenciaMedia,
+    kwhPrice: tarifaEnergia,
+    depreciationPerHour: depreciationPerHour(valorMaquina, vidaUtil),
+  });
+  const custoFilamento = parcelas.materialCost;
+  const custoEnergia = parcelas.energyCost;
+  const custoDepreciacao = parcelas.depreciationCost;
 
   // 4. Custo de Mão de Obra
   const custoTrabalho = horasManuais * horaTrabalho;

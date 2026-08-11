@@ -19,12 +19,33 @@ import {
 } from "@/app/actions/projects/actions";
 import type { ProjectNoteColor } from "@/lib/schemas/projects";
 import { brlFromReais } from "@/lib/format/money";
+import { costFromHourlyInputs } from "@/lib/pricing/engine";
 
-// ── Cost helpers ──
-const calcFilament = (p: { weightGrams: number; filamentCostPerKg: number }) => p.weightGrams * (p.filamentCostPerKg / 1000);
-const calcEnergy = (p: { wattage: number; printHours: number; kwhPrice: number }) => (p.wattage / 1000) * p.printHours * p.kwhPrice;
-const calcDeprec = (p: { printHours: number; depreciationPerHour: number }) => p.printHours * p.depreciationPerHour;
-const calcTotal = (p: ProjectView) => calcFilament(p) + calcEnergy(p) + calcDeprec(p);
+// ── Custo ──
+//
+// Delegado a `lib/pricing/engine`. Antes havia quatro helpers locais repetindo a
+// mesma conta que o motor já fazia, e o resultado era o sistema ter TRES
+// respostas para o custo da mesma peca conforme a tela aberta. A conta e
+// identica; o que muda e existir um dono.
+const parcelas = (p: {
+  weightGrams: number; filamentCostPerKg: number;
+  wattage: number; printHours: number; kwhPrice: number; depreciationPerHour: number;
+}) => costFromHourlyInputs({
+  grams: p.weightGrams,
+  filamentCostPerKg: p.filamentCostPerKg,
+  printHours: p.printHours,
+  wattage: p.wattage,
+  kwhPrice: p.kwhPrice,
+  depreciationPerHour: p.depreciationPerHour,
+});
+
+const calcFilament = (p: { weightGrams: number; filamentCostPerKg: number }) =>
+  p.weightGrams * (p.filamentCostPerKg / 1000);
+const calcEnergy = (p: { wattage: number; printHours: number; kwhPrice: number }) =>
+  (p.wattage / 1000) * p.printHours * p.kwhPrice;
+const calcDeprec = (p: { printHours: number; depreciationPerHour: number }) =>
+  p.printHours * p.depreciationPerHour;
+const calcTotal = (p: ProjectView) => parcelas(p).totalCost;
 
 
 export function ProjectsClient({ data }: { data: ProjectsData }) {

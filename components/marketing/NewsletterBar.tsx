@@ -58,7 +58,7 @@ export default function NewsletterBar({ settings }: { settings?: LandingSettings
   return (
     <section className="pb-16">
       {/* Faixa marrom animada (rola da direita para a esquerda) */}
-      <div className="marquee-mask bg-[#A6815C] text-white py-3 mb-10 select-none">
+      <div className="marquee-mask bg-[#8E6D4D] text-white py-3 mb-10 select-none">
         <div className="marquee">
           {Array.from({ length: 8 }).map((_, i) => (
             <span
@@ -138,7 +138,7 @@ export default function NewsletterBar({ settings }: { settings?: LandingSettings
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#A6815C] hover:bg-[#8E6D4D] disabled:opacity-60 transition text-white rounded-xl font-bold whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#8E6D4D] hover:bg-[#6F5439] disabled:opacity-60 transition text-white rounded-xl font-bold whitespace-nowrap"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Inscrever

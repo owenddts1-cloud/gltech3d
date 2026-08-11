@@ -14,6 +14,8 @@ const sora = Sora({
 });
 
 import WhatsAppFloat from "@/components/marketing/WhatsAppFloat";
+import { ConsentBanner } from "@/components/marketing/ConsentBanner";
+import { Analytics } from "@vercel/analytics/next";
 import { siteUrl } from "@/lib/marketing/site-url";
 
 export const metadata: Metadata = {
@@ -65,6 +67,9 @@ export default function MarketingLayout({
       <CustomCursor />
       {children}
       <WhatsAppFloat />
+      <ConsentBanner />
+      {/* Sem cookie: mede mesmo para quem recusa os de terceiro. */}
+      <Analytics />
     </div>
   );
 }

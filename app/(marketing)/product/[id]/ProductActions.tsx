@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { priceLabelWithoutSymbol } from "@/lib/format/money";
 import { ShoppingBag, X, ExternalLink } from 'lucide-react';
 import type { LandingProduct } from '@/lib/landing/types';
 
@@ -17,7 +18,7 @@ export default function ProductActions({ product }: { product: LandingProduct })
           <div>
             <div className="text-[10px] text-[#6B5E55] uppercase tracking-wider font-bold mb-1">Preço</div>
             <div className="text-4xl font-bold font-sora">
-              R$ {product.priceRange ? product.priceRange : product.price.toFixed(2).replace('.', ',')}
+              R$ {priceLabelWithoutSymbol(product.price, product.priceRange)}
             </div>
           </div>
           <div className="text-[10px] text-[#6B5E55] text-right font-medium">
@@ -28,7 +29,7 @@ export default function ProductActions({ product }: { product: LandingProduct })
         <div className="flex flex-col gap-2">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="w-full py-4 bg-[#A6815C] hover:bg-[#8E6D4D] transition-colors text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md"
+            className="w-full py-4 bg-[#8E6D4D] hover:bg-[#6F5439] transition-colors text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md"
           >
             <ShoppingBag className="w-5 h-5" />
             Comprar Agora
@@ -64,7 +65,7 @@ export default function ProductActions({ product }: { product: LandingProduct })
             <div className="mb-6">
               <div className="text-[10px] text-[#A6815C] uppercase tracking-wider font-bold mb-1">Onde Comprar</div>
               <h3 className="text-xl font-bold font-sora">{product.name}</h3>
-              <div className="text-lg font-bold text-[#6B5E55] mt-1">R$ {product.priceRange ? product.priceRange : product.price.toFixed(2)}</div>
+              <div className="text-lg font-bold text-[#6B5E55] mt-1">R$ {priceLabelWithoutSymbol(product.price, product.priceRange)}</div>
             </div>
 
             <div className="space-y-3">

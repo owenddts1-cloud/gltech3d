@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 
-import { brlFromCents, brlNumberFromCents, centsFromInput, centsToWordsPtBr } from "./money";
+import {
+  brlFromCents,
+  brlNumberFromCents,
+  centsFromInput,
+  centsToWordsPtBr,
+  priceLabelWithoutSymbol,
+} from "./money";
 
 /**   é o espaço rígido que o Intl usa entre "R$" e o número. */
 const nbsp = (s: string) => s.replace(/ /g, " ");
@@ -86,5 +92,33 @@ describe("centsToWordsPtBr", () => {
 
   it("ignora o sinal — recibo não tem valor negativo", () => {
     expect(centsToWordsPtBr(-100)).toBe("um real");
+  });
+});
+
+describe("priceLabelWithoutSymbol — a vitrine", () => {
+  it("formata o numerico com VÍRGULA, não com ponto", () => {
+    // O defeito publicado: `toFixed(2)` devolvia "44.90", e o ponto vazava
+    // inclusive para o <title> que aparece no Google.
+    expect(priceLabelWithoutSymbol(44.9)).toBe("44,90");
+    expect(priceLabelWithoutSymbol(1250)).toBe("1.250,00");
+  });
+
+  it("devolve a faixa livre como o operador escreveu", () => {
+    expect(priceLabelWithoutSymbol(44.9, "12,90 - 74,90")).toBe("12,90 - 74,90");
+    expect(priceLabelWithoutSymbol(0, "sob consulta")).toBe("sob consulta");
+  });
+
+  it("faixa vazia ou só espaço cai no numérico", () => {
+    expect(priceLabelWithoutSymbol(44.9, "")).toBe("44,90");
+    expect(priceLabelWithoutSymbol(44.9, "   ")).toBe("44,90");
+    expect(priceLabelWithoutSymbol(44.9, null)).toBe("44,90");
+  });
+
+  it("não inclui o símbolo — quem escreve R$ é o componente", () => {
+    expect(priceLabelWithoutSymbol(44.9)).not.toContain("R$");
+  });
+
+  it("entrada inválida vira zero em vez de NaN na vitrine", () => {
+    expect(priceLabelWithoutSymbol(Number.NaN)).toBe("0,00");
   });
 });

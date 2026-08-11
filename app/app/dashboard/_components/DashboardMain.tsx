@@ -146,7 +146,14 @@ function MetricCard({
           <p
             title={value}
             className={cn(
-              'mt-3 tabular-nums whitespace-nowrap text-xl font-bold tracking-tight text-foreground sm:text-2xl md:text-[25px]',
+              // Tamanho por `clamp()` em vez de degraus fixos: o card tem
+              // `overflow-hidden` (precisa dele para o canto arredondado e o
+              // hover), então número maior que a caixa era CORTADO — a tela
+              // publicada mostrava "R$ 1.757,…" e "-R$ 1.64…". Número
+              // financeiro cortado é o primeiro que o dono da empresa vê, e
+              // 1.757 lido como 1.7 é pior que não mostrar nada. Agora ele
+              // encolhe até caber; o teto é o tamanho que já existia.
+              'mt-3 tabular-nums whitespace-nowrap text-[clamp(0.9rem,3.2vw,1.5625rem)] font-bold tracking-tight text-foreground',
               loading && 'animate-pulse opacity-50'
             )}
           >

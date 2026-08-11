@@ -53,7 +53,7 @@ export default function Navbar() {
     >
       <div className="w-full flex items-center justify-between">
         <button onClick={() => go('home')} className="group flex items-center gap-2.5" aria-label="Início">
-          <span className="w-8 h-8 bg-[#A6815C] rounded-lg flex items-center justify-center text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-[#A6815C]/35">
+          <span className="w-8 h-8 bg-[#8E6D4D] rounded-lg flex items-center justify-center text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-[#A6815C]/35">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
             </svg>
@@ -107,7 +107,7 @@ export default function Navbar() {
 
         <Link
           href="/login"
-          className="hidden lg:flex items-center gap-2 px-5 py-2.5 bg-[#A6815C] hover:bg-[#8E6D4D] text-white rounded-xl text-sm font-bold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#A6815C]/35"
+          className="hidden lg:flex items-center gap-2 px-5 py-2.5 bg-[#8E6D4D] hover:bg-[#6F5439] text-white rounded-xl text-sm font-bold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#A6815C]/35"
         >
           <LogIn className="h-4 w-4" />
           Entrar
@@ -146,7 +146,7 @@ export default function Navbar() {
             <Link
               href="/login"
               onClick={() => setIsOpen(false)}
-              className="flex items-center justify-center gap-2 w-full py-3 mt-3 bg-[#A6815C] hover:bg-[#8E6D4D] text-white rounded-xl font-bold transition-colors"
+              className="flex items-center justify-center gap-2 w-full py-3 mt-3 bg-[#8E6D4D] hover:bg-[#6F5439] text-white rounded-xl font-bold transition-colors"
             >
               <LogIn className="h-4 w-4" />
               Entrar
