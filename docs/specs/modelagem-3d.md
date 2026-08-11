@@ -356,8 +356,8 @@ Ver §6. Fila via `event_log` + worker, como o resto do repo.
 
 | Formato | Import | Export | Como |
 |---|---|---|---|
-| STL bin/ASCII | ✔ | ✔ | `lib/models/stl.ts` — **já pronto** |
-| 3MF | ✔ | ✔ | `fflate` + XML. Prioridade: é o formato certo para impressão |
+| STL bin/ASCII | ✔ | ✔ | `lib/models/stl.ts` — **já pronto**. Entrada única: `lib/models/mesh.ts` |
+| 3MF | ✔ | ✔ | `lib/models/threemf.ts` — **já pronto**, sem dependência nova |
 | OBJ / PLY / GLB | ✔ | ✔ | loaders do `three` |
 | STEP / IGES | ✔ | ✔ | `opencascade.js` (Fase 4) |
 | G-code | — | ✔ | `lib/slicer/gcode.ts` — **já pronto** |

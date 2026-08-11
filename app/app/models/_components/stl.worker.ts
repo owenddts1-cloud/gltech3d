@@ -10,10 +10,12 @@
  * permite o import acima.
  */
 
-import { parseStlBuffer } from "@/lib/models/stl";
+import { parseMeshBuffer } from "@/lib/models/mesh";
 
 export interface StlWorkerRequest {
   arrayBuffer: ArrayBuffer;
+  /** Nome do arquivo — dica de formato para o parser. */
+  filename?: string;
 }
 
 export type StlWorkerResponse =
@@ -40,9 +42,9 @@ interface WorkerScope {
 
 const ctx = self as unknown as WorkerScope;
 
-ctx.onmessage = (event) => {
+ctx.onmessage = async (event) => {
   try {
-    const parsed = parseStlBuffer(event.data.arrayBuffer);
+    const parsed = await parseMeshBuffer(event.data.arrayBuffer, event.data.filename ?? "");
     const response: StlWorkerResponse = {
       ok: true,
       positions: parsed.positions.buffer as ArrayBuffer,

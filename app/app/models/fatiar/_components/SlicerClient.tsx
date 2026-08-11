@@ -127,6 +127,7 @@ export function SlicerClient({
           profile: machine,
           filamentDensity: 1.24,
           autoOrient,
+          filename: model.name,
         };
         // Transferable: um STL de 26 MB não pode ser copiado para o worker.
         worker.postMessage(request, [arrayBuffer]);

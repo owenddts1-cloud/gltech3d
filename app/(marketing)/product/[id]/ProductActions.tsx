@@ -94,18 +94,16 @@ export default function ProductActions({ product }: { product: LandingProduct })
                 </a>
               )}
 
-              {product.links?.whatsapp && (
-                <a href={product.links.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 rounded-2xl border border-[#E8E2D9] hover:border-[#A6815C] hover:bg-[#F9F7F2] transition-colors group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#25D366] flex items-center justify-center text-white font-bold text-xs">WA</div>
-                    <div>
-                      <div className="font-bold text-sm">WhatsApp</div>
-                      <div className="text-[10px] text-[#6B5E55]">Falar com Vendedor</div>
-                    </div>
+              <a href={waLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 rounded-2xl border border-[#E8E2D9] hover:border-[#A6815C] hover:bg-[#F9F7F2] transition-colors group">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#25D366] flex items-center justify-center text-white font-bold text-xs">WA</div>
+                  <div>
+                    <div className="font-bold text-sm">WhatsApp Direct</div>
+                    <div className="text-[10px] text-[#6B5E55]">Falar com Vendedor</div>
                   </div>
-                  <ExternalLink className="w-4 h-4 text-[#A6815C] opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
-              )}
+                </div>
+                <ExternalLink className="w-4 h-4 text-[#A6815C] opacity-0 group-hover:opacity-100 transition-opacity" />
+              </a>
 
               {product.links?.instagram && (
                 <a href={product.links.instagram} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-4 rounded-2xl border border-[#E8E2D9] hover:border-[#A6815C] hover:bg-[#F9F7F2] transition-colors group">

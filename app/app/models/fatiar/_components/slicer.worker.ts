@@ -9,7 +9,8 @@
  * e testado. O worker só orquestra e reporta progresso.
  */
 
-import { parseStlBuffer, boundsOf } from "@/lib/models/stl";
+import { boundsOf } from "@/lib/models/stl";
+import { parseMeshBuffer } from "@/lib/models/mesh";
 import {
   applyOrientation,
   bestOrientation,
@@ -28,6 +29,8 @@ export interface SlicerRequest {
   filamentDensity: number;
   /** Girar a peça para a melhor posição antes de fatiar. */
   autoOrient: boolean;
+  /** Nome do arquivo — dica de formato para o parser. */
+  filename: string;
 }
 
 /** O que a orientação automática fez, para a tela poder mostrar o ganho. */
@@ -82,13 +85,13 @@ interface WorkerScope {
 
 const ctx = self as unknown as WorkerScope;
 
-ctx.onmessage = (event) => {
+ctx.onmessage = async (event) => {
   const started = Date.now();
   try {
-    const { arrayBuffer, settings, profile, filamentDensity, autoOrient } = event.data;
+    const { arrayBuffer, settings, profile, filamentDensity, autoOrient, filename } = event.data;
 
     ctx.postMessage({ kind: "progress", ratio: 0.05, label: "Lendo o arquivo" });
-    const mesh = parseStlBuffer(arrayBuffer);
+    const mesh = await parseMeshBuffer(arrayBuffer, filename);
 
     // Orientação ANTES de fatiar: girar depois seria refatiar tudo. É a decisão
     // de maior impacto do fluxo — no PAYLOAD, 22,85 -> 0,62 cm³ de suporte.

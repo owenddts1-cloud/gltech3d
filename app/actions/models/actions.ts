@@ -307,11 +307,10 @@ export interface ModelOption {
 }
 
 /**
- * Peças fatiáveis: só STL, e só as que têm geometria.
+ * Peças fatiáveis: STL e 3MF, e só as que têm geometria.
  *
- * Filtra `triangles > 0` porque o repositório também guarda imagem e 3MF (que
- * ainda não tem parser) — oferecer no seletor o que não dá para fatiar só
- * produziria erro depois do clique.
+ * Imagem e `other` ficam de fora — oferecer no seletor o que não dá para fatiar
+ * só produziria erro depois do clique.
  */
 export async function fetchSliceableModels() {
   const c = await requireCtx();
@@ -321,8 +320,10 @@ export async function fetchSliceableModels() {
     .from("models_3d")
     .select("id, name, triangles")
     .eq("organization_id", c.ctx.orgId)
-    .eq("kind", "stl")
-    .gt("triangles", 0)
+    .in("kind", ["stl", "model3mf"])
+    // 3MF entra mesmo com `triangles` zerado: os registros antigos foram salvos
+    // antes de existir parser, então a contagem nunca foi preenchida.
+    .or("triangles.gt.0,kind.eq.model3mf")
     .order("created_at", { ascending: false });
   if (error) return { ok: false as const, error: error.message };
 

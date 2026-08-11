@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -8,6 +9,47 @@ import Footer from '@/components/marketing/Footer';
 import ProductGallery from '@/components/marketing/ProductGallery';
 import ProductActions from './ProductActions';
 import VariationPicker from './VariationPicker';
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const { products } = await getLandingCatalog();
+  const product = products.find((p) => p.slug === id) ?? products.find((p) => p.id === id);
+
+  if (!product) {
+    return {
+      title: 'Produto não encontrado | GLTech3D',
+    };
+  }
+
+  const baseUrl = 'https://gltech3d.com.br';
+  const canonicalUrl = `${baseUrl}/product/${product.slug || product.id}`;
+  const priceStr = product.priceRange ? product.priceRange : `R$ ${product.price.toFixed(2)}`;
+
+  return {
+    title: `${product.name} — ${priceStr}`,
+    description: product.description || `Compre ${product.name} em impressão 3D de alta qualidade na GLTech3D.`,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: `${product.name} | GLTech3D`,
+      description: product.description || `Impressão 3D de alta precisão com acabamento premium.`,
+      url: canonicalUrl,
+      images: [
+        {
+          url: product.image,
+          alt: product.name,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: product.name,
+      description: product.description,
+      images: [product.image],
+    },
+  };
+}
 
 // O parâmetro chama-se `id` por herança da rota, mas hoje carrega o slug.
 // Aceitamos os dois: links antigos com uuid continuam abrindo.
@@ -24,8 +66,31 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    image: [product.image, ...product.images],
+    description: product.description,
+    brand: {
+      '@type': 'Brand',
+      name: 'GLTech3D',
+    },
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'BRL',
+      price: product.price,
+      availability: 'https://schema.org/InStock',
+      url: `https://gltech3d.com.br/product/${product.slug || product.id}`,
+    },
+  };
+
   return (
     <main className="min-h-screen pt-24 bg-[#F9F7F2]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-6 py-12">
