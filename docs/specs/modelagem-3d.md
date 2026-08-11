@@ -309,10 +309,19 @@ e 774 camadas, **0 contornos abertos**, `E` monotônico nas extrusões, sem `NaN
 Quem mexer em `emitTravel` precisa saber disso — está comentado no código com o
 número medido.
 
-**Ainda falta:** z-hop, detecção de ponte, raft, altura de camada variável,
-ironing, e **orientação automática da peça na mesa** — esta última é o que faria
-o PAYLOAD parar de pedir 22,85 cm³ de suporte na orientação em que o STL está
-salvo.
+**Orientação automática** (`lib/models/orientation.ts`) — os candidatos a "para
+baixo" são as normais das próprias faces, agrupadas por direção; cada um recebe
+nota de suporte, apoio na mesa e altura. Medido no PAYLOAD: suporte **22,85 →
+0,62 cm³ (−97%)**, tempo 4h46 → 3h06, 26,6 g a menos de filamento. No
+Acoplamento diz corretamente para NÃO girar — já estava bem posicionado.
+
+A nota de suporte é um PROXY para ordenar candidatos, não o volume real (no
+PAYLOAD o proxy dá 178 cm³ contra 22,85 reais). O volume exato sai do
+`generateSupports`, que exige o fatiamento inteiro e é caro demais para 60
+candidatos.
+
+**Ainda falta:** z-hop, detecção de ponte, raft, altura de camada variável e
+ironing.
 
 **Aceite (NÃO cumprido):** G-code gerado imprime numa impressora real da
 GLTech3D. Nenhuma peça foi impressa a partir deste código até agora. A validação

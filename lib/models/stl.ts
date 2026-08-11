@@ -40,7 +40,8 @@ export function isBinaryStl(buffer: ArrayBuffer): boolean {
   return 84 + numTriangles * 50 === buffer.byteLength;
 }
 
-function boundsOf(positions: Float32Array): StlBoundingBox {
+/** Caixa envolvente. Exportada porque girar a peça invalida a do arquivo. */
+export function boundsOf(positions: Float32Array): StlBoundingBox {
   let minX = Infinity, minY = Infinity, minZ = Infinity;
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
 

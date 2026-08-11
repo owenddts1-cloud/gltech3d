@@ -9,7 +9,13 @@
  * e testado. O worker só orquestra e reporta progresso.
  */
 
-import { parseStlBuffer } from "@/lib/models/stl";
+import { parseStlBuffer, boundsOf } from "@/lib/models/stl";
+import {
+  applyOrientation,
+  bestOrientation,
+  DEFAULT_ORIENTATION_OPTIONS,
+  IDENTITY,
+} from "@/lib/models/orientation";
 import { sliceToPlan, type SliceSettings } from "@/lib/slicer/pipeline";
 import { generateGcode, type PrinterProfile } from "@/lib/slicer/gcode";
 import type { Contour } from "@/lib/slicer/slice";
@@ -20,6 +26,17 @@ export interface SlicerRequest {
   settings: SliceSettings;
   profile: PrinterProfile;
   filamentDensity: number;
+  /** Girar a peça para a melhor posição antes de fatiar. */
+  autoOrient: boolean;
+}
+
+/** O que a orientação automática fez, para a tela poder mostrar o ganho. */
+export interface OrientationReport {
+  rotated: boolean;
+  heightBeforeMm: number;
+  heightAfterMm: number;
+  bedContactBeforeMm2: number;
+  bedContactAfterMm2: number;
 }
 
 /** Uma camada, enxuta para o preview — sem as regiões intermediárias. */
@@ -50,6 +67,7 @@ export type SlicerResponse =
       layersWithoutWalls: number;
       supportVolumeCm3: number;
       retractionCount: number;
+      orientation: OrientationReport | null;
       triangles: number;
       bounds: { min: [number, number, number]; max: [number, number, number] };
       elapsedMs: number;
@@ -67,13 +85,38 @@ const ctx = self as unknown as WorkerScope;
 ctx.onmessage = (event) => {
   const started = Date.now();
   try {
-    const { arrayBuffer, settings, profile, filamentDensity } = event.data;
+    const { arrayBuffer, settings, profile, filamentDensity, autoOrient } = event.data;
 
     ctx.postMessage({ kind: "progress", ratio: 0.05, label: "Lendo o arquivo" });
     const mesh = parseStlBuffer(arrayBuffer);
 
+    // Orientação ANTES de fatiar: girar depois seria refatiar tudo. É a decisão
+    // de maior impacto do fluxo — no PAYLOAD, 22,85 -> 0,62 cm³ de suporte.
+    let positions = mesh.positions;
+    let bounds = mesh.boundingBox;
+    let orientation: OrientationReport | null = null;
+
+    if (autoOrient) {
+      ctx.postMessage({ kind: "progress", ratio: 0.1, label: "Procurando a melhor posição" });
+      const found = bestOrientation(positions, {
+        ...DEFAULT_ORIENTATION_OPTIONS,
+        maxOverhangDeg: settings.supportMaxOverhangDeg,
+      });
+      // `applyOrientation` também assenta a peça na mesa e centra em XY, então
+      // vale rodar mesmo quando a matriz é identidade.
+      positions = applyOrientation(positions, found.rotation);
+      bounds = boundsOf(positions); // a caixa do arquivo não vale mais
+      orientation = {
+        rotated: found.rotation !== IDENTITY,
+        heightBeforeMm: found.current.heightMm,
+        heightAfterMm: found.best.heightMm,
+        bedContactBeforeMm2: found.current.bedContactMm2,
+        bedContactAfterMm2: found.best.bedContactMm2,
+      };
+    }
+
     ctx.postMessage({ kind: "progress", ratio: 0.2, label: "Fatiando e gerando paredes" });
-    const plan = sliceToPlan(mesh.positions, settings);
+    const plan = sliceToPlan(positions, settings);
 
     if (plan.layers.length === 0) {
       ctx.postMessage({
@@ -127,8 +170,9 @@ ctx.onmessage = (event) => {
       layersWithoutWalls: plan.layersWithoutWalls,
       supportVolumeCm3: plan.supportVolumeCm3,
       retractionCount: gcode.retractionCount,
+      orientation,
       triangles: mesh.numTriangles,
-      bounds: mesh.boundingBox,
+      bounds,
       elapsedMs: Date.now() - started,
     });
   } catch (error) {

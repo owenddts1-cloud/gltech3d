@@ -15,7 +15,12 @@ import { DEFAULT_SLICE_SETTINGS, type SliceSettings } from "@/lib/slicer/pipelin
 import { formatDuration, type PrinterProfile } from "@/lib/slicer/gcode";
 import { SEAM_MODES, type SeamMode } from "@/lib/slicer/seam";
 import type { InfillPattern } from "@/lib/slicer/infill";
-import type { SlicerRequest, SlicerResponse, PreviewLayer } from "./slicer.worker";
+import type {
+  SlicerRequest,
+  SlicerResponse,
+  PreviewLayer,
+  OrientationReport,
+} from "./slicer.worker";
 import { LayerCanvas } from "./LayerCanvas";
 
 interface Result {
@@ -28,6 +33,7 @@ interface Result {
   layersWithoutWalls: number;
   supportVolumeCm3: number;
   retractionCount: number;
+  orientation: OrientationReport | null;
   triangles: number;
   bounds: { min: [number, number, number]; max: [number, number, number] };
   elapsedMs: number;
@@ -58,6 +64,7 @@ export function SlicerClient({
   const [result, setResult] = useState<Result | null>(null);
   const [layerIndex, setLayerIndex] = useState(0);
   const [showInfill, setShowInfill] = useState(true);
+  const [autoOrient, setAutoOrient] = useState(true);
   const workerRef = useRef<Worker | null>(null);
 
   const model = models.find((m) => m.id === modelId) ?? null;
@@ -119,6 +126,7 @@ export function SlicerClient({
           settings,
           profile: machine,
           filamentDensity: 1.24,
+          autoOrient,
         };
         // Transferable: um STL de 26 MB não pode ser copiado para o worker.
         worker.postMessage(request, [arrayBuffer]);
@@ -278,6 +286,25 @@ export function SlicerClient({
               />
             </Field>
 
+            {/* ── Posição ──────────────────────────────────────────────── */}
+            <Section title="Posição na mesa">
+              <label className="flex cursor-pointer items-start justify-between gap-3 text-xs">
+                <span>
+                  <span className="font-medium">Orientar automaticamente</span>
+                  <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
+                    Gira a peça para gastar menos suporte e apoiar melhor. É a decisão que mais
+                    muda o resultado — no PAYLOAD, 22,85 → 0,62 cm³ de suporte.
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={autoOrient}
+                  onChange={(e) => setAutoOrient(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-border bg-surface text-accent"
+                />
+              </label>
+            </Section>
+
             {/* ── Aderência ────────────────────────────────────────────── */}
             <Section title="Aderência">
               <div className="grid grid-cols-2 gap-3">
@@ -409,6 +436,18 @@ export function SlicerClient({
                   {size} · {result.retractionCount.toLocaleString("pt-BR")} retrações ·{" "}
                   {result.triangles.toLocaleString("pt-BR")} triângulos
                 </p>
+
+                {result.orientation?.rotated && (
+                  <div className="rounded-lg border border-accent/30 bg-accent-soft/40 p-3 text-[11px] leading-snug">
+                    <strong>Peça girada</strong> para uma posição melhor. Altura{" "}
+                    {result.orientation.heightBeforeMm.toFixed(0)} →{" "}
+                    <strong>{result.orientation.heightAfterMm.toFixed(0)} mm</strong>; apoio na mesa{" "}
+                    {result.orientation.bedContactBeforeMm2.toFixed(0)} →{" "}
+                    <strong>{result.orientation.bedContactAfterMm2.toFixed(0)} mm²</strong>. Desligue
+                    &ldquo;Orientar automaticamente&rdquo; se a peça precisa sair na posição em que
+                    foi modelada.
+                  </div>
+                )}
 
                 {(result.openContourCount > 0 || result.layersWithoutWalls > 0) && (
                   <div className="flex gap-2 rounded-lg border border-warning/40 bg-warning/5 p-3 text-[11px] leading-snug text-warning-fg">
