@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { audit } from "@/lib/audit";
+import { registerTrustedDevice } from "@/lib/auth/trusted-device";
 
 export type VerifyMfaResult =
   | { ok: false; error: "mfa_invalid" }
@@ -23,7 +24,11 @@ const MAX_ATTEMPTS = 3;
  * Note: per-cookie counter is MVP. Hardening = Upstash Redis sliding window
  * keyed on user_id + IP.
  */
-export async function verifyMfa(code: string, next?: string): Promise<VerifyMfaResult> {
+export async function verifyMfa(
+  code: string,
+  next?: string,
+  rememberDevice?: boolean,
+): Promise<VerifyMfaResult> {
   const supabase = await createClient();
   const hdrs = await headers();
   const requestId = hdrs.get("x-request-id");
@@ -94,12 +99,17 @@ export async function verifyMfa(code: string, next?: string): Promise<VerifyMfaR
     return { ok: false, error: "mfa_invalid" };
   }
 
+  // Se a caixa "Confiar neste dispositivo" foi marcada, grava o dispositivo
+  if (rememberDevice) {
+    await registerTrustedDevice(user.id, userAgent, ip);
+  }
+
   // Reset attempt counter and audit success.
   store.delete(ATTEMPT_COOKIE);
   await audit({
     action: "auth.mfa_success",
     actorUserId: user.id,
-    metadata: {},
+    metadata: { rememberDevice: !!rememberDevice },
     requestId,
     ip,
     userAgent,

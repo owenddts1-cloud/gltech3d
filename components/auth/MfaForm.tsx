@@ -13,6 +13,7 @@ interface MfaFormProps {
 
 export function MfaForm({ next }: MfaFormProps) {
   const [code, setCode] = useState("");
+  const [rememberDevice, setRememberDevice] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -38,7 +39,7 @@ export function MfaForm({ next }: MfaFormProps) {
     if (finalCode.length !== 6 || locked) return;
     setError(null);
     startTransition(async () => {
-      const res = await verifyMfa(finalCode, next);
+      const res = await verifyMfa(finalCode, next, rememberDevice);
       if (!res) return; // server-side redirect on success
       if (res.error === "mfa_locked") {
         setLocked(true);
@@ -75,6 +76,19 @@ export function MfaForm({ next }: MfaFormProps) {
         autoFocus
         hasError={!!error}
       />
+
+      <div className="flex items-center space-x-2 pt-1">
+        <input
+          type="checkbox"
+          id="rememberDevice"
+          checked={rememberDevice}
+          onChange={(e) => setRememberDevice(e.target.checked)}
+          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+        />
+        <label htmlFor="rememberDevice" className="text-xs text-muted-foreground select-none cursor-pointer">
+          Confiar neste dispositivo por 30 dias (não pedir código no próximo login)
+        </label>
+      </div>
 
       {error && (
         <div

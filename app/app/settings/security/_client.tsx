@@ -9,6 +9,13 @@ import { regenerateRecoveryCodes } from "@/app/actions/settings/regenerateRecove
 import { signOutEverywhere } from "@/app/actions/settings/signOutEverywhere";
 import { listSessions, type SessionRow } from "@/app/actions/settings/listSessions";
 
+import {
+  listTrustedDevices,
+  approveTrustedDevice,
+  revokeTrustedDevice,
+  type TrustedDeviceRow,
+} from "@/app/actions/settings/trustedDevices";
+
 function relativeDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("pt-BR", {
@@ -24,10 +31,42 @@ export function SecurityClient({ mfaEnrolled }: { mfaEnrolled: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [isSigningOut, startSignOut] = useTransition();
   const [sessions, setSessions] = useState<SessionRow[] | null>(null);
+  const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceRow[] | null>(null);
+  const [actionPending, startAction] = useTransition();
+
+  function loadTrustedDevices() {
+    void listTrustedDevices().then((r) => setTrustedDevices(r.ok ? r.devices : []));
+  }
 
   useEffect(() => {
     void listSessions().then((r) => setSessions(r.ok ? r.sessions : []));
+    loadTrustedDevices();
   }, []);
+
+  function handleApproveDevice(id: string) {
+    startAction(async () => {
+      const res = await approveTrustedDevice(id);
+      if (res.ok) {
+        toast.success("Dispositivo aprovado.");
+        loadTrustedDevices();
+      } else {
+        toast.error("Erro ao aprovar dispositivo.");
+      }
+    });
+  }
+
+  function handleRevokeDevice(id: string) {
+    if (!confirm("Revogar este dispositivo? Ele precisará do código de autenticação no próximo login.")) return;
+    startAction(async () => {
+      const res = await revokeTrustedDevice(id);
+      if (res.ok) {
+        toast.success("Acesso do dispositivo revogado.");
+        loadTrustedDevices();
+      } else {
+        toast.error("Erro ao revogar dispositivo.");
+      }
+    });
+  }
 
   function handleRegenerate() {
     if (
@@ -77,6 +116,79 @@ export function SecurityClient({ mfaEnrolled }: { mfaEnrolled: boolean }) {
           <p className="text-xs text-muted-foreground">
             Habilite MFA antes de gerar códigos.
           </p>
+        )}
+      </Card>
+
+      <Card className="space-y-3 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold">Dispositivos Confiáveis (Aprovação de Login)</h2>
+            <p className="text-xs text-muted-foreground">
+              Dispositivos autorizados a pular o código do autenticador no login.
+            </p>
+          </div>
+        </div>
+
+        {trustedDevices === null ? (
+          <p className="text-xs text-muted-foreground">Carregando dispositivos…</p>
+        ) : trustedDevices.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nenhum dispositivo confiável cadastrado.</p>
+        ) : (
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {trustedDevices.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-3 px-3 py-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-xs font-medium">{d.deviceName}</span>
+                    {d.isCurrent && (
+                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                        Este dispositivo
+                      </span>
+                    )}
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                        d.status === "approved"
+                          ? "bg-green-500/10 text-green-600"
+                          : d.status === "pending"
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-destructive/10 text-destructive"
+                      }`}
+                    >
+                      {d.status === "approved" ? "Aprovado" : d.status === "pending" ? "Pendente" : "Revogado"}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {d.ipAddress ?? "IP não registrado"} · Válido até {relativeDate(d.expiresAt)}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {d.status === "pending" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs text-green-600"
+                      disabled={actionPending}
+                      onClick={() => handleApproveDevice(d.id)}
+                    >
+                      Aprovar
+                    </Button>
+                  )}
+                  {d.status === "approved" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs text-destructive hover:bg-destructive/10"
+                      disabled={actionPending}
+                      onClick={() => handleRevokeDevice(d.id)}
+                    >
+                      Revogar
+                    </Button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
 

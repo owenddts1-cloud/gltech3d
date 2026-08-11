@@ -6946,3 +6946,70 @@ comment on table public.products is
   'Colunas de custo e as marcadas como internas nunca saem em '
   'PUBLIC_PRODUCT_COLUMNS (lib/landing/repository.ts). Arquivo so pode ser '
   'distribuido quando model_source in (proprio, livre).';
+
+-- ---- user_trusted_devices: pular MFA em dispositivo confiavel (migration 0074) ----
+-- Idempotente: create if not exists + drop/create das policies. Re-aplicavel
+-- pelo update.sh sem ON_ERROR_STOP.
+create table if not exists public.user_trusted_devices (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null references auth.users(id) on delete cascade,
+  device_token_hash text not null,
+  device_name       text not null,
+  ip_address        text,
+  user_agent        text,
+  status            text not null default 'approved',
+  approved_at       timestamptz default now(),
+  expires_at        timestamptz not null,
+  last_used_at      timestamptz not null default now(),
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+
+-- Constraint por bloco guardado: `add constraint if not exists` nao existe em
+-- Postgres, e um segundo `add` derrubaria o update.sh de quem ja aplicou.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'user_trusted_devices_status_check'
+  ) then
+    -- Corrige o dado ANTES da constraint: banco de clone pode ter status fora
+    -- do dominio, e a constraint falharia no update.sh.
+    update public.user_trusted_devices
+       set status = 'revoked'
+     where status not in ('approved', 'pending', 'revoked');
+
+    alter table public.user_trusted_devices
+      add constraint user_trusted_devices_status_check
+      check (status in ('approved', 'pending', 'revoked'));
+  end if;
+end $$;
+
+create index if not exists idx_trusted_devices_user
+  on public.user_trusted_devices(user_id, status, expires_at);
+create index if not exists idx_trusted_devices_hash
+  on public.user_trusted_devices(device_token_hash);
+
+alter table public.user_trusted_devices enable row level security;
+
+-- Isolamento por USUARIO, nao por organizacao: um dispositivo confiavel e do
+-- dono da sessao. `auth.uid()` e a fonte, nunca o corpo da requisicao.
+drop policy if exists "user_trusted_devices_select" on public.user_trusted_devices;
+create policy "user_trusted_devices_select" on public.user_trusted_devices
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "user_trusted_devices_insert" on public.user_trusted_devices;
+create policy "user_trusted_devices_insert" on public.user_trusted_devices
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "user_trusted_devices_update" on public.user_trusted_devices;
+create policy "user_trusted_devices_update" on public.user_trusted_devices
+  for update using (auth.uid() = user_id);
+
+drop policy if exists "user_trusted_devices_delete" on public.user_trusted_devices;
+create policy "user_trusted_devices_delete" on public.user_trusted_devices
+  for delete using (auth.uid() = user_id);
+
+comment on table public.user_trusted_devices is
+  'Dispositivos em que o usuario optou por pular o desafio TOTP. Guarda apenas '
+  'o HASH do token (device_token_hash); o plaintext vive no cookie httpOnly do '
+  'dispositivo. Expira por expires_at.';
