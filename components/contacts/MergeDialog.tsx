@@ -19,21 +19,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/browser";
-
-interface CandidateSummary {
-  id?: string;
-  name?: string | null;
-  email?: string | null;
-  phone_number?: string | null;
-  [key: string]: unknown;
-}
-
-interface MergeQueueRow {
-  id: string;
-  candidates: CandidateSummary[] | null;
-  status: string;
-}
+import {
+  fetchMergeQueueItem,
+  type MergeCandidateSummary,
+  type MergeQueueItem,
+} from "@/app/actions/contacts/actions";
 
 interface Props {
   queueItemId: string | null;
@@ -43,25 +33,24 @@ interface Props {
 }
 
 export function MergeDialog({ queueItemId, open, onOpenChange }: Props) {
-  const [item, setItem] = useState<MergeQueueRow | null>(null);
+  const [item, setItem] = useState<MergeQueueItem | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !queueItemId) return;
     let cancelled = false;
     setLoading(true);
-    const supabase = createClient();
-    supabase
-      .from("merge_queue")
-      .select("id, candidates, status")
-      .eq("id", queueItemId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) {
-          setItem(data as MergeQueueRow | null);
-          setLoading(false);
-        }
-      });
+    setLoadError(null);
+
+    // Server Action: `merge_queue` tem RLS e o cliente do browser não tem
+    // sessão — de lá a resposta vinha sempre vazia, sem erro.
+    void fetchMergeQueueItem(queueItemId).then((res) => {
+      if (cancelled) return;
+      if (res.ok) setItem(res.item);
+      else setLoadError(res.error);
+      setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -83,6 +72,10 @@ export function MergeDialog({ queueItemId, open, onOpenChange }: Props) {
 
         {loading ? (
           <Skeleton className="h-32 w-full" />
+        ) : loadError ? (
+          <p className="rounded-md border border-red-500/40 bg-red-500/5 p-2 text-sm text-red-400">
+            Não consegui carregar a fila. <span className="font-mono text-xs">{loadError}</span>
+          </p>
         ) : candidates.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum candidato disponível.</p>
         ) : (

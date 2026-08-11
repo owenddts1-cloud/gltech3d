@@ -104,3 +104,43 @@ export async function quickCreateContact(raw: unknown) {
   revalidatePath("/app/contacts");
   return { ok: true as const, contact: toOption(data as ContactRow), existed: false as const };
 }
+
+/** Um candidato da fila de merge, como o jsonb guarda. */
+export interface MergeCandidateSummary {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  phone_number?: string | null;
+  [key: string]: unknown;
+}
+
+export interface MergeQueueItem {
+  id: string;
+  candidates: MergeCandidateSummary[] | null;
+  status: string;
+}
+
+/**
+ * Lê um item da fila de merge de contatos.
+ *
+ * POR QUE UMA SERVER ACTION: `merge_queue` tem RLS, e o cliente Supabase do
+ * browser nunca tem sessão (o cookie de auth é `httpOnly`). Lido de lá, ele
+ * chegava como `anon` e a resposta vinha vazia — o diálogo dizia "Nenhum
+ * candidato disponível" mesmo com a fila cheia.
+ *
+ * Ver `docs/runbooks/sessao-do-browser.md`.
+ */
+export async function fetchMergeQueueItem(id: string) {
+  const c = await requireCtx();
+  if (!c.ok) return { ok: false as const, error: c.error };
+
+  const { data, error } = await c.ctx.supabase
+    .from("merge_queue")
+    .select("id, candidates, status")
+    .eq("organization_id", c.ctx.orgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return { ok: false as const, error: error.message };
+
+  return { ok: true as const, item: (data as MergeQueueItem | null) ?? null };
+}

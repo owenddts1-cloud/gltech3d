@@ -9,37 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Tag, Receipt, Users, ArrowRight } from "@/lib/ui/icons";
-import { createClient } from "@/lib/supabase/browser";
 import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
+import {
+  fetchContactCrmSummary,
+  type ContactLeadRow,
+  type ContactOrderRow,
+  type ContactActivityRow,
+} from "@/app/actions/inbox/contact-summary";
 
 interface Props {
   conversation: ConversationWithContact | null;
-}
-
-interface LeadRow {
-  id: string;
-  title: string;
-  status: string;
-  value_cents: number | null;
-  currency: string | null;
-  updated_at: string;
-}
-
-interface OrderRow {
-  id: string;
-  external_id: string | null;
-  status: string | null;
-  total_cents: number | null;
-  currency: string | null;
-  created_at: string;
-}
-
-interface ActivityRow {
-  id: string;
-  type: string;
-  source_module: string;
-  performed_at: string;
-  payload: Record<string, unknown> | null;
 }
 
 function formatMoney(cents: number | null, currency: string | null): string {
@@ -62,50 +41,40 @@ export function CRMSidePanel({ conversation }: Props) {
   const contact = conversation?.contacts ?? null;
   const contactId = contact?.id ?? null;
 
-  const [leads, setLeads] = useState<LeadRow[] | null>(null);
-  const [orders, setOrders] = useState<OrderRow[] | null>(null);
-  const [activities, setActivities] = useState<ActivityRow[] | null>(null);
+  const [leads, setLeads] = useState<ContactLeadRow[] | null>(null);
+  const [orders, setOrders] = useState<ContactOrderRow[] | null>(null);
+  const [activities, setActivities] = useState<ContactActivityRow[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!contactId) {
       setLeads(null);
       setOrders(null);
       setActivities(null);
+      setLoadError(null);
       return;
     }
-    const supabase = createClient();
     let cancelled = false;
     setLoading(true);
+    setLoadError(null);
 
     async function load() {
-      const leadsP = supabase
-        .from("crm_leads")
-        .select("id, title, status, value_cents, currency, updated_at")
-        .eq("contact_id", contactId)
-        .order("updated_at", { ascending: false })
-        .limit(3);
-
-      const ordersP = supabase
-        .from("orders")
-        .select("id, external_id, status, total_cents, currency, created_at")
-        .eq("contact_id", contactId)
-        .order("created_at", { ascending: false })
-        .limit(3);
-
-      const actsP = supabase
-        .from("crm_lead_activities")
-        .select("id, type, source_module, performed_at, payload")
-        .eq("contact_id", contactId)
-        .order("performed_at", { ascending: false })
-        .limit(5);
-
-      const [lr, or, ar] = await Promise.all([leadsP, ordersP, actsP]);
-
+      // Server Action: o cliente do browser não tem sessão (cookie httpOnly) e
+      // estas três tabelas têm RLS — de lá voltavam sempre vazias, sem erro.
+      const res = await fetchContactCrmSummary({ contactId });
       if (cancelled) return;
-      setLeads(lr.error ? [] : ((lr.data ?? []) as LeadRow[]));
-      setOrders(or.error ? [] : ((or.data ?? []) as OrderRow[]));
-      setActivities(ar.error ? [] : ((ar.data ?? []) as ActivityRow[]));
+
+      if (!res.ok) {
+        setLoadError(res.error);
+        setLeads([]);
+        setOrders([]);
+        setActivities([]);
+      } else {
+        setLeads(res.leads);
+        setOrders(res.orders);
+        setActivities(res.activities);
+      }
       setLoading(false);
     }
 
@@ -137,6 +106,15 @@ export function CRMSidePanel({ conversation }: Props) {
 
   return (
     <aside className="flex h-full flex-col gap-4 overflow-y-auto border-l border-border bg-background p-4">
+      {/* Falha de leitura precisa aparecer. Mostrar seção vazia quando na
+          verdade a consulta falhou foi o que manteve este defeito invisível. */}
+      {loadError && (
+        <div className="rounded-md border border-red-500/40 bg-red-500/5 p-2 text-[11px] leading-snug text-red-400">
+          Não consegui carregar o histórico deste contato.
+          <span className="mt-0.5 block font-mono text-muted-foreground">{loadError}</span>
+        </div>
+      )}
+
       <section>
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Contato
