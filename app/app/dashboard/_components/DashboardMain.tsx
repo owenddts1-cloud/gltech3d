@@ -143,7 +143,13 @@ function MetricCard({
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-text-muted">{label}</p>
-          <p className={cn('mt-3 truncate text-2xl font-bold tracking-tight text-foreground md:text-[27px]', loading && 'animate-pulse opacity-50')}>
+          <p
+            title={value}
+            className={cn(
+              'mt-3 tabular-nums whitespace-nowrap text-xl font-bold tracking-tight text-foreground sm:text-2xl md:text-[25px]',
+              loading && 'animate-pulse opacity-50'
+            )}
+          >
             {value}
           </p>
           <div className="mt-2 min-h-4">

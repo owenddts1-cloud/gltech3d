@@ -119,6 +119,7 @@ export function inRange(soldAt: string, range: DateRange): boolean {
 
 /** Short human order code derived from the UUID (until a real sequence exists). */
 export function orderCode(row: SaleRow): string {
+  if (!row || !row.id) return "—";
   return row.id.replace(/-/g, "").slice(0, 6).toUpperCase();
 }
 
@@ -268,8 +269,8 @@ export function buildCsv(
   labels: { fulfillment: Record<SaleFulfillment, string>; payment: Record<SalePayment, string> },
 ): string {
   const sep = ";";
-  const esc = (s: string): string => `"${s.replace(/"/g, '""')}"`;
-  const money = (cents: number): string => (cents / 100).toFixed(2).replace(".", ",");
+  const esc = (s?: string | null): string => `"${(s ?? "").replace(/"/g, '""')}"`;
+  const money = (cents?: number | null): string => ((cents ?? 0) / 100).toFixed(2).replace(".", ",");
   const lines: string[] = [
     ["Nº", "Data", "Cliente", "Canal", "Produção", "Pagamento", "Produto", "Custo (R$)", "Comissão (R$)", "Total (R$)", "Lucro (R$)", "Observações"]
       .map(esc)

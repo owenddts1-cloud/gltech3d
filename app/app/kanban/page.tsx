@@ -52,7 +52,9 @@ export default async function KanbanPickerPage() {
                     </span>
                   )}
                 </div>
-                <span className="text-xs text-muted-foreground">/{p.slug}</span>
+                <span className="text-xs text-muted-foreground">
+                  /{p.slug?.replace(/^\//, "")}
+                </span>
               </Link>
             </li>
           ))}

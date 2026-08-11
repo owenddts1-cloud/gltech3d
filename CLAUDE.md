@@ -128,10 +128,12 @@ DeskcommCRM é um CRM operacional multi-tenant para e-commerce com IA conversaci
 | `docs/prd/01-prd-platform-base.md` | Auth, tenancy, RBAC, LGPD framework |
 | `docs/prd/02-...06-` | Customer 360, WhatsApp, Pipeline, IA-RAG, Nuvemshop |
 | `docs/specs/` | Specs técnicas detalhadas (schema SQL, payloads exatos) |
+| `docs/specs/modelagem-3d.md` | Spec do módulo de Modelagem 3D: inventário do que já existe, o que reusar, roadmap por fases, licenciamento |
 | `docs/business-rules/` | Regras de negócio fora do código |
 | `docs/research/reference-synthesis.md` | Arquitetura herdada do curso WAHA |
 | `tasks/todo.md` | Workflow de construção atual |
 | `docs/runbooks/catalogo-produtos.md` | Como operar o catálogo: custo real, mídia por pastas, links herdados, vínculo venda↔peça |
+| `docs/runbooks/sessao-do-browser.md` | Por que leitura autenticada NÃO pode sair do cliente do browser (cookie httpOnly) e quais telas ainda estão afetadas |
 | `lib/api/wrappers.ts` | `ok()`, `fail()`, tipos `ApiSuccess<T>` / `ApiError` |
 | `lib/api/errors.ts` | Códigos de erro canônicos |
 | `lib/env.ts` | Validação Zod das env vars (lança no startup se faltar crítica) |

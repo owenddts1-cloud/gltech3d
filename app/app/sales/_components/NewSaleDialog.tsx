@@ -93,8 +93,8 @@ export default function NewSaleDialog({
 
   // Lucro Estimado ao vivo: total − comissão − (custo do produto vinculado × qtd).
   // Comissão continua sendo o campo real (taxa do canal) — isto é só um preview.
-  const totalCents = Math.round((Number(total.replace(",", ".")) || 0) * 100);
-  const commissionCents = Math.round((Number(commission.replace(",", ".")) || 0) * 100);
+  const totalCents = Math.round((Number((total ?? "").replace(",", ".")) || 0) * 100);
+  const commissionCents = Math.round((Number((commission ?? "").replace(",", ".")) || 0) * 100);
   const selectedProduct = productOptions.find((p) => p.id === productId);
   const productCostCents = selectedProduct ? selectedProduct.unitCostCents * (Number(qty) || 1) : 0;
   const estimatedProfitCents = totalCents - commissionCents - productCostCents;
@@ -113,8 +113,8 @@ export default function NewSaleDialog({
       contactId: contactId || null,
       customerName: customer,
       status,
-      total: Number(total.replace(",", ".")),
-      commission: commission ? Number(commission.replace(",", ".")) : 0,
+      total: Number((total ?? "").replace(",", ".")),
+      commission: commission ? Number((commission ?? "").replace(",", ".")) : 0,
       soldAt,
       notes,
       productId: productId || null,

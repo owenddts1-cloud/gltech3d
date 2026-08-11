@@ -784,7 +784,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Telemetry simulator panel */}
-        <Card className="p-6 border-border bg-surface backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
+        {process.env.NODE_ENV !== 'production' && (
+          <Card className="p-6 border-border bg-surface backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
           <h2 className="text-lg font-bold text-text flex items-center gap-2">
             <Play className="text-emerald-500" />
             Simulador de Telemetria (Klipper Webhook)
@@ -905,6 +906,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
             </Button>
           </form>
         </Card>
+      )}
 
         {/* Cost log and History feed */}
         <Card className="p-6 border-border bg-surface backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">

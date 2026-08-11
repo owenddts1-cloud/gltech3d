@@ -98,3 +98,62 @@ export function computeProductPricing(input: ProductPricingInput): ProductPricin
     profit,
   };
 }
+
+export interface ChannelCommissionConfig {
+  shopeePct?: number;       // default 18%
+  shopeeFixed?: number;     // default R$ 4.00
+  mercadoLivrePct?: number; // default 14%
+  mercadoLivreFixed?: number; // default R$ 6.00
+  simplesTaxPct?: number;   // default 6%
+}
+
+export interface ChannelPricing {
+  channel: string;
+  suggestedPrice: number;
+  commission: number;
+  tax: number;
+  netProfit: number;
+  netMarginPct: number;
+}
+
+/**
+ * Precificação por canal de venda levando em conta comissões, taxas fixas
+ * e imposto do Simples Nacional para obter a margem líquida alvo.
+ */
+export function computeChannelPrices(
+  unitCost: number,
+  targetMarginPct: number = 30,
+  config: ChannelCommissionConfig = {}
+): Record<string, ChannelPricing> {
+  const shopeePct = (config.shopeePct ?? 18) / 100;
+  const shopeeFixed = config.shopeeFixed ?? 4.0;
+  const mlPct = (config.mercadoLivrePct ?? 14) / 100;
+  const mlFixed = config.mercadoLivreFixed ?? 6.0;
+  const taxPct = (config.simplesTaxPct ?? 6) / 100;
+  const targetMargin = targetMarginPct / 100;
+
+  const calculateForChannel = (channel: string, commissionPct: number, fixedFee: number): ChannelPricing => {
+    const divisor = 1 - commissionPct - taxPct - targetMargin;
+    const price = divisor > 0 ? (unitCost + fixedFee) / divisor : unitCost * (1 + targetMargin);
+    const commission = price * commissionPct + fixedFee;
+    const tax = price * taxPct;
+    const netProfit = price - unitCost - commission - tax;
+    const netMarginPct = price > 0 ? (netProfit / price) * 100 : 0;
+
+    return {
+      channel,
+      suggestedPrice: parseFloat(price.toFixed(2)),
+      commission: parseFloat(commission.toFixed(2)),
+      tax: parseFloat(tax.toFixed(2)),
+      netProfit: parseFloat(netProfit.toFixed(2)),
+      netMarginPct: parseFloat(netMarginPct.toFixed(1)),
+    };
+  };
+
+  return {
+    shopee: calculateForChannel("Shopee", shopeePct, shopeeFixed),
+    mercadoLivre: calculateForChannel("Mercado Livre", mlPct, mlFixed),
+    b2b: calculateForChannel("B2B / Venda Direta", 0, 0),
+  };
+}
+

@@ -102,7 +102,7 @@ function longDateBR(iso: string): string {
 
 /** "1234,56" — cents → editable pt-BR decimal string. */
 function centsToInput(cents: number): string {
-  return (cents / 100).toFixed(2).replace(".", ",");
+  return ((cents ?? 0) / 100).toFixed(2).replace(".", ",");
 }
 
 /** Captures the pre-patch values of exactly the fields a patch touches. */
@@ -178,8 +178,8 @@ function SaleDrawerBody({
   }));
 
   // Lucro Estimado ao vivo no form de edição — mesma fórmula do E5/NewSaleDialog.
-  const editTotalCents = Math.round((Number(form.total.replace(",", ".")) || 0) * 100);
-  const editCommissionCents = Math.round((Number(form.commission.replace(",", ".")) || 0) * 100);
+  const editTotalCents = Math.round((Number((form.total ?? "").replace(",", ".")) || 0) * 100);
+  const editCommissionCents = Math.round((Number((form.commission ?? "").replace(",", ".")) || 0) * 100);
   const editProductCostCents = sale.productId
     ? (productOptions.find((p) => p.id === sale.productId)?.unitCostCents ?? 0) * sale.qty
     : 0;
@@ -256,8 +256,8 @@ function SaleDrawerBody({
   }
 
   function saveEdit() {
-    const total = Number(form.total.replace(",", "."));
-    const commission = form.commission.trim() ? Number(form.commission.replace(",", ".")) : 0;
+    const total = Number((form.total ?? "").replace(",", "."));
+    const commission = form.commission?.trim() ? Number(form.commission.replace(",", ".")) : 0;
     if (!form.total.trim() || Number.isNaN(total) || total < 0) {
       toast.error("Informe um valor total válido.");
       return;
