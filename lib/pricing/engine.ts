@@ -99,61 +99,114 @@ export function computeProductPricing(input: ProductPricingInput): ProductPricin
   };
 }
 
-export interface ChannelCommissionConfig {
-  shopeePct?: number;       // default 18%
-  shopeeFixed?: number;     // default R$ 4.00
-  mercadoLivrePct?: number; // default 14%
-  mercadoLivreFixed?: number; // default R$ 6.00
-  simplesTaxPct?: number;   // default 6%
+/** Um canal de venda com o que ele retém. Vem de `platform_commissions`. */
+export interface ChannelCommission {
+  platform: string;
+  /** Percentual que o canal retém sobre o valor de venda. */
+  commissionPct: number;
+  /** Tarifa fixa por item, em reais. Alguns canais cobram em ticket baixo. */
+  fixedFee?: number;
+}
+
+export interface ChannelPricingConfig {
+  /**
+   * Canais a calcular. Lista VAZIA devolve resultado vazio — de propósito.
+   *
+   * A versão anterior desta função conhecia dois nomes chumbados no código
+   * ("Shopee" a 18%, "Mercado Livre" a 14%) e os aplicava a quem não passasse
+   * configuração. Isso é pior que não calcular: produz um número que PARECE
+   * apurado e não veio de lugar nenhum, e o operador toma decisão de preço em
+   * cima de um chute. Além disso ignorava Facebook, TikTok, Olx e B2B, que
+   * existem no cadastro.
+   */
+  channels: ChannelCommission[];
+  /** Alíquota efetiva do Simples sobre a venda. */
+  simplesTaxPct?: number;
 }
 
 export interface ChannelPricing {
   channel: string;
+  /** Preço que atinge a margem alvo neste canal. */
   suggestedPrice: number;
   commission: number;
   tax: number;
   netProfit: number;
   netMarginPct: number;
+  /**
+   * A comissão deste canal está zerada no cadastro?
+   *
+   * Não é o mesmo que "não tem comissão". B2B legitimamente retém 0%; a Shopee
+   * não. Sem esta marca, canal por preencher e canal sem taxa ficam
+   * indistinguíveis, e o sistema afirma margem cheia em silêncio — que foi o que
+   * fez a peça de R$ 11,90 parecer lucrativa.
+   */
+  commissionMissing: boolean;
 }
 
 /**
- * Precificação por canal de venda levando em conta comissões, taxas fixas
- * e imposto do Simples Nacional para obter a margem líquida alvo.
+ * Preço por canal para atingir uma margem líquida alvo.
+ *
+ * A conta é a inversa da margem: partindo do custo e das retenções, acha o preço
+ * em que sobra o que se quer. `divisor = 1 − comissão − imposto − margem`; se ele
+ * for zero ou negativo, a margem pedida é impossível naquele canal (as retenções
+ * já consomem tudo), e devolvemos o custo acrescido da margem em vez de um preço
+ * infinito.
  */
 export function computeChannelPrices(
   unitCost: number,
   targetMarginPct: number = 30,
-  config: ChannelCommissionConfig = {}
-): Record<string, ChannelPricing> {
-  const shopeePct = (config.shopeePct ?? 18) / 100;
-  const shopeeFixed = config.shopeeFixed ?? 4.0;
-  const mlPct = (config.mercadoLivrePct ?? 14) / 100;
-  const mlFixed = config.mercadoLivreFixed ?? 6.0;
-  const taxPct = (config.simplesTaxPct ?? 6) / 100;
+  config: ChannelPricingConfig = { channels: [] },
+): ChannelPricing[] {
+  const taxPct = (config.simplesTaxPct ?? 0) / 100;
   const targetMargin = targetMarginPct / 100;
 
-  const calculateForChannel = (channel: string, commissionPct: number, fixedFee: number): ChannelPricing => {
-    const divisor = 1 - commissionPct - taxPct - targetMargin;
+  return config.channels.map(({ platform, commissionPct, fixedFee = 0 }): ChannelPricing => {
+    const pct = commissionPct / 100;
+    const divisor = 1 - pct - taxPct - targetMargin;
     const price = divisor > 0 ? (unitCost + fixedFee) / divisor : unitCost * (1 + targetMargin);
-    const commission = price * commissionPct + fixedFee;
+    const commission = price * pct + fixedFee;
     const tax = price * taxPct;
     const netProfit = price - unitCost - commission - tax;
-    const netMarginPct = price > 0 ? (netProfit / price) * 100 : 0;
 
     return {
-      channel,
+      channel: platform,
       suggestedPrice: parseFloat(price.toFixed(2)),
       commission: parseFloat(commission.toFixed(2)),
       tax: parseFloat(tax.toFixed(2)),
       netProfit: parseFloat(netProfit.toFixed(2)),
-      netMarginPct: parseFloat(netMarginPct.toFixed(1)),
+      netMarginPct: price > 0 ? parseFloat(((netProfit / price) * 100).toFixed(1)) : 0,
+      commissionMissing: commissionPct === 0,
     };
-  };
+  });
+}
+
+/**
+ * Resultado no preço QUE JÁ SE PRATICA — a outra metade da pergunta.
+ *
+ * `computeChannelPrices` responde "por quanto eu deveria vender?". Esta responde
+ * "o que sobra do preço que está no anúncio hoje?", que é como se descobre que
+ * um item está dando prejuízo sem ninguém ter mudado nada.
+ */
+export function channelResultAtPrice(
+  unitCost: number,
+  sellingPrice: number,
+  channel: ChannelCommission,
+  simplesTaxPct = 0,
+): ChannelPricing {
+  const pct = channel.commissionPct / 100;
+  const fixedFee = channel.fixedFee ?? 0;
+  const commission = sellingPrice * pct + fixedFee;
+  const tax = sellingPrice * (simplesTaxPct / 100);
+  const netProfit = sellingPrice - unitCost - commission - tax;
 
   return {
-    shopee: calculateForChannel("Shopee", shopeePct, shopeeFixed),
-    mercadoLivre: calculateForChannel("Mercado Livre", mlPct, mlFixed),
-    b2b: calculateForChannel("B2B / Venda Direta", 0, 0),
+    channel: channel.platform,
+    suggestedPrice: parseFloat(sellingPrice.toFixed(2)),
+    commission: parseFloat(commission.toFixed(2)),
+    tax: parseFloat(tax.toFixed(2)),
+    netProfit: parseFloat(netProfit.toFixed(2)),
+    netMarginPct: sellingPrice > 0 ? parseFloat(((netProfit / sellingPrice) * 100).toFixed(1)) : 0,
+    commissionMissing: channel.commissionPct === 0,
   };
 }
 

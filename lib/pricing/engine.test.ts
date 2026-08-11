@@ -10,7 +10,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import { calculateRealCost, costFromHourlyInputs, depreciationPerHour } from "./engine";
+import {
+  calculateRealCost,
+  channelResultAtPrice,
+  computeChannelPrices,
+  costFromHourlyInputs,
+  depreciationPerHour,
+} from "./engine";
 
 /** Peça de referência: 50 g, 4 h, 200 W, R$ 0,92/kWh, R$ 0,50/h de máquina. */
 const PECA = {
@@ -110,5 +116,80 @@ describe("robustez", () => {
     expect(b.energyCost).toBeCloseTo(a.energyCost * 2, 4);
     expect(b.depreciationCost).toBeCloseTo(a.depreciationCost * 2, 4);
     expect(b.materialCost).toBeCloseTo(a.materialCost, 4);
+  });
+});
+
+describe("lucro por canal — o consumidor que faltava", () => {
+  const CANAIS = [
+    { platform: "B2B", commissionPct: 0 },
+    { platform: "Shopee", commissionPct: 20, fixedFee: 4 },
+    { platform: "Mercado Livre", commissionPct: 14, fixedFee: 6 },
+  ];
+
+  it("NÃO inventa comissão para canal sem cadastro", () => {
+    // A versão anterior aplicava 18% à Shopee e 14% ao ML a quem não passasse
+    // configuração — número que PARECE apurado e não veio de lugar nenhum.
+    expect(computeChannelPrices(10, 30)).toEqual([]);
+    expect(computeChannelPrices(10, 30, { channels: [] })).toEqual([]);
+  });
+
+  it("calcula um canal por linha cadastrada, não só dois nomes conhecidos", () => {
+    const r = computeChannelPrices(10, 30, { channels: CANAIS });
+    expect(r.map((x) => x.channel)).toEqual(["B2B", "Shopee", "Mercado Livre"]);
+  });
+
+  it("marca comissão ZERADA sem confundir com canal sem taxa", () => {
+    // B2B legitimamente retém 0%; Shopee por preencher também marca 0. A marca
+    // existe para a tela poder avisar em vez de afirmar margem cheia.
+    const r = computeChannelPrices(10, 30, { channels: CANAIS });
+    expect(r.find((x) => x.channel === "B2B")?.commissionMissing).toBe(true);
+    expect(r.find((x) => x.channel === "Shopee")?.commissionMissing).toBe(false);
+  });
+
+  it("a margem alvo é atingida no preço sugerido", () => {
+    const r = computeChannelPrices(10, 30, { channels: CANAIS, simplesTaxPct: 6 });
+    for (const canal of r) expect(canal.netMarginPct).toBeCloseTo(30, 0);
+  });
+
+  it("comissão maior exige preço maior para a mesma margem", () => {
+    const barato = computeChannelPrices(10, 30, { channels: [{ platform: "X", commissionPct: 5 }] });
+    const caro = computeChannelPrices(10, 30, { channels: [{ platform: "X", commissionPct: 25 }] });
+    expect(caro[0]!.suggestedPrice).toBeGreaterThan(barato[0]!.suggestedPrice);
+  });
+
+  it("margem impossível não devolve preço infinito", () => {
+    // Comissão 60% + imposto 10% + margem alvo 50% consome mais que o total.
+    const r = computeChannelPrices(10, 50, {
+      channels: [{ platform: "X", commissionPct: 60 }],
+      simplesTaxPct: 10,
+    });
+    expect(Number.isFinite(r[0]!.suggestedPrice)).toBe(true);
+    expect(r[0]!.suggestedPrice).toBeGreaterThan(0);
+  });
+});
+
+describe("channelResultAtPrice — o que sobra do preço de hoje", () => {
+  it("detecta PREJUÍZO no preço praticado", () => {
+    // Peça de R$ 11,90 na Shopee, custo R$ 9, comissão 20% + R$ 4 fixo.
+    const r = channelResultAtPrice(9, 11.9, { platform: "Shopee", commissionPct: 20, fixedFee: 4 });
+    expect(r.netProfit).toBeLessThan(0);
+    expect(r.netMarginPct).toBeLessThan(0);
+  });
+
+  it("com comissão zero o resultado é preço menos custo", () => {
+    const r = channelResultAtPrice(10, 25, { platform: "B2B", commissionPct: 0 });
+    expect(r.netProfit).toBeCloseTo(15, 2);
+  });
+
+  it("o imposto entra sobre a VENDA, não sobre o lucro", () => {
+    const sem = channelResultAtPrice(10, 100, { platform: "X", commissionPct: 0 }, 0);
+    const com = channelResultAtPrice(10, 100, { platform: "X", commissionPct: 0 }, 6);
+    expect(sem.netProfit - com.netProfit).toBeCloseTo(6, 2);
+  });
+
+  it("preço zero não gera divisão por zero", () => {
+    const r = channelResultAtPrice(10, 0, { platform: "X", commissionPct: 20 });
+    expect(r.netMarginPct).toBe(0);
+    expect(Number.isFinite(r.netProfit)).toBe(true);
   });
 });

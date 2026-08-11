@@ -148,6 +148,17 @@ psql_run -v ON_ERROR_STOP=1 -q -t -c "
 " || exit 1
 
 echo
+echo "== invariantes da 0077 (produto <-> modelo) =="
+psql_run -v ON_ERROR_STOP=1 -q -t -c "
+  select 'colunas novas: ' || count(*) from information_schema.columns
+    where table_name='products'
+      and column_name in ('model_id','cost_estimated_at','cost_estimate_source');
+  select 'FK set null: ' || count(*) from information_schema.referential_constraints rc
+    join information_schema.key_column_usage k on k.constraint_name = rc.constraint_name
+   where k.table_name='products' and k.column_name='model_id' and rc.delete_rule='SET NULL';
+" || exit 1
+
+echo
 echo "== invariantes da 0076 (um default por org) =="
 psql_run -v ON_ERROR_STOP=1 -q -t -c "
   select 'indice parcial: ' || count(*) from pg_indexes
