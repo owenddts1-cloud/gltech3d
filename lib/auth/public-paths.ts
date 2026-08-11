@@ -5,6 +5,11 @@
 export const PUBLIC_PATHS: RegExp[] = [
   /^\/$/,
   /^\/product\/.+$/,
+  /^\/catalogo(\/.*)?$/,
+  /^\/orcamento(\/.*)?$/,
+  /^\/tecnologias(\/.*)?$/,
+  /^\/privacidade(\/.*)?$/,
+  /^\/termos(\/.*)?$/,
   /^\/login(\/.*)?$/,
   /^\/403$/,
   /^\/admin\/forbidden$/,

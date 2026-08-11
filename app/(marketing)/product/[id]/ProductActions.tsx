@@ -7,26 +7,42 @@ import type { LandingProduct } from '@/lib/landing/types';
 export default function ProductActions({ product }: { product: LandingProduct }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const defaultWaUrl = `https://wa.me/5531999284834?text=${encodeURIComponent(`Olá! Quero pedir o produto: ${product.name}`)}`;
+  const waLink = product.links?.whatsapp || defaultWaUrl;
+
   return (
     <>
       <div className="p-6 rounded-3xl bg-white border border-[#E8E2D9] shadow-sm">
         <div className="flex items-end justify-between mb-6">
           <div>
             <div className="text-[10px] text-[#6B5E55] uppercase tracking-wider font-bold mb-1">Preço</div>
-            <div className="text-4xl font-bold font-sora">R$ {product.priceRange ? product.priceRange : product.price.toFixed(2)}</div>
+            <div className="text-4xl font-bold font-sora">
+              R$ {product.priceRange ? product.priceRange : product.price.toFixed(2).replace('.', ',')}
+            </div>
           </div>
-          <div className="text-[10px] text-[#6B5E55] text-right">
-            Frete calculado<br/>no checkout
+          <div className="text-[10px] text-[#6B5E55] text-right font-medium">
+            Envio para todo<br/>o Brasil
           </div>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="w-full py-4 bg-[#A6815C] hover:bg-[#8E6D4D] transition-colors text-white rounded-2xl font-bold flex items-center justify-center gap-2"
-        >
-          <ShoppingBag className="w-5 h-5" />
-          Comprar Agora
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="w-full py-4 bg-[#A6815C] hover:bg-[#8E6D4D] transition-colors text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-md"
+          >
+            <ShoppingBag className="w-5 h-5" />
+            Comprar Agora
+          </button>
+          
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-3 bg-[#25D366] hover:bg-[#1EBE5A] transition-colors text-white rounded-2xl font-bold flex items-center justify-center gap-2 text-xs"
+          >
+            Pedir pelo WhatsApp
+          </a>
+        </div>
 
         <div className="mt-4 text-center text-[10px] text-[#6B5E55]">
           Shopee • Mercado Livre • WhatsApp • Instagram

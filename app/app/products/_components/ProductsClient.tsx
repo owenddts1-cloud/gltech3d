@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -110,7 +111,14 @@ export function ProductsClient({
             </p>
           </div>
         </div>
-        <Button onClick={() => setCreating(true)}><Plus aria-hidden /> Nova peça</Button>
+        <div className="flex items-center gap-2">
+          <Link href="/app/products/catalog">
+            <Button variant="outline" className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10 gap-1.5">
+              <Storefront aria-hidden /> Gerar Catálogo Visual
+            </Button>
+          </Link>
+          <Button onClick={() => setCreating(true)}><Plus aria-hidden /> Nova peça</Button>
+        </div>
       </div>
 
       {products.length === 0 ? (
