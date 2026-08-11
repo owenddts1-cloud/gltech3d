@@ -9,7 +9,9 @@ import {
   Plus, 
   Info, 
   ArrowsClockwise,
-  Gear
+  Gear,
+  DownloadSimple,
+  PencilSimple,
 } from "@/lib/ui/icons";
 import {
   Sun,
@@ -24,8 +26,26 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/browser";
-import { createModelUploadUrl, saveModel, deleteModel } from "@/app/actions/models/actions";
+import {
+  createModelUploadUrl,
+  saveModel,
+  deleteModel,
+  createModelDownloadUrl,
+  renameFile,
+} from "@/app/actions/models/actions";
 import { MODELS_BUCKET, type Model3dRow } from "@/lib/models/config";
+// Uma implementação só, e testada (lib/models/stl.test.ts). Havia uma cópia
+// deste cálculo aqui dentro, sem teste.
+import { signedMeshVolume } from "@/lib/models/stl";
+import {
+  VIEW_MODES,
+  MATERIAL_PRESETS,
+  STUDIO_ANGLES,
+  type ViewMode,
+  type MaterialPresetId,
+  type StudioAngle,
+} from "@/lib/models/viewer-presets";
+import type { ViewerApi } from "./ThreeViewer";
 
 // Lazy-load ThreeViewer to keep initial page bundle small and prevent SSR errors
 const ThreeViewer = dynamicImport(() => import("./ThreeViewer"), {
@@ -62,7 +82,9 @@ function parseStl(
   arrayBuffer: ArrayBuffer,
 ): Promise<{ positions: Float32Array; boundingBox: StlModel["boundingBox"]; numTriangles: number }> {
   return new Promise((resolve, reject) => {
-    const worker = new Worker("/workers/stl-parser.js");
+    // Worker bundleado: importa `lib/models/stl.ts`, que é testado. Antes era o
+    // script solto `/workers/stl-parser.js`, que só lia STL binário.
+    const worker = new Worker(new URL("./stl.worker.ts", import.meta.url), { type: "module" });
     worker.postMessage({ arrayBuffer });
     worker.onmessage = (e) => {
       worker.terminate();
@@ -78,25 +100,6 @@ function parseStl(
       reject(new Error("Erro no worker de parsing"));
     };
   });
-}
-
-/**
- * Volume real da malha (mm³) pela soma dos tetraedros com sinal de cada
- * triângulo — substitui a "mock voxel density" (bounding box × 0.5) que
- * superestimava peças ocas ou irregulares. `positions` é um array plano com
- * 9 floats por triângulo (v0,v1,v2).
- */
-function signedMeshVolume(positions: Float32Array): number {
-  let vol = 0;
-  for (let i = 0; i + 8 < positions.length; i += 9) {
-    const ax = positions[i]!, ay = positions[i + 1]!, az = positions[i + 2]!;
-    const bx = positions[i + 3]!, by = positions[i + 4]!, bz = positions[i + 5]!;
-    const cx = positions[i + 6]!, cy = positions[i + 7]!, cz = positions[i + 8]!;
-    // v0 · (v1 × v2) / 6
-    vol +=
-      (ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)) / 6;
-  }
-  return Math.abs(vol);
 }
 
 function SpotlightCard({ children, className, ...props }: { children: React.ReactNode, className?: string } & React.HTMLAttributes<HTMLDivElement>) {
@@ -134,7 +137,14 @@ function SpotlightCard({ children, className, ...props }: { children: React.Reac
   );
 }
 
-export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] }) {
+export function ModelsClient({
+  initialModels,
+  loadError = null,
+}: {
+  initialModels: Model3dRow[];
+  /** Erro do servidor ao listar. Null = listou (mesmo que vazio). */
+  loadError?: string | null;
+}) {
   const [models, setModels] = useState<StlModel[]>(() =>
     initialModels.map((m) => ({
       id: m.id,
@@ -150,9 +160,18 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
     })),
   );
   const [activeInspector, setActiveInspector] = useState<StlModel | null>(null);
-  const [loadingInspector, setLoadingInspector] = useState(false);
-  const [inspectorColor, setInspectorColor] = useState("#3b82f6");
-  const [inspectorWireframe, setInspectorWireframe] = useState(false);
+  // Por ID, nao booleano global: antes um clique desabilitava o botao de TODOS
+  // os cards ao mesmo tempo.
+  const [loadingInspector, setLoadingInspector] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("solid");
+  const [materialPreset, setMaterialPreset] = useState<MaterialPresetId>("filamento-fosco");
+  const [studio, setStudio] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  // A API do viewer chega por callback quando a cena monta. Num ref porque
+  // trocá-la não deve provocar render.
+  const viewerApi = useRef<ViewerApi | null>(null);
   const [inspectorRotate, setInspectorRotate] = useState(true);
   
   // Advanced simulation states
@@ -328,12 +347,17 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
       return;
     }
 
-    setLoadingInspector(true);
+    setLoadingInspector(model.id);
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.storage.from(MODELS_BUCKET).download(model.filePath);
-      if (error || !data) throw new Error(error?.message ?? "Falha ao baixar o STL");
-      const { positions } = await parseStl(await data.arrayBuffer());
+      // URL assinada emitida no SERVIDOR. O cliente Supabase do browser não tem
+      // sessão (cookie httpOnly), então `storage.download()` daqui era sempre
+      // negado pelo bucket privado — era exatamente o bug de "não abre em outro
+      // dispositivo". A assinatura vai na URL, então um fetch puro resolve.
+      const signed = await createModelDownloadUrl(model.id);
+      if (!signed.ok) throw new Error(signed.error);
+      const res = await fetch(signed.url);
+      if (!res.ok) throw new Error(`Falha ao baixar o STL (HTTP ${res.status})`);
+      const { positions } = await parseStl(await res.arrayBuffer());
       const withGeom = { ...model, positions };
       // Cacheia as positions na lista pra não rebaixar na próxima abertura.
       setModels((prev) => prev.map((m) => (m.id === model.id ? withGeom : m)));
@@ -341,8 +365,102 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível carregar a geometria.");
     } finally {
-      setLoadingInspector(false);
+      setLoadingInspector(null);
     }
+  };
+
+  /** Baixa o arquivo original. Mesma URL assinada; o servidor manda o nome. */
+  const downloadModel = async (model: StlModel) => {
+    setDownloading(model.id);
+    try {
+      const signed = await createModelDownloadUrl(model.id);
+      if (!signed.ok) throw new Error(signed.error);
+      const a = document.createElement("a");
+      a.href = signed.url;
+      a.download = signed.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível baixar o arquivo.");
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  /** Nome de arquivo seguro para a foto, derivado do nome do modelo. */
+  function photoName(model: StlModel, suffix: string): string {
+    const base = model.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9-_]+/g, "-").slice(0, 60);
+    return `${base || "modelo"}-${suffix}.png`;
+  }
+
+  function saveBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Sem revoke, cada foto segura o blob na memória até a aba fechar.
+    URL.revokeObjectURL(url);
+  }
+
+  /** Foto do ângulo em que a câmera está agora. */
+  const captureOne = async () => {
+    const api = viewerApi.current;
+    const model = activeInspector;
+    if (!api || !model) return;
+    setCapturing(true);
+    try {
+      saveBlob(await api.capture({ scale: 2 }), photoName(model, "vista"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não consegui gerar a imagem.");
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  /** As 6 vistas canônicas, uma a uma. */
+  const captureAllAngles = async () => {
+    const api = viewerApi.current;
+    const model = activeInspector;
+    if (!api || !model) return;
+    setCapturing(true);
+    try {
+      for (const angle of STUDIO_ANGLES) {
+        api.setAngle(angle.id);
+        // Um frame para a câmera assentar antes de capturar; sem isto as
+        // primeiras fotos saem do ângulo anterior.
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
+        saveBlob(await api.capture({ scale: 2 }), photoName(model, angle.id));
+      }
+      toast.success("6 vistas geradas.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não consegui gerar as vistas.");
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  /** Renomeia. `renameFile` já existia em actions.ts e nunca fora chamada. */
+  const handleRename = async (model: StlModel) => {
+    const next = window.prompt("Novo nome do arquivo:", model.name);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === model.name) return;
+
+    const snapshot = models;
+    setRenamingId(model.id);
+    setModels((prev) => prev.map((m) => (m.id === model.id ? { ...m, name: trimmed } : m)));
+    const res = await renameFile({ id: model.id, name: trimmed });
+    setRenamingId(null);
+    if (!res.ok) {
+      setModels(snapshot);
+      toast.error(res.error);
+      return;
+    }
+    toast.success("Nome atualizado.");
   };
 
   const removeModel = async (id: string) => {
@@ -426,15 +544,37 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
               <div className="flex gap-2 pt-2 border-t border-border">
                 <Button
                   onClick={() => openInspector(model)}
-                  disabled={loadingInspector}
+                  disabled={loadingInspector === model.id}
                   className="flex-1 text-xs gap-1.5 bg-accent-soft hover:bg-accent/20 text-accent border border-accent/20 rounded-xl"
                 >
                   <Eye size={14} />
-                  {loadingInspector ? "Carregando…" : "Inspecionar 3D"}
+                  {loadingInspector === model.id ? "Carregando…" : "Inspecionar 3D"}
+                </Button>
+                <Button
+                  onClick={() => void downloadModel(model)}
+                  disabled={downloading === model.id}
+                  variant="outline"
+                  title="Baixar o arquivo original"
+                  aria-label={`Baixar ${model.name}`}
+                  className="p-2 rounded-xl"
+                >
+                  <DownloadSimple size={14} />
+                </Button>
+                <Button
+                  onClick={() => void handleRename(model)}
+                  disabled={renamingId === model.id}
+                  variant="outline"
+                  title="Renomear"
+                  aria-label={`Renomear ${model.name}`}
+                  className="p-2 rounded-xl"
+                >
+                  <PencilSimple size={14} />
                 </Button>
                 <Button
                   onClick={() => removeModel(model.id)}
                   variant="outline"
+                  title="Excluir"
+                  aria-label={`Excluir ${model.name}`}
                   className="p-2 border-red-500/20 hover:bg-red-500/10 text-red-400 rounded-xl"
                 >
                   <Trash size={14} />
@@ -444,7 +584,18 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
           </SpotlightCard>
         ))}
 
-        {models.length === 0 && (
+        {models.length === 0 && loadError && (
+          <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-red-500/40 bg-red-500/5 p-12 text-center">
+            <Info className="mb-3 h-12 w-12 text-red-400" />
+            <h3 className="font-semibold text-red-400">Não consegui carregar seus arquivos</h3>
+            <p className="mt-1 max-w-md text-xs text-muted-foreground">
+              Isto <strong>não</strong> significa que os arquivos foram perdidos — é uma falha de
+              leitura. Motivo: <span className="font-mono">{loadError}</span>
+            </p>
+          </div>
+        )}
+
+        {models.length === 0 && !loadError && (
           <div className="col-span-full flex flex-col items-center justify-center p-12 border border-dashed border-border rounded-2xl text-center bg-muted/30">
             <Cube className="h-12 w-12 text-muted-foreground mb-3" />
             <h3 className="font-semibold text-muted-foreground">Nenhum arquivo 3D enviado</h3>
@@ -485,8 +636,9 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                 <ThreeViewer
                   positions={activeInspector.positions!}
                   boundingBox={activeInspector.boundingBox}
-                  color={inspectorColor}
-                  wireframe={inspectorWireframe}
+                  viewMode={viewMode}
+                  materialPreset={materialPreset}
+                  studio={studio}
                   autoRotate={inspectorRotate}
                   sliceHeightPercent={sliceHeightPercent}
                   dirLightIntensity={dirLightIntensity}
@@ -494,6 +646,7 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                   rotateX={rotateX}
                   rotateY={rotateY}
                   rotateZ={rotateZ}
+                  onApiReady={(api) => { viewerApi.current = api; }}
                 />
               </div>
 
@@ -526,20 +679,91 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
                   </div>
 
                   <div className="space-y-2 pt-1">
-                    <Label htmlFor="color-picker-select">Cor do Material</Label>
+                    <Label htmlFor="view-mode-select">Como visualizar</Label>
                     <select
-                      id="color-picker-select"
-                      value={inspectorColor}
-                      onChange={(e) => setInspectorColor(e.target.value)}
-                      className="w-full text-xs p-2 rounded-md border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                      id="view-mode-select"
+                      value={viewMode}
+                      onChange={(e) => setViewMode(e.target.value as ViewMode)}
+                      className="w-full rounded-md border border-border bg-surface p-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
                     >
-                      <option value="#3b82f6" className="bg-surface">Azul Elétrico</option>
-                      <option value="#10b981" className="bg-surface">Verde Esmeralda</option>
-                      <option value="#ef4444" className="bg-surface">Vermelho Rocket</option>
-                      <option value="#f59e0b" className="bg-surface">Âmbar Gold</option>
-                      <option value="#d946ef" className="bg-surface">Magenta Shock</option>
-                      <option value="#64748b" className="bg-surface">Cinza Titânio</option>
+                      {VIEW_MODES.map((m) => (
+                        <option key={m.id} value={m.id} className="bg-surface">{m.label}</option>
+                      ))}
                     </select>
+                    <p className="text-[10px] leading-snug text-muted-foreground">
+                      {VIEW_MODES.find((m) => m.id === viewMode)?.hint}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="material-select">Material</Label>
+                    <select
+                      id="material-select"
+                      value={materialPreset}
+                      onChange={(e) => setMaterialPreset(e.target.value as MaterialPresetId)}
+                      disabled={viewMode === "normals" || viewMode === "matcap"}
+                      className="w-full rounded-md border border-border bg-surface p-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+                    >
+                      {MATERIAL_PRESETS.map((m) => (
+                        <option key={m.id} value={m.id} className="bg-surface">{m.label}</option>
+                      ))}
+                    </select>
+                    {(viewMode === "normals" || viewMode === "matcap") && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Este modo tem sombreamento próprio — o material não se aplica.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* ── Foto de produto ──────────────────────────────────── */}
+                  <div className="space-y-2 border-t border-border pt-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="studio-toggle" className="cursor-pointer text-[11px] text-muted-foreground">
+                        Estúdio (fundo branco)
+                      </Label>
+                      <input
+                        id="studio-toggle"
+                        type="checkbox"
+                        checked={studio}
+                        onChange={(e) => setStudio(e.target.checked)}
+                        className="h-4 w-4 cursor-pointer rounded border-border bg-surface text-accent focus:ring-accent"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1">
+                      {STUDIO_ANGLES.map((a) => (
+                        <Button
+                          key={a.id}
+                          variant="outline"
+                          onClick={() => viewerApi.current?.setAngle(a.id)}
+                          className="h-7 px-1 text-[10px]"
+                        >
+                          {a.label}
+                        </Button>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-1">
+                      <Button
+                        variant="outline"
+                        disabled={capturing}
+                        onClick={() => void captureOne()}
+                        className="h-8 flex-1 gap-1 text-[10px]"
+                      >
+                        <DownloadSimple size={12} /> PNG 2×
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={capturing}
+                        onClick={() => void captureAllAngles()}
+                        className="h-8 flex-1 text-[10px]"
+                      >
+                        {capturing ? "Gerando…" : "As 6 vistas"}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] leading-snug text-muted-foreground">
+                      Serve de foto de produto para Shopee e Instagram.
+                    </p>
                   </div>
 
                   {/* manual rotation controls */}
@@ -643,17 +867,6 @@ export function ModelsClient({ initialModels }: { initialModels: Model3dRow[] })
 
                   {/* wireframe & rotate switches */}
                   <div className="space-y-3 pt-2 border-t border-border">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="wireframe-toggle" className="cursor-pointer text-[11px] text-muted-foreground">Modo Wireframe</Label>
-                      <input 
-                        id="wireframe-toggle"
-                        type="checkbox" 
-                        checked={inspectorWireframe}
-                        onChange={(e) => setInspectorWireframe(e.target.checked)}
-                        className="rounded border-border text-accent focus:ring-accent h-4 w-4 cursor-pointer bg-surface"
-                      />
-                    </div>
-
                     <div className="flex items-center justify-between">
                       <Label htmlFor="rotate-toggle" className="cursor-pointer text-[11px] text-muted-foreground">Rotação Automática</Label>
                       <input 

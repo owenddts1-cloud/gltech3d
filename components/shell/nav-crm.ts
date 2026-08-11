@@ -4,7 +4,7 @@ import {
   Inbox, ScalesSimple, Robot, PlugsConnected,
   Gauge, Printer, Ruler, ClipboardText, Sparkle, ShoppingCart, Package, Cube,
   CalendarBlank, ChartLineUp, Toolbox, Handshake, AddressBook, Calculator, Coins,
-  Storefront, VideoCamera,
+  Storefront, VideoCamera, Layers,
 } from "@/lib/ui/icons";
 
 export interface NavLeaf {
@@ -40,6 +40,7 @@ export const CRM_NAV: NavEntry[] = [
       { href: "/app/settings/tenant", label: "Organização", icon: Buildings },
       { href: "/app/printers", label: "Impressoras & Filamentos", icon: Printer },
       { href: "/app/models", label: "Modelagem", icon: Cube },
+      { href: "/app/models/fatiar", label: "Fatiar", icon: Layers },
       { href: "/app/calculator", label: "Calculadora 3D", icon: Calculator },
       { href: "/app/calendar", label: "Calendário", icon: CalendarBlank },
     ],

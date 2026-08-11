@@ -4,28 +4,74 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
+import {
+  materialPresetById,
+  cameraPoseFor,
+  framingRadius,
+  type ViewMode,
+  type MaterialPresetId,
+  type StudioAngle,
+} from "@/lib/models/viewer-presets";
+
+/** O que o inspetor expõe para a tela poder tirar foto e trocar de ângulo. */
+export interface ViewerApi {
+  /** PNG do que está na tela. `scale` multiplica a resolução (1×/2×/4×). */
+  capture: (opts?: { scale?: number; transparent?: boolean }) => Promise<Blob>;
+  setAngle: (angle: StudioAngle) => void;
+}
+
 interface ThreeViewerProps {
   positions: Float32Array;
   boundingBox: {
     min: [number, number, number];
     max: [number, number, number];
   };
-  color?: string;
-  wireframe?: boolean;
+  viewMode?: ViewMode;
+  materialPreset?: MaterialPresetId;
+  /** Fundo branco + chão com sombra, para foto de produto. */
+  studio?: boolean;
   autoRotate?: boolean;
-  sliceHeightPercent?: number; // 0 to 100
+  sliceHeightPercent?: number;
   dirLightIntensity?: number;
   ambientLightIntensity?: number;
-  rotateX?: number; // degrees
-  rotateY?: number; // degrees
-  rotateZ?: number; // degrees
+  rotateX?: number;
+  rotateY?: number;
+  rotateZ?: number;
+  /** Chamado quando a cena está pronta. Guarde num ref para tirar foto depois. */
+  onApiReady?: (api: ViewerApi) => void;
+}
+
+/**
+ * Matcap procedural: gradiente radial claro→escuro numa textura.
+ *
+ * Evita baixar uma imagem de matcap (que seria mais um asset e mais uma licença
+ * a conferir) e já entrega o sombreamento de estúdio que ajuda a julgar a forma.
+ */
+function makeMatcapTexture(): THREE.Texture {
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    const g = ctx.createRadialGradient(size * 0.35, size * 0.3, size * 0.05, size * 0.5, size * 0.5, size * 0.62);
+    g.addColorStop(0, "#ffffff");
+    g.addColorStop(0.45, "#b9bec7");
+    g.addColorStop(1, "#2b2f36");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 
 export default function ThreeViewer({
   positions,
   boundingBox,
-  color = "#3b82f6",
-  wireframe = false,
+  viewMode = "solid",
+  materialPreset = "filamento-fosco",
+  studio = false,
   autoRotate = false,
   sliceHeightPercent = 100,
   dirLightIntensity = 0.8,
@@ -33,107 +79,175 @@ export default function ThreeViewer({
   rotateX = 0,
   rotateY = 0,
   rotateZ = 0,
+  onApiReady,
 }: ThreeViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  // A callback vive num ref para não entrar nas dependências do efeito — se
+  // entrasse, um `onApiReady` inline remontaria a cena a cada render do pai.
+  const onApiReadyRef = useRef(onApiReady);
+  onApiReadyRef.current = onApiReady;
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Dimensions
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight || 400;
 
-    // 1. Scene & Camera
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#0c0a09"); // absolute dark matching system background
+    scene.background = new THREE.Color(studio ? "#ffffff" : "#0c0a09");
 
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 10000);
 
-    // 2. Renderer with clipping enabled
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      // Sem isto, `toBlob` devolve imagem em branco na maioria dos navegadores:
+      // o buffer é limpo logo após o desenho.
+      preserveDrawingBuffer: true,
+    });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.localClippingEnabled = true; // MUST enable for local clipping planes
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.localClippingEnabled = true;
     containerRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
 
-    // 3. Lights with custom intensity props
-    const ambientLight = new THREE.AmbientLight(0xffffff, ambientLightIntensity);
-    scene.add(ambientLight);
+    // ── Luz ────────────────────────────────────────────────────────────────
+    // No estúdio a luz é de três pontos e mais forte: fundo branco "come" a
+    // iluminação e a peça sai cinzenta se mantiver os valores do modo escuro.
+    const ambient = new THREE.AmbientLight(0xffffff, studio ? 0.75 : ambientLightIntensity);
+    scene.add(ambient);
 
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, dirLightIntensity);
-    dirLight1.position.set(100, 100, 50);
-    scene.add(dirLight1);
+    const key = new THREE.DirectionalLight(0xffffff, studio ? 1.6 : dirLightIntensity);
+    key.position.set(100, 140, 90);
+    key.castShadow = studio;
+    scene.add(key);
 
-    const dirLight2 = new THREE.DirectionalLight(0xffffff, dirLightIntensity * 0.4);
-    dirLight2.position.set(-100, -100, -50);
-    scene.add(dirLight2);
+    const fill = new THREE.DirectionalLight(0xffffff, studio ? 0.7 : dirLightIntensity * 0.4);
+    fill.position.set(-120, 40, 60);
+    scene.add(fill);
 
-    // 4. Geometry
+    if (studio) {
+      const rim = new THREE.DirectionalLight(0xffffff, 0.5);
+      rim.position.set(0, 60, -140);
+      scene.add(rim);
+    }
+
+    // ── Geometria ──────────────────────────────────────────────────────────
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geometry.computeVertexNormals();
-
-    // Center the geometry
     geometry.center();
-
-    // Compute bounding box of centered geometry
     geometry.computeBoundingBox();
-    const bbox = geometry.boundingBox || new THREE.Box3();
-    const minY = bbox.min.y;
-    const maxY = bbox.max.y;
-    const modelHeight = maxY - minY;
 
-    // 5. Clipping Plane (Slicer simulation)
-    // We keep everything BELOW the current height (normal points UP)
-    const currentHeight = minY + (modelHeight * sliceHeightPercent) / 100;
+    const bbox = geometry.boundingBox ?? new THREE.Box3();
+    const modelHeight = bbox.max.y - bbox.min.y;
+    const currentHeight = bbox.min.y + (modelHeight * sliceHeightPercent) / 100;
     const clippingPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), currentHeight);
 
-    // 6. Material & Mesh
-    const material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(color),
-      roughness: 0.35,
-      metalness: 0.75,
-      wireframe: wireframe,
-      side: THREE.DoubleSide,
-      clippingPlanes: [clippingPlane],
-      clipShadows: true,
-    });
+    const preset = materialPresetById(materialPreset);
+    const disposables: Array<{ dispose: () => void }> = [geometry];
+
+    let material: THREE.Material;
+    if (viewMode === "normals") {
+      // Normal invertida salta à vista: a face muda de cor por completo.
+      material = new THREE.MeshNormalMaterial({
+        side: THREE.DoubleSide,
+        clippingPlanes: [clippingPlane],
+      });
+    } else if (viewMode === "matcap") {
+      const matcap = makeMatcapTexture();
+      disposables.push(matcap);
+      material = new THREE.MeshMatcapMaterial({
+        matcap,
+        side: THREE.DoubleSide,
+        clippingPlanes: [clippingPlane],
+      });
+    } else {
+      const transparent = viewMode === "xray" || preset.opacity < 1;
+      material = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(viewMode === "xray" ? "#7dd3fc" : preset.color),
+        roughness: viewMode === "xray" ? 0.2 : preset.roughness,
+        metalness: viewMode === "xray" ? 0 : preset.metalness,
+        clearcoat: preset.clearcoat,
+        clearcoatRoughness: preset.clearcoatRoughness,
+        transmission: viewMode === "xray" ? 0 : preset.transmission,
+        transparent,
+        opacity: viewMode === "xray" ? 0.28 : preset.opacity,
+        // Raio-X mostra as paredes internas: desligar o descarte de face de trás
+        // é o que revela o vazio da peça.
+        side: THREE.DoubleSide,
+        depthWrite: !transparent,
+        wireframe: viewMode === "wireframe",
+        clippingPlanes: [clippingPlane],
+        clipShadows: true,
+      });
+    }
+    disposables.push(material);
 
     const mesh = new THREE.Mesh(geometry, material);
-    
-    // Apply manual rotations
+    mesh.castShadow = studio;
     mesh.rotation.x = THREE.MathUtils.degToRad(rotateX);
-    if (!autoRotate) {
-      mesh.rotation.y = THREE.MathUtils.degToRad(rotateY);
-    }
+    if (!autoRotate) mesh.rotation.y = THREE.MathUtils.degToRad(rotateY);
     mesh.rotation.z = THREE.MathUtils.degToRad(rotateZ);
-    
     scene.add(mesh);
 
-    // 7. Grid Helper
+    // Arestas por cima do sólido: no wireframe puro a peça some contra o fundo.
+    if (viewMode === "wireframe") {
+      const edges = new THREE.EdgesGeometry(geometry, 25);
+      const lineMaterial = new THREE.LineBasicMaterial({ color: studio ? 0x333333 : 0xfb923c });
+      const lines = new THREE.LineSegments(edges, lineMaterial);
+      lines.rotation.copy(mesh.rotation);
+      scene.add(lines);
+      disposables.push(edges, lineMaterial);
+    }
+
+    // ── Chão ───────────────────────────────────────────────────────────────
     const sizeX = boundingBox.max[0] - boundingBox.min[0];
     const sizeY = boundingBox.max[1] - boundingBox.min[1];
     const sizeZ = boundingBox.max[2] - boundingBox.min[2];
-    const maxDim = Math.max(sizeX, sizeY, sizeZ);
-    
-    const gridHelper = new THREE.GridHelper(maxDim * 2.5, 20, "#27272a", "#09090b");
-    gridHelper.position.y = -sizeY / 2 - 2;
-    scene.add(gridHelper);
+    const maxDim = Math.max(sizeX, sizeY, sizeZ, 1);
 
-    // 8. Adjust camera position based on bounding box
-    camera.position.set(maxDim * 1.5, maxDim * 1.2, maxDim * 1.5);
+    if (studio) {
+      // Sombra suave sobre branco. `ShadowMaterial` só desenha a sombra, então o
+      // fundo continua branco puro — é o que serve de foto de produto.
+      const floorGeo = new THREE.PlaneGeometry(maxDim * 8, maxDim * 8);
+      const floorMat = new THREE.ShadowMaterial({ opacity: 0.18 });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -sizeY / 2 - 1;
+      floor.receiveShadow = true;
+      scene.add(floor);
+      disposables.push(floorGeo, floorMat);
+
+      key.shadow.mapSize.set(1024, 1024);
+      const shadowCam = key.shadow.camera;
+      shadowCam.near = 1;
+      shadowCam.far = maxDim * 12;
+      shadowCam.left = -maxDim * 2;
+      shadowCam.right = maxDim * 2;
+      shadowCam.top = maxDim * 2;
+      shadowCam.bottom = -maxDim * 2;
+      shadowCam.updateProjectionMatrix();
+    } else {
+      const grid = new THREE.GridHelper(maxDim * 2.5, 20, "#27272a", "#09090b");
+      grid.position.y = -sizeY / 2 - 2;
+      scene.add(grid);
+      disposables.push(grid.geometry, grid.material as THREE.Material);
+    }
+
+    // ── Câmera ─────────────────────────────────────────────────────────────
+    const radius = framingRadius(maxDim, 45, width / height);
+    const initial = cameraPoseFor("iso", radius);
+    camera.position.set(...initial.position);
+    camera.up.set(...initial.up);
     camera.lookAt(0, 0, 0);
 
-    // 9. Orbit Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2 + 0.1; // Don't go below floor
+    controls.maxPolarAngle = Math.PI / 2 + 0.1;
 
-    // Handle Resize
     const handleResize = () => {
       if (!containerRef.current) return;
       const w = containerRef.current.clientWidth;
@@ -144,38 +258,68 @@ export default function ThreeViewer({
     };
     window.addEventListener("resize", handleResize);
 
-    // 10. Animation Loop
-    let animationFrameId: number;
+    let frameId = 0;
     const animate = () => {
-      animationFrameId = requestAnimationFrame(animate);
-      
-      if (autoRotate) {
-        mesh.rotation.y += 0.005;
-      }
-      
+      frameId = requestAnimationFrame(animate);
+      if (autoRotate) mesh.rotation.y += 0.005;
       controls.update();
       renderer.render(scene, camera);
     };
     animate();
 
-    // Cleanup
+    // ── API exposta ────────────────────────────────────────────────────────
+    onApiReadyRef.current?.({
+      setAngle: (angle) => {
+        const pose = cameraPoseFor(angle, framingRadius(maxDim, 45, camera.aspect));
+        camera.up.set(...pose.up);
+        camera.position.set(...pose.position);
+        controls.target.set(0, 0, 0);
+        controls.update();
+      },
+      capture: ({ scale = 2, transparent = false } = {}) =>
+        new Promise<Blob>((resolve, reject) => {
+          const w = renderer.domElement.width;
+          const h = renderer.domElement.height;
+          const previousBackground = scene.background;
+          // Renderiza uma vez no tamanho pedido, captura, e devolve tudo ao
+          // estado anterior — a tela não pode "piscar" para o usuário.
+          try {
+            if (transparent) scene.background = null;
+            renderer.setSize((w / renderer.getPixelRatio()) * scale, (h / renderer.getPixelRatio()) * scale, false);
+            camera.updateProjectionMatrix();
+            renderer.render(scene, camera);
+            renderer.domElement.toBlob((blob) => {
+              scene.background = previousBackground;
+              renderer.setSize(w / renderer.getPixelRatio(), h / renderer.getPixelRatio(), false);
+              handleResize();
+              if (blob) resolve(blob);
+              else reject(new Error("O navegador não devolveu a imagem."));
+            }, "image/png");
+          } catch (error) {
+            scene.background = previousBackground;
+            handleResize();
+            reject(error instanceof Error ? error : new Error("Falha ao capturar a imagem."));
+          }
+        }),
+    });
+
     const container = containerRef.current;
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      cancelAnimationFrame(frameId);
       window.removeEventListener("resize", handleResize);
       controls.dispose();
-      geometry.dispose();
-      material.dispose();
+      for (const d of disposables) d.dispose();
       renderer.dispose();
-      if (container && renderer.domElement) {
+      if (container && renderer.domElement.parentNode === container) {
         container.removeChild(renderer.domElement);
       }
     };
   }, [
     positions,
     boundingBox,
-    color,
-    wireframe,
+    viewMode,
+    materialPreset,
+    studio,
     autoRotate,
     sliceHeightPercent,
     dirLightIntensity,
@@ -188,7 +332,9 @@ export default function ThreeViewer({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full min-h-[400px] rounded-lg overflow-hidden border border-border bg-zinc-950/40"
+      className={`h-full min-h-[400px] w-full overflow-hidden rounded-lg border border-border ${
+        studio ? "bg-white" : "bg-zinc-950/40"
+      }`}
     />
   );
 }
