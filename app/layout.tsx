@@ -34,16 +34,10 @@ export const metadata: Metadata = {
     "O super app da GLTech3D: fazenda de impressão, projetos, produtos, ordens de serviço, vendas multicanal, atendimento e IA — tudo num só painel. Multi-tenant, LGPD-nativo.",
   applicationName: "GLTECH CRM",
   authors: [{ name: "GLTech3D" }],
-  keywords: [
-    "impressão 3D",
-    "print farm",
-    "CRM",
-    "ERP",
-    "e-commerce",
-    "marketplace",
-    "IA",
-    "LGPD",
-  ],
+  // `keywords` REMOVIDO. Ficava aqui na raiz e por isso vazava para a landing
+  // pública: o HTML publicado saía com `CRM,ERP,IA,LGPD` — termos do produto
+  // B2B — na página de quem procura uma luminária. O Google ignora esta tag
+  // desde 2009, então não há o que ganhar mantendo-a nem mesmo corrigida.
   robots: { index: false, follow: false },
 };
 

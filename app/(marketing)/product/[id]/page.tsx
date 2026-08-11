@@ -9,6 +9,7 @@ import Footer from '@/components/marketing/Footer';
 import ProductGallery from '@/components/marketing/ProductGallery';
 import ProductActions from './ProductActions';
 import VariationPicker from './VariationPicker';
+import { siteUrl } from '@/lib/marketing/site-url';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -21,7 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     };
   }
 
-  const baseUrl = 'https://gltech3d.com.br';
+  const baseUrl = siteUrl();
   const canonicalUrl = `${baseUrl}/product/${product.slug || product.id}`;
   const priceStr = product.priceRange ? product.priceRange : `R$ ${product.price.toFixed(2)}`;
 
@@ -81,7 +82,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       priceCurrency: 'BRL',
       price: product.price,
       availability: 'https://schema.org/InStock',
-      url: `https://gltech3d.com.br/product/${product.slug || product.id}`,
+      url: `${siteUrl()}/product/${product.slug || product.id}`,
     },
   };
 

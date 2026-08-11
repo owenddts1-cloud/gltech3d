@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { siteUrl } from '@/lib/marketing/site-url';
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -7,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/app/', '/admin/', '/api/'],
     },
-    sitemap: 'https://gltech3d.com.br/sitemap.xml',
+    sitemap: `${siteUrl()}/sitemap.xml`,
   };
 }

@@ -14,20 +14,27 @@ const sora = Sora({
 });
 
 import WhatsAppFloat from "@/components/marketing/WhatsAppFloat";
+import { siteUrl } from "@/lib/marketing/site-url";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl()),
   title: {
-    default: "GLTech3D — Impressão 3D e Peças Sob Demanda",
+    // `absolute` e não `default`: com `default`, o Next aplica por cima o
+    // template do layout RAIZ (`%s · GLTECH CRM`), e a home publicada saía como
+    // "GLTech3D — Impressão 3D e Peças Sob Demanda · GLTECH CRM" — jargão de
+    // sistema interno no título que o cliente e o Google veem.
+    absolute: "GLTech3D — Impressão 3D e Peças Sob Demanda",
     template: "%s | GLTech3D",
   },
   description:
     "Manufatura aditiva, prototipagem técnica e produtos exclusivos em impressão 3D de alta qualidade com acabamento premium.",
   robots: { index: true, follow: true },
+  alternates: { canonical: "/" },
   openGraph: {
     title: "GLTech3D — Impressão 3D e Peças Sob Demanda",
     description:
       "Produtos únicos de impressão 3D feitos sob demanda com acabamento premium. Entregamos em todo o Brasil.",
-    url: "https://gltech3d.com.br",
+    url: siteUrl(),
     siteName: "GLTech3D",
     locale: "pt_BR",
     type: "website",

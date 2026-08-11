@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getWahaClient } from "@/lib/waha/client";
 import { randomUUID } from "node:crypto";
 import { audit } from "@/lib/audit";
+import { siteUrl } from "@/lib/marketing/site-url";
 
 interface RecoveryTriggerInput {
   organizationId: string;
@@ -157,7 +158,7 @@ export async function triggerLeadRecovery(
       : "";
     
     const messageText = type === "abandoned_cart"
-      ? `Olá, ${input.customerName}! Tudo bem?\n\nPercebemos que você adicionou itens ao seu carrinho na GLTech3D ${formattedValue ? `no valor de ${formattedValue} ` : ""}mas não concluiu a compra.\n\nQueremos te ajudar a tirar seu projeto 3D do papel! Para recuperar seus itens, acesse este link exclusivo com frete grátis: ${input.cartUrl || "gltech3d.com.br/checkout"}`
+      ? `Olá, ${input.customerName}! Tudo bem?\n\nPercebemos que você adicionou itens ao seu carrinho na GLTech3D ${formattedValue ? `no valor de ${formattedValue} ` : ""}mas não concluiu a compra.\n\nQueremos te ajudar a tirar seu projeto 3D do papel! Para recuperar seus itens, acesse este link exclusivo com frete grátis: ${input.cartUrl || `${siteUrl()}/checkout`}`
       : `Olá, ${input.customerName}! Recebemos sua mensagem sobre nossos serviços de impressão 3D e prototipagem rápida.\n\nUm engenheiro da nossa equipe já foi notificado e entrará em contato com você em instantes. Obrigado pelo interesse!`;
 
     if (waha) {

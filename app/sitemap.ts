@@ -1,9 +1,10 @@
 import type { MetadataRoute } from 'next';
 import { getLandingCatalog } from '@/lib/landing/repository';
 import type { LandingProduct } from '@/lib/landing/types';
+import { siteUrl } from '@/lib/marketing/site-url';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://gltech3d.com.br';
+  const baseUrl = siteUrl();
 
   const staticRoutes: MetadataRoute.Sitemap = [
     {

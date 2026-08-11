@@ -1,3 +1,5 @@
+import { siteUrl } from "@/lib/marketing/site-url";
+
 export interface CatalogProductItem {
   id: string;
   name: string;
@@ -28,7 +30,7 @@ export function formatCatalogForWhatsApp(
   options: WhatsAppCatalogOptions,
 ): string {
   const storeName = options.storeName || "GLTECH3D";
-  const baseUrl = options.baseUrl || "https://gltech3d.com.br";
+  const baseUrl = options.baseUrl || siteUrl();
   const discount = options.wholesaleDiscountPct ?? 15;
 
   let text = `🚀 *CATÁLOGO DE PRODUTOS — ${storeName.toUpperCase()}*\n`;
