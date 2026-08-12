@@ -24,7 +24,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { MODELS_BUCKET } from "@/lib/models/config";
 import { estimateFromMesh } from "@/lib/pricing/estimate-from-mesh";
-import { DEFAULT_SLICE_SETTINGS } from "@/lib/slicer/pipeline";
+import { DEFAULT_SLICE_SETTINGS, type SliceSettings } from "@/lib/slicer/pipeline";
 
 const schema = z.object({
   productId: z.string().uuid(),
@@ -42,6 +42,92 @@ export interface EstimateResult {
   supportCm3: number;
   openContourCount: number;
   elapsedMs: number;
+}
+
+/**
+ * Estima a partir do MODELO, sem gravar nada.
+ *
+ * Existe separada de `estimateProductFromModel` por um motivo de fluxo: no
+ * formulário de CRIAÇÃO a peça ainda não tem id, e obrigar a salvar, reabrir e
+ * só então estimar é o tipo de passo que faz o operador desistir e digitar zero.
+ * Aqui a tela recebe os números, preenche os campos, e a gravação acontece no
+ * submit normal junto com o resto.
+ */
+export async function estimateFromModelId(raw: unknown) {
+  const authUser = await loadAuthUser();
+  if (!authUser) return { ok: false as const, error: "Não autenticado" };
+  const activeOrg = await resolveActiveOrg(authUser);
+  if (!activeOrg) return { ok: false as const, error: "Nenhuma organização ativa" };
+
+  const parsed = z
+    .object({
+      modelId: z.string().uuid(),
+      infillDensityPct: z.coerce.number().min(0).max(100).optional(),
+      wallCount: z.coerce.number().int().min(1).max(10).optional(),
+      layerHeight: z.coerce.number().min(0.04).max(0.6).optional(),
+      supportsEnabled: z.boolean().optional(),
+    })
+    .safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
+  }
+  const { modelId, ...overrides } = parsed.data;
+
+  const supabase = await createClient();
+  return runEstimate(supabase, activeOrg.orgId, modelId, overrides);
+}
+
+/**
+ * Baixa o STL e fatia. Compartilhado pelas duas actions para a estimativa da
+ * ficha e a da gravação em lote não poderem divergir.
+ */
+async function runEstimate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orgId: string,
+  modelId: string,
+  overrides: Partial<SliceSettings>,
+) {
+  const { data: model } = await supabase
+    .from("models_3d")
+    .select("file_path, name, kind")
+    .eq("organization_id", orgId)
+    .eq("id", modelId)
+    .maybeSingle();
+  if (!model) return { ok: false as const, error: "Modelo não encontrado." };
+
+  const { file_path: filePath, kind } = model as { file_path: string; kind: string | null };
+  // O estimador do servidor lê STL. O 3MF depende de `DecompressionStream`, que
+  // o caminho do navegador tem; dizer isso é melhor que falhar com "não
+  // reconheci o arquivo".
+  if (kind && kind !== "stl") {
+    return {
+      ok: false as const,
+      error: "Por enquanto a estimativa lê apenas STL. Envie o STL desta peça.",
+    };
+  }
+  if (!filePath.startsWith(`${orgId}/`)) {
+    return { ok: false as const, error: "Caminho fora da sua organização." };
+  }
+
+  const signed = await supabase.storage.from(MODELS_BUCKET).createSignedUrl(filePath, 300);
+  if (signed.error) return { ok: false as const, error: signed.error.message };
+
+  const started = Date.now();
+  try {
+    const res = await fetch(signed.data.signedUrl, { cache: "no-store" });
+    if (!res.ok) return { ok: false as const, error: `Falha ao ler o arquivo (HTTP ${res.status})` };
+    const estimate = estimateFromMesh(await res.arrayBuffer(), {
+      settings: { ...DEFAULT_SLICE_SETTINGS, ...overrides },
+    });
+    return { ok: true as const, estimate, elapsedMs: Date.now() - started, modelId };
+  } catch (e) {
+    // Malha quebrada, arquivo truncado ou formato inesperado. A mensagem do
+    // parser é específica; propagá-la ajuda mais que "erro ao estimar".
+    return {
+      ok: false as const,
+      error: e instanceof Error ? e.message : "Não consegui fatiar este arquivo.",
+    };
+  }
 }
 
 export async function estimateProductFromModel(raw: unknown) {
@@ -75,48 +161,9 @@ export async function estimateProductFromModel(raw: unknown) {
     };
   }
 
-  const { data: model } = await supabase
-    .from("models_3d")
-    .select("file_path, name, kind")
-    .eq("organization_id", activeOrg.orgId)
-    .eq("id", modelId)
-    .maybeSingle();
-  if (!model) return { ok: false as const, error: "Modelo vinculado não existe mais." };
-
-  const { file_path: filePath, kind } = model as { file_path: string; kind: string | null };
-  // O estimador lê STL. 3MF é lido pelo `parseMeshBuffer` do navegador, que
-  // depende de `DecompressionStream`; deixar explícito é melhor que falhar com
-  // "não reconheci o arquivo".
-  if (kind && kind !== "stl") {
-    return {
-      ok: false as const,
-      error: "Por enquanto a estimativa lê apenas STL. Envie o STL desta peça.",
-    };
-  }
-  if (!filePath.startsWith(`${activeOrg.orgId}/`)) {
-    return { ok: false as const, error: "Caminho fora da sua organização." };
-  }
-
-  const signed = await supabase.storage.from(MODELS_BUCKET).createSignedUrl(filePath, 300);
-  if (signed.error) return { ok: false as const, error: signed.error.message };
-
-  const started = Date.now();
-  let estimate;
-  try {
-    const res = await fetch(signed.data.signedUrl, { cache: "no-store" });
-    if (!res.ok) return { ok: false as const, error: `Falha ao ler o arquivo (HTTP ${res.status})` };
-    estimate = estimateFromMesh(await res.arrayBuffer(), {
-      settings: { ...DEFAULT_SLICE_SETTINGS, ...overrides },
-    });
-  } catch (e) {
-    // Malha quebrada, arquivo truncado ou formato inesperado. A mensagem do
-    // parser já é específica; propagá-la ajuda mais que "erro ao estimar".
-    return {
-      ok: false as const,
-      error: e instanceof Error ? e.message : "Não consegui fatiar este arquivo.",
-    };
-  }
-  const elapsedMs = Date.now() - started;
+  const run = await runEstimate(supabase, activeOrg.orgId, modelId, overrides);
+  if (!run.ok) return run;
+  const { estimate, elapsedMs } = run;
 
   const { error: saveError } = await supabase
     .from("products")

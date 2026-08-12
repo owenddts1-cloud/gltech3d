@@ -39,6 +39,13 @@ const createSchema = z.object({
   contactId: z.string().uuid().nullable().optional(),
   /** FK → products.id (migration 0055). Enables sales bump trigger. */
   productId: z.string().uuid().nullable().optional(),
+  /**
+   * Venda de item FORA do catálogo (0078). Exclusivo com `productId`.
+   *
+   * Distingue "não é do catálogo" de "faltou preencher" — sem a marca, os dois
+   * gravariam `product_id` nulo e nenhum relatório saberia diferenciar.
+   */
+  isCustomItem: z.boolean().optional().default(false),
   qty: z.coerce.number().int().min(1).max(100_000).optional().default(1),
   /** Eixos de produção/pagamento do Kanban (migration 0058). */
   fulfillmentStatus: z.enum(SALES_FULFILLMENT).optional(),
@@ -273,6 +280,8 @@ export async function createSale(raw: unknown) {
       notes: d.notes || null,
       contact_id: d.contactId ?? null,
       product_id: d.productId ?? null,
+      // Exclusivo com product_id: a CHECK da 0078 recusa as duas marcas juntas.
+      is_custom_item: d.productId ? false : (d.isCustomItem ?? false),
       qty: d.qty ?? 1,
       fulfillment_status: d.fulfillmentStatus ?? "confirmada",
       payment_status: d.paymentStatus ?? (d.status === "cancelado" ? "estornado" : "pendente"),
@@ -309,7 +318,12 @@ export async function updateSale(id: string, raw: unknown) {
   if (d.soldAt !== undefined) patch.sold_at = d.soldAt;
   if (d.notes !== undefined) patch.notes = d.notes || null;
   if (d.contactId !== undefined) patch.contact_id = d.contactId;
-  if (d.productId !== undefined) patch.product_id = d.productId;
+  if (d.productId !== undefined) {
+    patch.product_id = d.productId;
+    // Vincular um produto desfaz a marca de avulsa; manter as duas violaria a CHECK.
+    if (d.productId) patch.is_custom_item = false;
+  }
+  if (d.isCustomItem !== undefined && !d.productId) patch.is_custom_item = d.isCustomItem;
   if (d.qty !== undefined) patch.qty = d.qty;
   if (d.fulfillmentStatus !== undefined) patch.fulfillment_status = d.fulfillmentStatus;
   if (d.paymentStatus !== undefined) patch.payment_status = d.paymentStatus;

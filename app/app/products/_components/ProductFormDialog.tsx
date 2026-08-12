@@ -20,6 +20,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ModelEstimate, type ModelOptionLite } from "./ModelEstimate";
+import { ChannelMargins } from "./ChannelMargins";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,6 +71,10 @@ export interface ProductFormPayload {
   buyerProfile?: string;
   modelSource: "proprio" | "livre" | "terceiro" | "desconhecido";
   modelLicense: string;
+  /** STL vinculado (0077) e a proveniência da estimativa. */
+  modelId: string | null;
+  costEstimatedAt: string | null;
+  costEstimateSource: Record<string, unknown>;
 }
 
 interface Props {
@@ -78,6 +84,10 @@ interface Props {
   product: ProductView | null;
   filaments: FilamentLite[];
   printers: PrinterLite[];
+  /** STL do repositório, para vincular e estimar. */
+  models: ModelOptionLite[];
+  /** Alíquota do Simples da organização. 0 = não configurada. */
+  simplesTaxPct: number;
   /** Links da loja — mostrados como placeholder do que a peça vai herdar. */
   globalLinks: Record<string, string>;
   kEnergy: number;
@@ -99,7 +109,8 @@ function Field({
 }
 
 export function ProductFormDialog({
-  open, onOpenChange, product, filaments, printers, globalLinks, kEnergy, onSubmit, onSaveAndNext,
+  open, onOpenChange, product, filaments, printers, models, simplesTaxPct,
+  globalLinks, kEnergy, onSubmit, onSaveAndNext,
 }: Props) {
   const isEdit = product !== null;
 
@@ -134,6 +145,13 @@ export function ProductFormDialog({
   const [buyerProfile, setBuyerProfile] = useState(product?.buyerProfile ?? "");
   const [modelSource, setModelSource] = useState(product?.modelSource ?? "desconhecido");
   const [modelLicense, setModelLicense] = useState(product?.modelLicense ?? "");
+  const [modelId, setModelId] = useState(product?.modelId ?? "");
+  // Proveniência: só muda quando a estimativa roda AGORA. Sem isso, editar o
+  // nome da peça reescreveria a data e faria um valor antigo parecer recém-medido.
+  const [estimatedAt, setEstimatedAt] = useState(product?.costEstimatedAt ?? null);
+  const [estimateSource, setEstimateSource] = useState<Record<string, unknown>>(
+    product?.costEstimateSource ?? {},
+  );
 
   const [tab, setTab] = useState("custo");
   const [pending, startTransition] = useTransition();
@@ -208,6 +226,9 @@ export function ProductFormDialog({
         : {}),
       modelSource,
       modelLicense: modelLicense.trim(),
+      modelId: modelId || null,
+      costEstimatedAt: estimatedAt,
+      costEstimateSource: estimateSource,
     };
   }
 
@@ -255,6 +276,7 @@ export function ProductFormDialog({
         <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <TabsList className="w-full justify-start">
             <TabsTrigger value="custo">Custo</TabsTrigger>
+            <TabsTrigger value="canais">Canais</TabsTrigger>
             <TabsTrigger value="vitrine">Vitrine</TabsTrigger>
             <TabsTrigger value="midia">Mídia</TabsTrigger>
             <TabsTrigger value="links">Links</TabsTrigger>
@@ -279,14 +301,28 @@ export function ProductFormDialog({
                 />
               </Field>
 
+              <ModelEstimate
+                models={models}
+                modelId={modelId}
+                onModelChange={setModelId}
+                onEstimated={({ grams: g, minutes: m, source }) => {
+                  setGrams(formatDecimalInput(g));
+                  setMinutes(formatDecimalInput(m));
+                  setEstimatedAt(new Date().toISOString());
+                  setEstimateSource(source);
+                }}
+                estimatedAt={estimatedAt}
+                estimateSource={estimateSource}
+              />
+
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Gramas" htmlFor="p-grams" hint="Do slicer.">
+                <Field label="Gramas" htmlFor="p-grams" hint="Do fatiador ou da balança.">
                   <Input
                     id="p-grams" ref={gramsRef} inputMode="decimal"
                     value={grams} onChange={(e) => setGrams(e.target.value)} placeholder="45"
                   />
                 </Field>
-                <Field label="Tempo (min)" htmlFor="p-min" hint="Do slicer.">
+                <Field label="Tempo (min)" htmlFor="p-min" hint="Do fatiador ou do cronômetro.">
                   <Input
                     id="p-min" inputMode="decimal"
                     value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="180"
@@ -351,6 +387,14 @@ export function ProductFormDialog({
             </TabsContent>
 
             {/* ── VITRINE ───────────────────────────────────────────────── */}
+            <TabsContent value="canais" className="mt-0 space-y-4">
+              <ChannelMargins
+                unitCost={pricing.totalCost}
+                sellingPrice={salePrice.trim() ? parseDecimal(salePrice) : 0}
+                simplesTaxPct={simplesTaxPct}
+              />
+            </TabsContent>
+
             <TabsContent value="vitrine" className="mt-0 space-y-4">
               <Field label="Endereço na loja (slug)" htmlFor="p-slug" hint={`A peça ficará em /product/${slugPreview}`}>
                 <Input

@@ -89,6 +89,9 @@ export function toProductRowPatch(d: ProductFullPatch): Record<string, unknown> 
   if (d.buyerProfile !== undefined) patch.buyer_profile = orNull(d.buyerProfile);
   if (d.modelSource !== undefined) patch.model_source = d.modelSource;
   if (d.modelLicense !== undefined) patch.model_license = orNull(d.modelLicense);
+  if (d.modelId !== undefined) patch.model_id = d.modelId;
+  if (d.costEstimatedAt !== undefined) patch.cost_estimated_at = d.costEstimatedAt;
+  if (d.costEstimateSource !== undefined) patch.cost_estimate_source = d.costEstimateSource;
 
   // ── Ordenação ────────────────────────────────────────────────────────────
   if (d.sortOrder !== undefined) patch.sort_order = d.sortOrder;

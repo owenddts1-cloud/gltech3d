@@ -11,6 +11,8 @@ export default async function ProductsPage() {
       initialProducts={r.ok ? r.products : []}
       filaments={r.ok ? r.filaments : []}
       printers={r.ok ? r.printers : []}
+      models={r.ok ? r.models : []}
+      simplesTaxPct={r.ok ? r.simplesTaxPct : 0}
       globalLinks={r.ok ? r.globalLinks : {}}
       kEnergy={r.ok ? r.kEnergy : 0.85}
     />

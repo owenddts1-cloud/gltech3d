@@ -72,6 +72,12 @@ export interface ProductView {
   filamentGrams: number;
   printTimeSeconds: number;
   printerClientId: string | null;
+  /** STL vinculado (0077). Alimenta a estimativa de gramas e tempo. */
+  modelId: string | null;
+  /** Quando gramas/tempo foram ESTIMADOS pelo fatiador. Nulo = valor informado. */
+  costEstimatedAt: string | null;
+  /** Perfil usado na estimativa, para a tela não confundir com peso de balança. */
+  costEstimateSource: Record<string, unknown>;
   extraCosts: ExtraCostView[];
   extraCostTotal: number; // reais
   marginPct: number;
@@ -100,7 +106,7 @@ export async function fetchProductsData() {
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
 
   const supabase = await createClient();
-  const [prodRes, filRes, prnRes, orgRes, catRes, setRes] = await Promise.all([
+  const [prodRes, filRes, prnRes, orgRes, catRes, setRes, modelRes] = await Promise.all([
     supabase.from("products").select("*").order("created_at", { ascending: false }),
     supabase.from("filaments").select("client_id, name, cost_per_gram"),
     supabase.from("printers").select("client_id, name, power_draw, depreciation_per_hour"),
@@ -109,6 +115,15 @@ export async function fetchProductsData() {
     // Links globais da loja: o formulário mostra o que a peça vai HERDAR se o
     // campo ficar vazio, em vez de deixar o usuário adivinhar.
     supabase.from("landing_settings").select("links").eq("organization_id", activeOrg.orgId).maybeSingle(),
+    // STL do repositório, para o seletor de modelo da ficha. Só os que têm
+    // geometria: oferecer imagem ou 3MF no seletor só produziria erro no clique.
+    supabase
+      .from("models_3d")
+      .select("id, name, triangles")
+      .eq("organization_id", activeOrg.orgId)
+      .eq("kind", "stl")
+      .gt("triangles", 0)
+      .order("name"),
   ]);
 
   const filaments = ((filRes.data as FilRow[] | null) ?? []);
@@ -176,6 +191,14 @@ export async function fetchProductsData() {
           ? r.model_source
           : "desconhecido",
       modelLicense: str(r.model_license),
+      // Chegam undefined enquanto a 0077 não for aplicada; normalizados aqui
+      // para a tela não quebrar num banco desatualizado.
+      modelId: str(r.model_id),
+      costEstimatedAt: str(r.cost_estimated_at),
+      costEstimateSource:
+        typeof r.cost_estimate_source === "object" && r.cost_estimate_source !== null
+          ? (r.cost_estimate_source as Record<string, unknown>)
+          : {},
       pricing,
     };
   });
@@ -188,6 +211,12 @@ export async function fetchProductsData() {
     filaments: filaments.map((f) => ({ id: f.client_id, name: f.name, costPerGram: num(f.cost_per_gram) })),
     printers: printers.map((p) => ({ id: p.client_id, name: p.name })),
     categories: categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
+    models: ((modelRes.data as Array<{ id: string; name: string; triangles: number }> | null) ?? []).map(
+      (m) => ({ id: m.id, name: m.name, triangles: Number(m.triangles) }),
+    ),
+    /** Alíquota do Simples, para a aba de canais. 0 = não configurada. */
+    simplesTaxPct:
+      Number((orgRes.data?.settings as Record<string, unknown>)?.simples_tax_pct) || 0,
     kEnergy,
   };
 }

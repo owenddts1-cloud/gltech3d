@@ -148,6 +148,25 @@ psql_run -v ON_ERROR_STOP=1 -q -t -c "
 " || exit 1
 
 echo
+echo "== invariantes da 0078 (peca avulsa) =="
+psql_run -v ON_ERROR_STOP=1 -q -t -c "
+  select 'coluna: ' || count(*) from information_schema.columns
+    where table_name='marketplace_orders' and column_name='is_custom_item';
+  select 'check xor: ' || count(*) from pg_constraint
+    where conname='marketplace_orders_custom_xor_product';
+  select 'indice de cobertura: ' || count(*) from pg_indexes
+    where indexname='marketplace_orders_unclassified_idx';
+" || exit 1
+
+echo "== a CHECK impede afirmar as duas coisas? =="
+psql_run -q -t -c "
+  select case when count(*) = 1 then 'OK: check com a condicao certa' else 'FALHOU' end
+  from pg_constraint
+  where conname='marketplace_orders_custom_xor_product'
+    and pg_get_constraintdef(oid) ilike '%is_custom_item%product_id%';
+" | sed 's/^/      /'
+
+echo
 echo "== invariantes da 0077 (produto <-> modelo) =="
 psql_run -v ON_ERROR_STOP=1 -q -t -c "
   select 'colunas novas: ' || count(*) from information_schema.columns

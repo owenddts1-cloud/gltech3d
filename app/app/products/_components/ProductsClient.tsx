@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Package, Plus, Trash, Cube, PencilSimple, Storefront, VideoCamera, Warning } from "@/lib/ui/icons";
 import { dataMesh } from "@/lib/mesh/data-mesh";
+import type { ModelOptionLite } from "./ModelEstimate";
 import {
   createProduct, deleteProduct, updateProduct, fetchProductsData, type ProductView,
 } from "@/app/actions/products/actions";
@@ -28,11 +29,14 @@ function costPending(p: ProductView): boolean {
 }
 
 export function ProductsClient({
-  initialProducts, filaments, printers, globalLinks, kEnergy,
+  initialProducts, filaments, printers, models, simplesTaxPct, globalLinks, kEnergy,
 }: {
   initialProducts: ProductView[];
   filaments: FilamentLite[];
   printers: PrinterLite[];
+  models: ModelOptionLite[];
+  /** Alíquota do Simples da organização. 0 = não configurada. */
+  simplesTaxPct: number;
   globalLinks: Record<string, string>;
   kEnergy: number;
 }) {
@@ -227,6 +231,8 @@ export function ProductsClient({
           product={null}
           filaments={filaments}
           printers={printers}
+          models={models}
+          simplesTaxPct={simplesTaxPct}
           globalLinks={globalLinks}
           kEnergy={kEnergy}
           onSubmit={(payload) => save(payload, null)}
@@ -241,6 +247,8 @@ export function ProductsClient({
           product={editing}
           filaments={filaments}
           printers={printers}
+          models={models}
+          simplesTaxPct={simplesTaxPct}
           globalLinks={globalLinks}
           kEnergy={kEnergy}
           onSubmit={(payload) => save(payload, editing.id)}

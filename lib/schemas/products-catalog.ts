@@ -140,6 +140,17 @@ const productFieldsShape = {
   /** Licença ou fonte do modelo, em texto livre. Interno. */
   modelLicense: z.string().trim().max(500).nullable(),
 
+  /**
+   * STL vinculado (0077). Nulo desfaz o vínculo.
+   *
+   * É o que permite a ficha estimar gramas e tempo pelo fatiador em vez de
+   * exigir que alguém pese a peça e cronometre a impressão.
+   */
+  modelId: z.string().uuid().nullable(),
+  /** Marcado pela ficha quando os números vieram do fatiador, não da balança. */
+  costEstimatedAt: z.string().nullable(),
+  costEstimateSource: z.record(z.unknown()),
+
   // ── Ordenação na vitrine ─────────────────────────────────────────────────
   sortOrder: z.coerce.number(),
 } as const;

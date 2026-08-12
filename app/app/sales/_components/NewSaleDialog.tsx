@@ -69,6 +69,9 @@ interface Props {
   onCreated: (s: SaleRow) => void;
 }
 
+/** Sentinela do escape explícito. Não é um id — nunca vai para o banco. */
+const AVULSA = "__avulsa__";
+
 export default function NewSaleDialog({
   open,
   onOpenChange,
@@ -87,6 +90,13 @@ export default function NewSaleDialog({
   const [commission, setCommission] = useState("");
   const [soldAt, setSoldAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  /**
+   * "" = ainda não escolheu; AVULSA = escolheu explicitamente fora do catálogo.
+   *
+   * Os dois estados precisam ser distintos: sem isso, "peça avulsa" e "esqueci"
+   * gravariam a mesma coisa, que é exatamente o defeito que as 26 vendas sem
+   * produto expõem hoje.
+   */
   const [productId, setProductId] = useState("");
   const [qty, setQty] = useState("1");
   const [saving, setSaving] = useState(false);
@@ -107,6 +117,14 @@ export default function NewSaleDialog({
     setSaving(true);
     const chosenPlatform = fixedPlatform ?? platform;
     const channelId = channelOptions.find((c) => c.name === chosenPlatform)?.id ?? null;
+    if (!productId) {
+      toast.error(
+        "Escolha a peça vendida. Se não for item do catálogo, marque “Peça avulsa”.",
+      );
+      setSaving(false);
+      return;
+    }
+
     const r = await createSale({
       platform: chosenPlatform,
       channelId,
@@ -117,7 +135,8 @@ export default function NewSaleDialog({
       commission: commission ? Number((commission ?? "").replace(",", ".")) : 0,
       soldAt,
       notes,
-      productId: productId || null,
+      productId: productId === AVULSA ? null : productId,
+      isCustomItem: productId === AVULSA,
       qty: Number(qty) || 1,
     });
     setSaving(false);
@@ -202,31 +221,50 @@ export default function NewSaleDialog({
               />
             </div>
           </div>
-          {/* Produto do catálogo (opcional) — liga o custo real da engine à venda. */}
-          {productOptions.length > 0 && (
-            <div className="grid grid-cols-[1fr_84px] gap-3">
+          {/*
+            Peça OBRIGATÓRIA. Antes era "Produto (opcional)" com "— Sem produto —",
+            e o bloco inteiro sumia quando não havia catálogo. Resultado medido:
+            0 de 26 vendas com produto, o gatilho da 0072 nunca contando, e
+            `sold_qty` em zero para todas as peças.
+
+            O bloco agora aparece sempre: sem catálogo, ainda é preciso declarar
+            que a venda é avulsa — o silêncio é que gerava o furo.
+          */}
+          <div className="grid grid-cols-[1fr_84px] gap-3">
               <div className="space-y-1.5">
-                <Label>Produto (opcional)</Label>
+                <Label>
+                  Peça <span className="text-danger-fg">*</span>
+                </Label>
                 <Combobox
                   value={productId}
                   onChange={setProductId}
                   options={[
-                    { value: "", label: "— Sem produto —" },
+                    { value: "", label: "— Escolha a peça —" },
+                    {
+                      value: AVULSA,
+                      label: "Peça avulsa — fora do catálogo",
+                      hint: "sob medida, serviço",
+                    },
                     ...productOptions.map((p) => ({
                       value: p.id,
                       label: p.name,
                       hint: `custo ${(p.unitCostCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/un`,
                     })),
                   ]}
-                  searchPlaceholder="Buscar produto…"
+                  searchPlaceholder="Buscar peça…"
                 />
+                {!productId && (
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    Sem a peça, esta venda não conta no estoque nem no custo — e o
+                    &ldquo;mais vendidos&rdquo; continua sendo preenchido à mão.
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="s-qty">Qtd</Label>
                 <Input id="s-qty" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} />
               </div>
             </div>
-          )}
           <div className="space-y-1.5">
             <Label htmlFor="s-cust">Cliente</Label>
             <ContactPicker
