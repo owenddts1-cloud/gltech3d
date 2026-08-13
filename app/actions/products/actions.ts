@@ -115,14 +115,16 @@ export async function fetchProductsData() {
     // Links globais da loja: o formulário mostra o que a peça vai HERDAR se o
     // campo ficar vazio, em vez de deixar o usuário adivinhar.
     supabase.from("landing_settings").select("links").eq("organization_id", activeOrg.orgId).maybeSingle(),
-    // STL do repositório, para o seletor de modelo da ficha. Só os que têm
-    // geometria: oferecer imagem ou 3MF no seletor só produziria erro no clique.
+    // Malhas do repositório, para o seletor da ficha. Imagem fica de fora —
+    // oferecer o que não dá para estimar só produziria erro depois do clique.
+    // O 3MF entra mesmo com `triangles` zerado: registro salvo antes de existir
+    // parser nunca teve a contagem preenchida.
     supabase
       .from("models_3d")
       .select("id, name, triangles")
+      .in("kind", ["stl", "model3mf"])
       .eq("organization_id", activeOrg.orgId)
-      .eq("kind", "stl")
-      .gt("triangles", 0)
+      .or("triangles.gt.0,kind.eq.model3mf")
       .order("name"),
   ]);
 

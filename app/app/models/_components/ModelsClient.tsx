@@ -36,6 +36,8 @@ import {
 import { MODELS_BUCKET, type Model3dRow } from "@/lib/models/config";
 // Uma implementação só, e testada (lib/models/stl.test.ts). Havia uma cópia
 // deste cálculo aqui dentro, sem teste.
+import { write3mf } from "@/lib/models/threemf";
+import { parseMeshBuffer } from "@/lib/models/mesh";
 import { signedMeshVolume } from "@/lib/models/stl";
 import {
   VIEW_MODES,
@@ -80,17 +82,28 @@ interface StlModel {
 }
 
 /** Parseia um STL (ArrayBuffer) no Web Worker → positions + boundingBox. */
-function parseStl(
+/**
+ * Lê a malha — STL binário, STL ASCII ou 3MF.
+ *
+ * Chamava-se `parseStl` e o nome ficou mentiroso: o worker usa `parseMeshBuffer`
+ * desde que o 3MF entrou, e lê os três. Nome errado em função que decide formato
+ * é o tipo de coisa que faz alguém "consertar" de volta para só STL.
+ */
+function parseMesh(
   arrayBuffer: ArrayBuffer,
+  filename: string,
 ): Promise<{ positions: Float32Array; boundingBox: StlModel["boundingBox"]; numTriangles: number }> {
   return new Promise((resolve, reject) => {
-    // Worker bundleado: importa `lib/models/stl.ts`, que é testado. Antes era o
+    // Worker bundleado: importa `lib/models/mesh.ts`, que é testado. Antes era o
     // script solto `/workers/stl-parser.js`, que só lia STL binário.
     const worker = new Worker(new URL("./stl.worker.ts", import.meta.url), { type: "module" });
-    worker.postMessage({ arrayBuffer });
+    // O nome vai junto: sem ele o parser decide só pela assinatura do arquivo, e
+    // um `.3mf` corrompido falharia como "não reconheci" em vez de dizer que o
+    // pacote ZIP está quebrado.
+    worker.postMessage({ arrayBuffer, filename });
     worker.onmessage = (e) => {
       worker.terminate();
-      if (!e.data.ok) return reject(new Error(e.data.error ?? "Falha ao parsear STL"));
+      if (!e.data.ok) return reject(new Error(e.data.error ?? "Falha ao ler a malha"));
       resolve({
         positions: new Float32Array(e.data.positions),
         boundingBox: e.data.boundingBox,
@@ -264,15 +277,20 @@ export function ModelsClient({
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith(".stl")) {
-      toast.error("Por favor, envie apenas arquivos no formato STL.");
+    // ANTES: só `.stl`. Todo o resto do caminho já aceitava 3MF — o backend
+    // (`ALLOWED_EXT`), o worker do visualizador, o worker do fatiador e
+    // `fetchSliceableModels`. O acervo tinha 2 arquivos, os dois STL, não por
+    // preferência: o botão recusava o resto.
+    const nome = file.name.toLowerCase();
+    if (!nome.endsWith(".stl") && !nome.endsWith(".3mf")) {
+      toast.error("Envie um arquivo STL ou 3MF.");
       return;
     }
 
     setIsParsing(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const { positions, boundingBox, numTriangles } = await parseStl(arrayBuffer);
+      const { positions, boundingBox, numTriangles } = await parseMesh(arrayBuffer, file.name);
 
       // Volume real = soma dos tetraedros com sinal (não mais "mock voxel").
       const volumeCm3 = parseFloat((signedMeshVolume(positions) / 1000).toFixed(1));
@@ -359,7 +377,7 @@ export function ModelsClient({
       if (!signed.ok) throw new Error(signed.error);
       const res = await fetch(signed.url);
       if (!res.ok) throw new Error(`Falha ao baixar o STL (HTTP ${res.status})`);
-      const { positions } = await parseStl(await res.arrayBuffer());
+      const { positions } = await parseMesh(await res.arrayBuffer(), model.name);
       const withGeom = { ...model, positions };
       // Cacheia as positions na lista pra não rebaixar na próxima abertura.
       setModels((prev) => prev.map((m) => (m.id === model.id ? withGeom : m)));
@@ -415,6 +433,40 @@ export function ModelsClient({
       a.remove();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível baixar o arquivo.");
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  /**
+   * Converte a peça para 3MF e baixa.
+   *
+   * POR QUE VALE A PENA. STL guarda triângulos soltos e mais nada: sem unidade
+   * declarada (é milímetro? polegada? o arquivo não diz), sem transformação, e
+   * repetindo cada vértice em cada face que o toca. 3MF traz a unidade, indexa o
+   * vértice uma vez e é o que os fatiadores modernos preferem.
+   *
+   * O escritor (`write3mf`) tinha 20 testes e fixtures geradas por outra
+   * ferramenta desde a rodada do 3MF — e não era chamado por lugar nenhum. Este
+   * botão é a porta que faltava.
+   */
+  const downloadAs3mf = async (model: StlModel) => {
+    setDownloading(model.id);
+    try {
+      // URL assinada emitida no servidor: o cliente do browser não tem sessão.
+      const signed = await createModelDownloadUrl(model.id);
+      if (!signed.ok) throw new Error(signed.error);
+      const res = await fetch(signed.url);
+      if (!res.ok) throw new Error(`Falha ao baixar (HTTP ${res.status})`);
+
+      const mesh = await parseMeshBuffer(await res.arrayBuffer(), model.name);
+      const base = model.name.replace(/\.[^.]+$/, "") || "peca";
+      const pacote = write3mf(mesh.positions, base);
+
+      saveBlob(new Blob([pacote as BlobPart], { type: "model/3mf" }), `${base}.3mf`);
+      toast.success(`3MF gerado com ${mesh.numTriangles.toLocaleString("pt-BR")} triângulos.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não consegui converter para 3MF.");
     } finally {
       setDownloading(null);
     }
@@ -527,7 +579,7 @@ export function ModelsClient({
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
-            accept=".stl"
+            accept=".stl,.3mf"
             className="hidden"
             id="stl-upload-input"
           />
@@ -591,6 +643,16 @@ export function ModelsClient({
                   className="p-2 rounded-xl"
                 >
                   <DownloadSimple size={14} />
+                </Button>
+                <Button
+                  onClick={() => void downloadAs3mf(model)}
+                  disabled={downloading === model.id}
+                  variant="outline"
+                  title="Converter e baixar como 3MF (declara unidade e indexa vértices)"
+                  aria-label={`Baixar ${model.name} como 3MF`}
+                  className="p-2 rounded-xl text-[10px] font-bold"
+                >
+                  3MF
                 </Button>
                 <Button
                   onClick={() => void handleRename(model)}

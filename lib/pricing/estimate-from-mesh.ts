@@ -9,9 +9,15 @@
  * O fatiador já sabe as duas coisas: `generateGcode` devolve `filamentGrams` e
  * `estimatedSeconds`. O que faltava era alguém perguntar.
  *
- * MÓDULO PURO, sem DOM e sem `self`: roda no worker do navegador e no Vitest, e
- * é o mesmo caminho que a tela de Fatiar usa — então a estimativa da ficha do
- * produto e o número da tela de Fatiar não podem divergir por construção.
+ * MÓDULO PURO, sem DOM e sem `self`: roda no worker do navegador, no servidor e
+ * no Vitest, e é o mesmo caminho que a tela de Fatiar usa — então a estimativa
+ * da ficha do produto e o número da tela de Fatiar não podem divergir por
+ * construção.
+ *
+ * LÊ STL E 3MF. É assíncrono por causa do 3MF: o pacote é um ZIP, e descompactar
+ * passa por `DecompressionStream`, que é assíncrono. Node 18+ e todo browser
+ * alvo têm essa API — eu havia afirmado o contrário numa rodada anterior, e
+ * estava errado; a limitação era este arquivo chamar o parser de STL direto.
  *
  * ISTO É ESTIMATIVA, NÃO MEDIÇÃO. A peça real varia com preenchimento efetivo,
  * suporte, purga e falha. Por isso a saída carrega o perfil usado, e a migration
@@ -19,7 +25,7 @@
  * balança.
  */
 
-import { parseStlBuffer } from "@/lib/models/stl";
+import { parseMeshBuffer } from "@/lib/models/mesh";
 import { applyOrientation, bestOrientation } from "@/lib/models/orientation";
 import { sliceToPlan, DEFAULT_SLICE_SETTINGS, type SliceSettings } from "@/lib/slicer/pipeline";
 import { generateGcode, DEFAULT_PROFILE, type PrinterProfile } from "@/lib/slicer/gcode";
@@ -65,11 +71,13 @@ export interface MeshEstimate {
  * sem modelar aceleração. Subestima peça com muitos percursos curtos. Tratar
  * como limite inferior, não como previsão — e é por isso que a UI rotula assim.
  */
-export function estimateFromMesh(
+export async function estimateFromMesh(
   buffer: ArrayBuffer,
   options: EstimateOptions = {},
-): MeshEstimate {
-  const mesh = parseStlBuffer(buffer);
+  /** Nome do arquivo — dica de formato, para o erro ser específico. */
+  filename = "",
+): Promise<MeshEstimate> {
+  const mesh = await parseMeshBuffer(buffer, filename);
   const autoOrient = options.autoOrient ?? true;
 
   const positions = autoOrient

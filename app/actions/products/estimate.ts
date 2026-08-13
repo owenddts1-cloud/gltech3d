@@ -95,16 +95,14 @@ async function runEstimate(
     .maybeSingle();
   if (!model) return { ok: false as const, error: "Modelo não encontrado." };
 
-  const { file_path: filePath, kind } = model as { file_path: string; kind: string | null };
-  // O estimador do servidor lê STL. O 3MF depende de `DecompressionStream`, que
-  // o caminho do navegador tem; dizer isso é melhor que falhar com "não
-  // reconheci o arquivo".
-  if (kind && kind !== "stl") {
-    return {
-      ok: false as const,
-      error: "Por enquanto a estimativa lê apenas STL. Envie o STL desta peça.",
-    };
-  }
+  const { file_path: filePath, name: modelName } = model as {
+    file_path: string;
+    name: string;
+    kind: string | null;
+  };
+  // A guarda que recusava tudo que não fosse STL saiu daqui. Ela existia com a
+  // justificativa errada de que o Node não teria `DecompressionStream` — tem, e
+  // o 3MF é lido pelo mesmo `parseMeshBuffer` do navegador.
   if (!filePath.startsWith(`${orgId}/`)) {
     return { ok: false as const, error: "Caminho fora da sua organização." };
   }
@@ -116,9 +114,11 @@ async function runEstimate(
   try {
     const res = await fetch(signed.data.signedUrl, { cache: "no-store" });
     if (!res.ok) return { ok: false as const, error: `Falha ao ler o arquivo (HTTP ${res.status})` };
-    const estimate = estimateFromMesh(await res.arrayBuffer(), {
-      settings: { ...DEFAULT_SLICE_SETTINGS, ...overrides },
-    });
+    const estimate = await estimateFromMesh(
+      await res.arrayBuffer(),
+      { settings: { ...DEFAULT_SLICE_SETTINGS, ...overrides } },
+      modelName,
+    );
     return { ok: true as const, estimate, elapsedMs: Date.now() - started, modelId };
   } catch (e) {
     // Malha quebrada, arquivo truncado ou formato inesperado. A mensagem do

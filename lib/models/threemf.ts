@@ -12,6 +12,14 @@
  * sai 25,4 vezes menor, e nada no arquivo reclama — a peça só sai errada. A
  * conversão é feita na leitura, sempre, e o modelo interno é SEMPRE milímetro.
  *
+ * TAMANHO, medido: o Acoplamento sai de 127 KB em STL binário para 156 KB em
+ * 3MF. O pacote fica MAIOR porque `writeZip` grava as entradas ARMAZENADAS, sem
+ * compressão — e XML verboso sem compactar perde para binário mesmo com os
+ * vértices indexados. O ganho aqui é semântico (unidade declarada, vértice
+ * único, transformação), não de disco. Ligar `CompressionStream` inverteria a
+ * conta e tornaria a escrita assíncrona; fica registrado como escolha, não como
+ * descuido.
+ *
  * ESCRITO DO ZERO a partir da especificação. Nada vem de lib3mf, PrusaSlicer ou
  * Cura.
  */
