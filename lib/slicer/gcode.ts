@@ -218,6 +218,8 @@ export interface LayerPlan {
   isRaft?: boolean;
   /** Percursos de suporte desta camada. Ausente = sem suporte. */
   supports?: InfillLine[];
+  /** Este suporte é a camada de interface (topo denso encostado na peça)? */
+  supportIsInterface?: boolean;
   /** Laços de skirt. Só na primeira camada. */
   skirt?: Contour[];
   /** Laços de brim, do mais externo para o mais interno. Só na primeira camada. */
@@ -504,7 +506,7 @@ export function generateGcode(
     // depois de ela estar depositada, e qualquer escorrimento cai no material
     // que vai ser quebrado fora, não no acabamento.
     if (layer.supports && layer.supports.length > 0) {
-      emitType("SUPPORT");
+      emitType(layer.supportIsInterface ? "SUPPORT-INTERFACE" : "SUPPORT");
       for (const line of orderByProximity(layer.supports, cursor)) {
         emitTravel(line.from, travelFeed);
         emitExtrude(line.to, printFeed, layerHeight);

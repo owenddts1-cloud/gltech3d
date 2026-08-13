@@ -251,6 +251,10 @@ dispositivo e ver o mesmo estado.
 **Aceite:** malha não-manifold com buracos entra e sai watertight, com relatório
 antes/depois.
 
+**Já feito desta fase:** separar componentes soltos (`lib/models/split.ts`) e
+mirror/rotate/scale/move com versionamento (`lib/models/transform.ts` +
+migration 0075). O resto — BVH, seleção, booleanos, reparo — continua pendente.
+
 ### FASE 3 — Cortes
 
 - Corte por plano com medida e trava de eixo
@@ -289,17 +293,18 @@ Slic3r ou OrcaSlicer** — ver §12.
 |---|---|
 | `slice.ts` | plano × triângulo → contornos fechados; costura por hash de grade com consulta às 9 células vizinhas |
 | `perimeters.ts` | N paredes compensadas por `lineWidth`, booleanos 2D. Usa **`clipper-lib`** (BSL), não `clipper2-js` — ver a nota no arquivo |
-| `infill.ts` | varredura; grade, linhas, triângulo; respeita furo |
+| `infill.ts` | varredura; grade, linhas, triângulo, **giroide**, **concêntrico**; respeita furo |
 | `pipeline.ts` | topo/base sólidos por interseção das `n` camadas vizinhas |
-| `supports.ts` | balanço por ângulo; a camada 0 apoia na mesa |
+| `supports.ts` | balanço por ângulo; a camada 0 apoia na mesa; **folga vertical, interface densa e "só da mesa"** |
 | `adhesion.ts` | skirt e brim, só o contorno externo (nada dentro do furo) |
 | `seam.ts` | costura: canto / alinhada / atrás / mais próxima / aleatória + **cachecol (scarf)** |
 | `combing.ts` | não retrai quando o salto não sai da peça |
 | `gcode.ts` | `;TYPE:` por tipo, retração, ventoinha em rampa, estimativas |
+| `toolpath-preview.ts` | empacota o percurso em buffers por tipo, ordenados por camada, para o preview 3D |
 
 **G-code emitido:** `;TYPE:SKIRT`, `BRIM`, `WALL-OUTER`, `WALL-INNER`, `FILL`,
-`SUPPORT`; retração com `E` absoluto (`M82`); `M106`/`M107` só quando o valor
-muda.
+`SUPPORT`, `SUPPORT-INTERFACE`; retração com `E` absoluto (`M82`); `M106`/`M107`
+só quando o valor muda.
 
 Medido nas peças reais do Storage (Acoplamento 2.602 tri, PAYLOAD 832 tri): 357
 e 774 camadas, **0 contornos abertos**, `E` monotônico nas extrusões, sem `NaN`.
@@ -341,6 +346,60 @@ está errado é o rótulo, não a impressão.
 vertical) 357 → 258 camadas e 1h52 → 1h31. No PAYLOAD (quase tudo superfície
 inclinada) 324 → 637 camadas e 3h04 → 6h04. Ela mantém o degrau CONSTANTE; em
 peça inclinada isso custa tempo em vez de economizar.
+
+**O suporte encostava na peça — corrigido.** Existia só folga HORIZONTAL
+(`xyClearance`). Verticalmente o suporte era gerado na camada imediatamente
+abaixo do balanço, colado nele: suporte colado funde na peça e, ao ser quebrado,
+arranca material da superfície junto. Agora `supportZClearanceLayers` (padrão 1)
+abre o vão, e `supportInterfaceLayers` (padrão 2, 70% de densidade) dá superfície
+de apoio no topo, em vez de linhas espaçadas de 15% em que a face de baixo
+afunda. `supportBuildPlateOnly` descarta a torre que nasce em cima da própria
+peça — a que fica em vão fechado, sem acesso para alicate.
+
+Medido nas duas peças: o topo da torre desce de z=1,90 para z=1,70 no
+Acoplamento e de z=149,90 para z=149,70 no PAYLOAD — **vão de 0,200 mm**, exato,
+com volume de suporte praticamente igual (24,79 contra 24,83 cm³ no PAYLOAD). O
+defeito foi encontrado lendo o código, não imprimindo: **nenhuma peça saiu da
+máquina até aqui.**
+
+**Giroide e concêntrico.** O giroide é a superfície `sin x·cos y + sin y·cos z +
+sin z·cos x = 0`; com `z` fixo ela vira `A·cos y + B·sen y = C`, resolvida por
+`y = atan2(B, A) ± acos(C/R)`. É matemática pública — nenhuma linha veio de
+fatiador AGPL. Vale por ser quase isotrópico e por as curvas de camadas vizinhas
+não se cruzarem, então o bico não bate no que já foi depositado. O concêntrico é
+`offsetRegion` repetido, com teto de 500 voltas para região degenerada não travar
+o worker.
+
+**Custo medido do giroide** (Acoplamento, 0,2 mm, 15%): grade 4,9 s · linhas
+6,1 s · triângulo 6,3 s · **giroide 11,4 s** · concêntrico 7,7 s. O giroide é o
+mais caro porque recorta polilinha contra o contorno em vez de varrer reta. Um
+descarte por caixa nas arestas já derrubou de 15,5 para 11,4 s; o que sobra é a
+varredura linear da lista de arestas, que só um índice espacial resolveria.
+Roda no worker com barra de progresso.
+
+**Preview 3D do percurso** (`ToolpathViewer` + `lib/slicer/toolpath-preview.ts`).
+A peça inteira, colorida pelo mesmo `;TYPE:` do arquivo, com faixa de camadas e
+tipos que se ligam e desligam. O canvas 2D CONTINUA como aba: para conferir se um
+contorno fechou, planta baixa de uma camada é melhor que perspectiva.
+
+Três regras de desempenho, e as duas primeiras estão travadas em teste:
+uma geometria por TIPO (não um objeto por caminho); segmentos ordenados por
+camada, então mudar a faixa é `setDrawRange` e não realocação; e o empacotamento
+acontece no WORKER, com os `Float32Array` transferidos em vez de copiados.
+Medido: Acoplamento 352.102 segmentos empacotados em 44 ms; PAYLOAD (774
+camadas) 194.432 em 23 ms.
+
+**Separar em partes soltas** (`lib/models/split.ts` + painel em Modelagem) — o
+`P → By Loose Parts` do Blender. Solda vértices por posição quantizada
+(`SPLIT_WELD_EPS = 1e-4 mm`, o mesmo do fatiador), une faces que compartilham
+ARESTA por union-find e devolve uma malha por componente, ordenada por volume.
+Encostar só num vértice não une: dois cubos que se tocam num canto são duas
+peças. Cada parte vira um modelo NOVO na mesma pasta; a original não é tocada.
+Medido: Acoplamento e PAYLOAD devolvem **1 parte cada** (são inteiriças) sem
+perder nenhum triângulo — 2.602 e 832, soma idêntica ao original.
+
+**Não entrou:** seleção interativa de faces e booleanos. Cada um é uma rodada
+inteira (BVH + UI de seleção; ou WASM pesado para boolean robusto).
 
 **Aceite (NÃO cumprido):** G-code gerado imprime numa impressora real da
 GLTech3D. Nenhuma peça foi impressa a partir deste código até agora. A validação

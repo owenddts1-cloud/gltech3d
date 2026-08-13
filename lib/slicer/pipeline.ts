@@ -34,6 +34,17 @@ export interface SliceSettings {
   supportsEnabled: boolean;
   /** Ângulo máximo (da vertical) que imprime sem apoio. 45 é o padrão seguro. */
   supportMaxOverhangDeg: number;
+  /**
+   * Camadas de VÃO entre o topo do suporte e a peça. 1 (~0,2 mm) é o padrão.
+   * Zero cola o suporte na peça — ele funde e arranca material ao ser quebrado.
+   */
+  supportZClearanceLayers: number;
+  /** Camadas densas no topo do suporte, para a peça apoiar em superfície. */
+  supportInterfaceLayers: number;
+  /** Densidade da interface, em %. */
+  supportInterfaceDensityPct: number;
+  /** Só gerar suporte que nasce na mesa, nunca em cima da própria peça. */
+  supportBuildPlateOnly: boolean;
   /** Laços de skirt na primeira camada. 0 desliga. */
   skirtLoops: number;
   /** Folga entre a peça (ou o brim) e o skirt, em mm. */
@@ -74,6 +85,10 @@ export const DEFAULT_SLICE_SETTINGS: SliceSettings = {
   topBottomLayers: 3,
   supportsEnabled: false,
   supportMaxOverhangDeg: 45,
+  supportZClearanceLayers: 1,
+  supportInterfaceLayers: 2,
+  supportInterfaceDensityPct: 70,
+  supportBuildPlateOnly: false,
   skirtLoops: 1,
   skirtGapMm: 3,
   brimWidthMm: 0,
@@ -209,6 +224,10 @@ export function sliceToPlan(positions: Float32Array, settings: SliceSettings): S
         lineWidth: settings.lineWidth,
         pattern: settings.infillPattern,
         angleDeg: angle,
+        // O giroide é uma superfície 3D: sem o Z real, toda camada sairia com o
+        // MESMO desenho e o padrão viraria parede vertical — perdendo justamente
+        // a isotropia que é a razão de existir dele.
+        zMm: layer.z,
       }),
     ];
 
@@ -242,10 +261,18 @@ export function sliceToPlan(positions: Float32Array, settings: SliceSettings): S
       maxOverhangDeg: settings.supportMaxOverhangDeg,
       layerHeight: settings.layerHeight,
       lineWidth: settings.lineWidth,
+      zClearanceLayers: settings.supportZClearanceLayers,
+      interfaceLayers: settings.supportInterfaceLayers,
+      interfaceDensityPct: settings.supportInterfaceDensityPct,
+      buildPlateOnly: settings.supportBuildPlateOnly,
     };
     const supports = generateSupports(layers.map((l) => l.contours), supportOptions);
     supports.forEach((support, index) => {
-      if (support.lines.length > 0) layersOut[index]!.supports = support.lines;
+      if (support.lines.length === 0) return;
+      layersOut[index]!.supports = support.lines;
+      // A interface sai rotulada à parte no G-code: é o trecho denso que encosta
+      // (com folga) na peça, e quem revisa o percurso precisa distingui-lo.
+      if (support.isInterface) layersOut[index]!.supportIsInterface = true;
     });
     supportVolume = supportVolumeCm3(supports, supportOptions);
   }

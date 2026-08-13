@@ -34,6 +34,7 @@ export {
   WifiHigh,
   Brain,
   ArrowsClockwise,
+  ArrowsOutSimple,
   Dot,
   // actions
   PaperPlaneTilt,

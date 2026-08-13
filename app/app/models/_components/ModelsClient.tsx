@@ -49,6 +49,7 @@ import {
 } from "@/lib/models/viewer-presets";
 import type { ViewerApi } from "./ThreeViewer";
 import { EditPanel } from "./EditPanel";
+import { SplitPanel } from "./SplitPanel";
 import { boundsOf as boundsOfMesh } from "@/lib/models/stl";
 
 // Lazy-load ThreeViewer to keep initial page bundle small and prevent SSR errors
@@ -79,6 +80,8 @@ interface StlModel {
   filePath?: string;
   volumeCm3: number;
   uploadedAt: string;
+  /** Pasta onde está. As partes separadas nascem na MESMA pasta da original. */
+  folderId?: string | null;
 }
 
 /** Parseia um STL (ArrayBuffer) no Web Worker → positions + boundingBox. */
@@ -171,6 +174,7 @@ export function ModelsClient({
       filePath: m.filePath,
       volumeCm3: m.volumeCm3,
       uploadedAt: m.createdAt,
+      folderId: m.folderId,
       // positions carregadas sob demanda (parseStl) ao inspecionar
     })),
   );
@@ -758,6 +762,38 @@ export function ModelsClient({
                       <EditPanel
                         model={activeInspector}
                         onChanged={(positions) => { void applyVersionChange(positions); }}
+                      />
+                    </div>
+                  </details>
+
+                  <details className="group rounded-lg border border-border bg-surface/60">
+                    <summary className="cursor-pointer list-none px-3 py-2 text-xs font-bold uppercase tracking-wider text-foreground">
+                      Separar partes
+                      <span className="ml-1 font-normal normal-case text-muted-foreground">
+                        — componentes soltos viram peças
+                      </span>
+                    </summary>
+                    <div className="border-t border-border p-3">
+                      <SplitPanel
+                        model={activeInspector}
+                        onCreated={(parts) =>
+                          setModels((prev) => [
+                            ...parts.map((p) => ({
+                              id: p.id,
+                              name: p.name,
+                              sizeKb: p.sizeKb,
+                              triangles: p.triangles,
+                              boundingBox: p.boundingBox,
+                              thumbnailUrl: "",
+                              filePath: p.filePath,
+                              positions: p.positions,
+                              volumeCm3: p.volumeCm3,
+                              uploadedAt: p.createdAt,
+                              folderId: p.folderId,
+                            })),
+                            ...prev,
+                          ])
+                        }
                       />
                     </div>
                   </details>

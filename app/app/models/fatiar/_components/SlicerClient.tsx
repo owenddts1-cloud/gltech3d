@@ -22,9 +22,17 @@ import type {
   OrientationReport,
 } from "./slicer.worker";
 import { LayerCanvas } from "./LayerCanvas";
+import { ToolpathViewer } from "./ToolpathViewer";
+import {
+  TOOLPATH_KINDS,
+  TOOLPATH_LABELS,
+  type ToolpathBuffers,
+  type ToolpathKind,
+} from "@/lib/slicer/toolpath-preview";
 
 interface Result {
   layers: PreviewLayer[];
+  toolpath: ToolpathBuffers;
   gcode: string;
   filamentMm: number;
   filamentGrams: number;
@@ -43,6 +51,8 @@ const PATTERNS: Array<{ value: InfillPattern; label: string }> = [
   { value: "grade", label: "Grade" },
   { value: "linhas", label: "Linhas" },
   { value: "triangulo", label: "Triângulo" },
+  { value: "giroide", label: "Giroide" },
+  { value: "concentrico", label: "Concêntrico" },
 ];
 
 export function SlicerClient({
@@ -64,6 +74,15 @@ export function SlicerClient({
   const [result, setResult] = useState<Result | null>(null);
   const [layerIndex, setLayerIndex] = useState(0);
   const [showInfill, setShowInfill] = useState(true);
+  // O 3D é o padrão: é a vista que responde "como a peça fica". O 2D continua
+  // como aba porque, para conferir se um contorno FECHOU, planta baixa de uma
+  // camada ainda é melhor que qualquer vista em perspectiva.
+  const [previewMode, setPreviewMode] = useState<"3d" | "2d">("3d");
+  const [rangeFrom, setRangeFrom] = useState(0);
+  const [rangeTo, setRangeTo] = useState(0);
+  const [visibleKinds, setVisibleKinds] = useState<Record<ToolpathKind, boolean>>(() =>
+    Object.fromEntries(TOOLPATH_KINDS.map((k) => [k, true])) as Record<ToolpathKind, boolean>,
+  );
   const [autoOrient, setAutoOrient] = useState(true);
   const workerRef = useRef<Worker | null>(null);
 
@@ -135,6 +154,8 @@ export function SlicerClient({
 
       setResult(done);
       setLayerIndex(Math.floor(done.layers.length / 2));
+      setRangeFrom(0);
+      setRangeTo(done.layers.length - 1);
       toast.success(`${done.layers.length} camadas em ${(done.elapsedMs / 1000).toFixed(1)}s`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não consegui fatiar.");
@@ -266,15 +287,79 @@ export function SlicerClient({
                 />
               </label>
               {settings.supportsEnabled && (
-                <Field label="Ângulo máximo sem apoio" hint="graus da vertical. 45 é o seguro.">
-                  <Input
-                    inputMode="numeric"
-                    value={String(settings.supportMaxOverhangDeg)}
-                    onChange={(e) =>
-                      patch({ supportMaxOverhangDeg: Math.round(parseDecimal(e.target.value)) })
-                    }
-                  />
-                </Field>
+                <>
+                  <Field label="Ângulo máximo sem apoio" hint="graus da vertical. 45 é o seguro.">
+                    <Input
+                      inputMode="numeric"
+                      value={String(settings.supportMaxOverhangDeg)}
+                      onChange={(e) =>
+                        patch({ supportMaxOverhangDeg: Math.round(parseDecimal(e.target.value)) })
+                      }
+                    />
+                  </Field>
+                  <Field
+                    label="Folga vertical"
+                    hint="camadas de vão até a peça. 0 cola o suporte e ele arranca material ao sair."
+                  >
+                    <Input
+                      inputMode="numeric"
+                      value={String(settings.supportZClearanceLayers)}
+                      onChange={(e) =>
+                        patch({
+                          supportZClearanceLayers: Math.max(
+                            0,
+                            Math.round(parseDecimal(e.target.value)),
+                          ),
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field
+                    label="Camadas de interface"
+                    hint="topo denso do suporte. Sem elas a face de baixo afunda entre os filetes."
+                  >
+                    <Input
+                      inputMode="numeric"
+                      value={String(settings.supportInterfaceLayers)}
+                      onChange={(e) =>
+                        patch({
+                          supportInterfaceLayers: Math.max(
+                            0,
+                            Math.round(parseDecimal(e.target.value)),
+                          ),
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Densidade da interface" hint="% — 70 costuma bastar.">
+                    <Input
+                      inputMode="numeric"
+                      value={String(settings.supportInterfaceDensityPct)}
+                      onChange={(e) =>
+                        patch({
+                          supportInterfaceDensityPct: Math.min(
+                            100,
+                            Math.max(1, Math.round(parseDecimal(e.target.value))),
+                          ),
+                        })
+                      }
+                    />
+                  </Field>
+                  <label className="flex cursor-pointer items-center justify-between text-xs">
+                    <span>
+                      Só a partir da mesa
+                      <span className="block text-[10px] text-muted">
+                        não gera suporte apoiado na própria peça
+                      </span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={settings.supportBuildPlateOnly}
+                      onChange={(e) => patch({ supportBuildPlateOnly: e.target.checked })}
+                      className="h-4 w-4 rounded border-border bg-surface text-accent"
+                    />
+                  </label>
+                </>
               )}
             </div>
 
@@ -511,59 +596,150 @@ export function SlicerClient({
                 {layer && (
                   <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                          camada {layerIndex + 1}/{result.layers.length} · z ={" "}
-                          {layer.z.toFixed(2)} mm
-                        </span>
-                        {layer.solidCount > 0 && (
-                          <Badge variant="secondary" className="text-[10px]">sólida</Badge>
-                        )}
+                      <div className="inline-flex rounded-lg border border-border p-0.5">
+                        {(["3d", "2d"] as const).map((modo) => (
+                          <button
+                            key={modo}
+                            type="button"
+                            onClick={() => setPreviewMode(modo)}
+                            className={
+                              previewMode === modo
+                                ? "rounded-md bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground"
+                                : "rounded-md px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:text-foreground"
+                            }
+                          >
+                            {modo === "3d" ? "Percurso 3D" : "Camada 2D"}
+                          </button>
+                        ))}
                       </div>
-                      <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
+
+                      {previewMode === "2d" ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                            camada {layerIndex + 1}/{result.layers.length} · z ={" "}
+                            {layer.z.toFixed(2)} mm
+                          </span>
+                          {layer.solidCount > 0 && (
+                            <Badge variant="secondary" className="text-[10px]">sólida</Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                          camadas {rangeFrom + 1}–{rangeTo + 1} de {result.layers.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {previewMode === "2d" ? (
+                      <>
+                        <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            checked={showInfill}
+                            onChange={(e) => setShowInfill(e.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-border bg-surface text-accent"
+                          />
+                          Preenchimento
+                        </label>
+
                         <input
-                          type="checkbox"
-                          checked={showInfill}
-                          onChange={(e) => setShowInfill(e.target.checked)}
-                          className="h-3.5 w-3.5 rounded border-border bg-surface text-accent"
+                          type="range"
+                          min={0}
+                          max={result.layers.length - 1}
+                          value={layerIndex}
+                          onChange={(e) => setLayerIndex(Number(e.target.value))}
+                          aria-label="Camada"
+                          className="h-1.5 w-full cursor-pointer accent-accent"
                         />
-                        Preenchimento
-                      </label>
-                    </div>
 
-                    <input
-                      type="range"
-                      min={0}
-                      max={result.layers.length - 1}
-                      value={layerIndex}
-                      onChange={(e) => setLayerIndex(Number(e.target.value))}
-                      aria-label="Camada"
-                      className="h-1.5 w-full cursor-pointer accent-accent"
-                    />
+                        <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+                          <Legend color="#fb923c" label="parede externa" />
+                          {layer.innerWalls.length > 0 && (
+                            <Legend color="rgba(251,146,60,0.45)" label="parede interna" />
+                          )}
+                          <Legend color="rgb(96, 165, 250)" label="preenchimento" />
+                          {layer.supports.length > 0 && (
+                            <Legend color="rgb(163,163,163)" label="suporte" />
+                          )}
+                          {layer.brim.length > 0 && <Legend color="rgb(140,140,140)" label="brim" />}
+                          {layer.skirt.length > 0 && <Legend color="rgb(115,115,115)" label="skirt" />}
+                        </div>
 
-                    <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
-                      <Legend color="#fb923c" label="parede externa" />
-                      {layer.innerWalls.length > 0 && (
-                        <Legend color="rgba(251,146,60,0.45)" label="parede interna" />
-                      )}
-                      <Legend color="rgb(96, 165, 250)" label="preenchimento" />
-                      {layer.supports.length > 0 && (
-                        <Legend color="rgb(163,163,163)" label="suporte" />
-                      )}
-                      {layer.brim.length > 0 && <Legend color="rgb(140,140,140)" label="brim" />}
-                      {layer.skirt.length > 0 && <Legend color="rgb(115,115,115)" label="skirt" />}
-                    </div>
+                        <LayerCanvas
+                          outerWalls={layer.outerWalls}
+                          innerWalls={layer.innerWalls}
+                          infill={layer.infill}
+                          supports={layer.supports}
+                          skirt={layer.skirt}
+                          brim={layer.brim}
+                          bounds={result.bounds}
+                          showInfill={showInfill}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        {/* Duas pontas independentes: ver "só o meio" é como se
+                            inspeciona onde a costura anda e onde o suporte
+                            encosta, sem a peça inteira na frente. */}
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <RangeSlider
+                            label="Da camada"
+                            value={rangeFrom}
+                            max={result.layers.length - 1}
+                            onChange={(v) => {
+                              setRangeFrom(v);
+                              if (v > rangeTo) setRangeTo(v);
+                            }}
+                          />
+                          <RangeSlider
+                            label="Até a camada"
+                            value={rangeTo}
+                            max={result.layers.length - 1}
+                            onChange={(v) => {
+                              setRangeTo(v);
+                              if (v < rangeFrom) setRangeFrom(v);
+                            }}
+                          />
+                        </div>
 
-                    <LayerCanvas
-                      outerWalls={layer.outerWalls}
-                      innerWalls={layer.innerWalls}
-                      infill={layer.infill}
-                      supports={layer.supports}
-                      skirt={layer.skirt}
-                      brim={layer.brim}
-                      bounds={result.bounds}
-                      showInfill={showInfill}
-                    />
+                        <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                          {TOOLPATH_KINDS.filter((k) => result.toolpath[k].segments > 0).map((k) => (
+                            <label
+                              key={k}
+                              className="flex cursor-pointer items-center gap-1.5 text-[10px] text-muted-foreground"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={visibleKinds[k]}
+                                onChange={(e) =>
+                                  setVisibleKinds((prev) => ({ ...prev, [k]: e.target.checked }))
+                                }
+                                className="h-3 w-3 rounded border-border bg-surface text-accent"
+                              />
+                              <span
+                                className="inline-block h-2 w-2 rounded-full"
+                                style={{ backgroundColor: TOOLPATH_LABELS[k].color }}
+                                aria-hidden
+                              />
+                              {TOOLPATH_LABELS[k].label}
+                            </label>
+                          ))}
+                        </div>
+
+                        <ToolpathViewer
+                          buffers={result.toolpath}
+                          bounds={result.bounds}
+                          fromLayer={rangeFrom}
+                          toLayer={rangeTo}
+                          visible={visibleKinds}
+                        />
+
+                        <p className="text-[10px] text-muted-foreground">
+                          As cores sao as mesmas dos rotulos ;TYPE: do G-code — o que esta na tela e
+                          o que esta no arquivo sao a mesma coisa.
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -646,5 +822,34 @@ function Stat({ label, value }: { label: string; value: string }) {
       </div>
       <div className="mt-0.5 text-sm font-semibold tabular-nums">{value}</div>
     </div>
+  );
+}
+
+function RangeSlider({
+  label,
+  value,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="space-y-1">
+      <span className="flex items-center justify-between text-[10px] text-muted-foreground">
+        {label}
+        <span className="font-mono tabular-nums">{value + 1}</span>
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-1.5 w-full cursor-pointer accent-accent"
+      />
+    </label>
   );
 }

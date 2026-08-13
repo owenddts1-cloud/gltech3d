@@ -21,6 +21,11 @@ import { sliceToPlan, type SliceSettings } from "@/lib/slicer/pipeline";
 import { generateGcode, type PrinterProfile } from "@/lib/slicer/gcode";
 import type { Contour } from "@/lib/slicer/slice";
 import type { InfillLine } from "@/lib/slicer/infill";
+import {
+  buildToolpathBuffers,
+  TOOLPATH_KINDS,
+  type ToolpathBuffers,
+} from "@/lib/slicer/toolpath-preview";
 
 export interface SlicerRequest {
   arrayBuffer: ArrayBuffer;
@@ -57,11 +62,19 @@ export interface PreviewLayer {
   solidCount: number;
 }
 
+/**
+ * Percurso empacotado para o preview 3D.
+ *
+ * Montado AQUI, no worker, e transferido em vez de copiado: os `Float32Array`
+ * são transferíveis, então a mensagem sai sem custo de cópia e a thread
+ * principal não gasta um quadro empacotando centenas de milhares de segmentos.
+ */
 export type SlicerResponse =
   | { kind: "progress"; ratio: number; label: string }
   | {
       kind: "done";
       layers: PreviewLayer[];
+      toolpath: ToolpathBuffers;
       gcode: string;
       filamentMm: number;
       filamentGrams: number;
@@ -80,7 +93,11 @@ export type SlicerResponse =
 /** Ver o worker de STL: `self` vem tipado como Window por causa da lib DOM. */
 interface WorkerScope {
   onmessage: ((event: MessageEvent<SlicerRequest>) => void) | null;
-  postMessage: (message: SlicerResponse) => void;
+  /**
+   * `transfer` move os buffers em vez de copiá-los. Sem ele, o structured clone
+   * duplica dezenas de MB de percurso a cada fatiamento.
+   */
+  postMessage: (message: SlicerResponse, transfer?: Transferable[]) => void;
 }
 
 const ctx = self as unknown as WorkerScope;
@@ -140,6 +157,15 @@ ctx.onmessage = async (event) => {
     });
 
     ctx.postMessage({ kind: "progress", ratio: 0.95, label: "Montando o preview" });
+
+    const toolpath = buildToolpathBuffers(plan.layers);
+    // Transferir em vez de copiar. Sem isto, o structured clone duplica cada
+    // buffer — em peça grande são dezenas de MB copiados à toa.
+    const transfer = TOOLPATH_KINDS.flatMap((k) => [
+      toolpath[k].positions.buffer,
+      toolpath[k].layerOffsets.buffer,
+    ]);
+
     ctx.postMessage({
       kind: "done",
       // `solidRegion` fica de fora: é usada só para gerar o preenchimento e
@@ -176,8 +202,9 @@ ctx.onmessage = async (event) => {
       orientation,
       triangles: mesh.numTriangles,
       bounds,
+      toolpath,
       elapsedMs: Date.now() - started,
-    });
+    }, transfer);
   } catch (error) {
     ctx.postMessage({
       kind: "error",

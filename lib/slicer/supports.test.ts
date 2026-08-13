@@ -6,6 +6,7 @@ import {
   generateSupports,
   supportVolumeCm3,
   DEFAULT_SUPPORT_OPTIONS,
+  type SupportOptions,
 } from "./supports";
 import { regionArea } from "./perimeters";
 import type { Contour } from "./slice";
@@ -92,9 +93,12 @@ describe("generateSupports", () => {
 
     // Sem suporte acima do tampo.
     expect(s[12]!.region.length).toBe(0);
-    // Com suporte logo abaixo do tampo...
-    expect(regionArea(s[9]!.region)).toBeGreaterThan(50);
-    // ...e continuando até a primeira camada.
+    // A camada 9 encosta no tampo: com a folga padrão ela fica VAZIA de
+    // propósito, senão o suporte funde na peça e não sai.
+    expect(s[9]!.region.length).toBe(0);
+    // O topo do suporte fica uma camada abaixo...
+    expect(regionArea(s[8]!.region)).toBeGreaterThan(50);
+    // ...e continua até a primeira camada.
     expect(regionArea(s[0]!.region)).toBeGreaterThan(50);
   });
 
@@ -179,5 +183,134 @@ describe("supportVolumeCm3", () => {
 
   it("sem suporte, volume zero", () => {
     expect(supportVolumeCm3([], opts)).toBe(0);
+  });
+});
+
+describe("folga vertical e interface — o defeito que arrancava material", () => {
+  /** Ponte: duas colunas e uma tampa. A tampa precisa de suporte no meio. */
+  const camadas = (n: number): Contour[][] => {
+    const coluna = (x0: number, x1: number): Contour => [
+      { x: x0, y: 0 }, { x: x1, y: 0 }, { x: x1, y: 20 }, { x: x0, y: 20 },
+    ];
+    const tampa: Contour = [
+      { x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 20 }, { x: 0, y: 20 },
+    ];
+    // 10 camadas de coluna, depois a tampa atravessando o vão.
+    return Array.from({ length: n }, (_, i) =>
+      i < 10 ? [coluna(0, 8), coluna(32, 40)] : [tampa],
+    );
+  };
+
+  const opcoes = (over: Partial<SupportOptions> = {}): SupportOptions => ({
+    ...DEFAULT_SUPPORT_OPTIONS, ...over,
+  });
+
+  it("com folga, a camada logo abaixo do balanço fica VAZIA", () => {
+    // É a diferença entre quebrar o suporte fora e arrancar material da peça
+    // junto com ele.
+    const regioes = camadas(14);
+    const semFolga = generateSupports(regioes, opcoes({ zClearanceLayers: 0, interfaceLayers: 0 }));
+    const comFolga = generateSupports(regioes, opcoes({ zClearanceLayers: 1, interfaceLayers: 0 }));
+
+    // A tampa começa na camada 10; o balanço é detectado ali.
+    expect(semFolga[9]!.region.length).toBeGreaterThan(0);
+    expect(comFolga[9]!.region.length).toBe(0);
+  });
+
+  it("a folga só desloca o suporte, não o elimina", () => {
+    const regioes = camadas(14);
+    const comFolga = generateSupports(regioes, opcoes({ zClearanceLayers: 1, interfaceLayers: 0 }));
+    const totalCamadas = comFolga.filter((s) => s.region.length > 0).length;
+    expect(totalCamadas).toBeGreaterThan(0);
+  });
+
+  it("folga maior abre vão maior", () => {
+    const regioes = camadas(14);
+    const uma = generateSupports(regioes, opcoes({ zClearanceLayers: 1, interfaceLayers: 0 }));
+    const tres = generateSupports(regioes, opcoes({ zClearanceLayers: 3, interfaceLayers: 0 }));
+    const topo = (s: ReturnType<typeof generateSupports>) =>
+      s.map((x, i) => (x.region.length > 0 ? i : -1)).filter((i) => i >= 0).pop() ?? -1;
+    expect(topo(tres)).toBeLessThan(topo(uma));
+  });
+
+  it("zClearance 0 encosta na peça — colado de propósito", () => {
+    // O suporte termina na camada imediatamente abaixo do balanço. É o
+    // comportamento antigo, mantido para quem quiser pedir suporte colado.
+    const regioes = camadas(14);
+    const colado = generateSupports(regioes, opcoes({ zClearanceLayers: 0, interfaceLayers: 0 }));
+    expect(colado[9]!.region.length).toBeGreaterThan(0);
+  });
+
+  it("a INTERFACE é mais densa que o corpo do suporte", () => {
+    // Sem isso a face de baixo da peça afunda entre linhas espaçadas de 15%.
+    const regioes = camadas(14);
+    const s = generateSupports(regioes, opcoes({ zClearanceLayers: 1, interfaceLayers: 2 }));
+
+    const interfaces = s.filter((x) => x.isInterface && x.lines.length > 0);
+    const corpo = s.filter((x) => !x.isInterface && x.lines.length > 0);
+    expect(interfaces.length).toBeGreaterThan(0);
+    expect(corpo.length).toBeGreaterThan(0);
+
+    // Mesma região, densidade maior ⇒ mais linhas.
+    const densidade = (arr: typeof interfaces) =>
+      arr.reduce((sum, x) => sum + x.lines.length, 0) / arr.length;
+    expect(densidade(interfaces)).toBeGreaterThan(densidade(corpo));
+  });
+
+  it("interfaceLayers 0 não marca nenhuma camada como interface", () => {
+    const s = generateSupports(camadas(14), opcoes({ interfaceLayers: 0 }));
+    expect(s.every((x) => !x.isInterface)).toBe(true);
+  });
+
+  it("peça sem balanço não ganha suporte, com ou sem folga", () => {
+    const cubo: Contour[][] = Array.from({ length: 10 }, () => [[
+      { x: 0, y: 0 }, { x: 20, y: 0 }, { x: 20, y: 20 }, { x: 0, y: 20 },
+    ]]);
+    for (const z of [0, 1, 3]) {
+      const s = generateSupports(cubo, opcoes({ zClearanceLayers: z }));
+      expect(s.every((x) => x.region.length === 0)).toBe(true);
+    }
+  });
+});
+
+describe("buildPlateOnly — suporte que nasce em cima da peça", () => {
+  /**
+   * Base larga → pescoço estreito → topo largo. O balanço do topo fica sobre a
+   * BASE, não sobre a mesa: o suporte desce e morre em cima da própria peça,
+   * dentro de um vão sem acesso para alicate.
+   */
+  const halteres = (): Contour[][] => {
+    const largo: Contour = [
+      { x: 0, y: 0 }, { x: 20, y: 0 }, { x: 20, y: 20 }, { x: 0, y: 20 },
+    ];
+    const pescoco: Contour = [
+      { x: 8, y: 8 }, { x: 12, y: 8 }, { x: 12, y: 12 }, { x: 8, y: 12 },
+    ];
+    return [
+      ...Array.from({ length: 5 }, () => [largo]),
+      ...Array.from({ length: 5 }, () => [pescoco]),
+      ...Array.from({ length: 5 }, () => [largo]),
+    ];
+  };
+
+  it("desligado, o suporte é gerado apoiado na peça", () => {
+    const s = generateSupports(halteres(), { ...opts, buildPlateOnly: false });
+    const total = s.reduce((sum, l) => sum + regionArea(l.region), 0);
+    expect(total).toBeGreaterThan(50);
+  });
+
+  it("ligado, esse suporte NÃO é gerado", () => {
+    const s = generateSupports(halteres(), { ...opts, buildPlateOnly: true });
+    const total = s.reduce((sum, l) => sum + regionArea(l.region), 0);
+    expect(total).toBeLessThan(1);
+  });
+
+  it("mas não mata o suporte que chega na MESA", () => {
+    // Mesa em T: a torre desce livre até a camada 0. Ligar a opção não pode
+    // custar o suporte legítimo — senão o tampo desaba.
+    const haste = Array.from({ length: 10 }, () => [rect(4, 4, 6, 6)]);
+    const tampo = Array.from({ length: 5 }, () => [rect(0, 0, 10, 10)]);
+    const s = generateSupports([...haste, ...tampo], { ...opts, buildPlateOnly: true });
+    expect(regionArea(s[0]!.region)).toBeGreaterThan(50);
   });
 });
