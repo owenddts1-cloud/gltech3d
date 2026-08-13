@@ -127,6 +127,19 @@ const schema = z.object({
   NEXT_PUBLIC_GA_ID: z.string().optional().default(""),
   NEXT_PUBLIC_META_PIXEL_ID: z.string().optional().default(""),
 
+  /**
+   * App Secret da Meta — assina os webhooks do Instagram.
+   *
+   * Opcional para o boot, mas o webhook FALHA FECHADO sem ele (503
+   * `webhook_not_configured`): sem o segredo não há como distinguir a Meta de um
+   * estranho, e aceitar "porque ainda nao configurei" transforma o endpoint numa
+   * porta aberta.
+   */
+  META_APP_SECRET: z.string().optional().default(""),
+  META_APP_ID: z.string().optional().default(""),
+  /** Versao da Graph API. Fixada para a Meta nao mudar o contrato sob os pes. */
+  META_GRAPH_VERSION: z.string().optional().default("v21.0"),
+
   // Sentry
   SENTRY_DSN: z.string().optional().default(""),
 

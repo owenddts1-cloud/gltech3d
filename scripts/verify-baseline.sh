@@ -148,6 +148,21 @@ psql_run -v ON_ERROR_STOP=1 -q -t -c "
 " || exit 1
 
 echo
+echo "== invariantes da 0079 (Instagram como canal) =="
+psql_run -v ON_ERROR_STOP=1 -q -t -c "
+  select 'tabelas novas: ' || count(*) from pg_tables where schemaname='public'
+    and tablename in ('instagram_accounts','automation_rules','scheduled_posts');
+  select 'RLS nas tres: ' || count(*) from pg_class
+    where relname in ('instagram_accounts','automation_rules','scheduled_posts') and relrowsecurity;
+  select 'conversations aceita instagram: ' ||
+    case when pg_get_constraintdef(oid) ilike '%instagram%' then 'sim' else 'NAO' end
+    from pg_constraint where conname='conversations_channel_check';
+  select 'check de canal unico: ' || count(*) from pg_constraint
+    where conname in ('conversations_exactly_one_channel','ai_agent_versions_exactly_one_channel');
+  select 'indice do cron: ' || count(*) from pg_indexes where indexname='scheduled_posts_due_idx';
+" || exit 1
+
+echo
 echo "== invariantes da 0078 (peca avulsa) =="
 psql_run -v ON_ERROR_STOP=1 -q -t -c "
   select 'coluna: ' || count(*) from information_schema.columns
