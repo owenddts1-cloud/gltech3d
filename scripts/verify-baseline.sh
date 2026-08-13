@@ -148,6 +148,16 @@ psql_run -v ON_ERROR_STOP=1 -q -t -c "
 " || exit 1
 
 echo
+echo "== invariantes da 0080 (identidade do Instagram no contato) =="
+psql_run -v ON_ERROR_STOP=1 -q -t -c "
+  select 'colunas: ' || count(*) from information_schema.columns
+    where table_name='contacts' and column_name in ('instagram_user_id','instagram_username');
+  select 'indice unico parcial: ' ||
+    case when indexdef ilike '%UNIQUE%' and indexdef ilike '%WHERE%' then 'ok' else 'FALHOU' end
+    from pg_indexes where indexname='contacts_instagram_user_key';
+" || exit 1
+
+echo
 echo "== invariantes da 0079 (Instagram como canal) =="
 psql_run -v ON_ERROR_STOP=1 -q -t -c "
   select 'tabelas novas: ' || count(*) from pg_tables where schemaname='public'
