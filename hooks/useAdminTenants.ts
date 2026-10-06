@@ -22,7 +22,7 @@ export interface AdminTenantRow {
 
 export interface AdminTenantsFilters {
   q?: string;
-  status?: "active" | "suspended" | "onboarding" | "redacted";
+  status?: "active" | "suspended" | "redacted" | "archived";
 }
 
 interface ListResponse {

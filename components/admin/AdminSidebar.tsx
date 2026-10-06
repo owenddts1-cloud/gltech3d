@@ -11,7 +11,9 @@ import {
   ChartBar,
   Users,
   ShieldCheck,
+  ShoppingCart,
   ArrowRight,
+  Wallet,
 } from "@/lib/ui/icons";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -26,6 +28,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: Gauge },
   { href: "/admin/inbox", label: "Inbox", icon: ChatsCircle },
   { href: "/admin/tenants", label: "Tenants", icon: Buildings },
+  { href: "/admin/pro-signups", label: "Calc3D PRO", icon: ShoppingCart },
+  { href: "/admin/assinantes", label: "Assinantes", icon: Wallet },
   { href: "/admin/audit", label: "Audit", icon: ClipboardText },
   { href: "/admin/lgpd", label: "LGPD", icon: Scales },
   { href: "/admin/incidents", label: "Incidents", icon: Warning },

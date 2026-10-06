@@ -67,7 +67,7 @@ export function TenantsFilters({ filters, onChange }: TenantsFiltersProps) {
         <SelectContent>
           <SelectItem value="all">Todos os status</SelectItem>
           <SelectItem value="active">Ativo</SelectItem>
-          <SelectItem value="onboarding">Onboarding</SelectItem>
+          <SelectItem value="archived">Arquivado</SelectItem>
           <SelectItem value="suspended">Suspenso</SelectItem>
           <SelectItem value="redacted">Redigido</SelectItem>
         </SelectContent>

@@ -3,7 +3,9 @@ import { z } from "zod";
 import { requirePlatformAdmin } from "@/lib/auth/requirePlatformAdmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ok, fail } from "@/lib/api/wrappers";
+import { sanitizeSearch } from "@/lib/plan/subscribers";
 import { audit } from "@/lib/audit";
+import { createTenant } from "@/lib/tenants/createTenant";
 import { randomUUID } from "node:crypto";
 
 // ---------------------------------------------------------------------------
@@ -12,7 +14,7 @@ import { randomUUID } from "node:crypto";
 
 const querySchema = z.object({
   q: z.string().optional(),
-  status: z.enum(["active", "suspended", "onboarding", "redacted"]).optional(),
+  status: z.enum(["active", "suspended", "redacted", "archived"]).optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(30),
 });
@@ -104,9 +106,12 @@ export async function GET(req: NextRequest) {
     query = query.eq("status", status);
   }
 
-  if (q) {
+  // `q` goes into a PostgREST `.or()` filter string: an unsanitized comma or
+  // parenthesis would let the caller inject extra filter clauses.
+  const safeQ = sanitizeSearch(q);
+  if (safeQ) {
     query = query.or(
-      `display_name.ilike.%${q}%,slug::text.ilike.%${q}%,cnpj.ilike.%${q}%`,
+      `display_name.ilike.%${safeQ}%,slug::text.ilike.%${safeQ}%,cnpj.ilike.%${safeQ}%`,
     );
   }
 
@@ -188,29 +193,28 @@ export async function POST(req: NextRequest) {
   const { display_name, slug, legal_name, cnpj, plan, owner_email } = parsed.data;
   const admin = createAdminClient();
 
-  const { data: org, error: insertError } = await admin
-    .from("organizations")
-    .insert({
-      display_name,
-      slug,
-      legal_name: legal_name ?? null,
-      cnpj: cnpj ?? null,
-      status: "onboarding",
-      settings: { plan },
-      created_by: adminCtx.user.id,
-    })
-    .select("id, slug, display_name")
-    .single();
+  // A criação em si mora em lib/tenants/createTenant.ts: a aprovação de pedidos
+  // do Calc3D PRO cria o mesmo tipo de linha e não pode ter uma segunda versão
+  // da regra. A resposta desta rota continua idêntica.
+  const created = await createTenant(admin, {
+    display_name,
+    slug,
+    legal_name,
+    cnpj,
+    plan,
+    createdBy: adminCtx.user.id,
+  });
 
-  if (insertError) {
-    if (insertError.code === "23505") {
-      return fail("conflict", "Slug already exists", 409, { requestId });
+  if (!created.ok) {
+    if (created.code === "slug_conflict") {
+      return fail("conflict", created.message, 409, { requestId });
     }
     return fail("internal_error", "Failed to create tenant", 500, {
       requestId,
-      details: insertError.message,
+      details: created.message,
     });
   }
+  const org = created.org;
 
   void audit({
     action: "tenant.created_by_platform_admin",

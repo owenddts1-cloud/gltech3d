@@ -39,7 +39,10 @@ export async function GET(
       onboarded_at,
       suspended_at,
       created_at,
-      settings
+      settings,
+      plan,
+      trial_ends_at,
+      plan_expires_at
     `,
     )
     .eq("id", id)

@@ -1,5 +1,7 @@
 "use client";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { planBadgeLabel, resolvePlanState } from "@/lib/plan/resolve";
 import { Warning } from "@/lib/ui/icons";
 import type {
   TenantOrganization,
@@ -20,6 +22,10 @@ function formatDate(iso: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));
+}
+
+function formatDay(iso: string): string {
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 }
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -61,7 +67,27 @@ interface TenantOverviewProps {
 // ---------------------------------------------------------------------------
 
 export function TenantOverview({ organization, counts, integrations }: TenantOverviewProps) {
-  const plan = (organization.settings as { plan?: string } | null)?.plan ?? "—";
+  // A coluna `plan` (+ trial/vencimento) é a fonte da verdade; o antigo
+  // `settings.plan` não é mais escrito. `resolvePlanState` é a mesma decisão que
+  // o gate usa, então o selo aqui não diverge do acesso real do cliente.
+  const planState = resolvePlanState({
+    plan: organization.plan,
+    trialEndsAt: organization.trial_ends_at,
+    planExpiresAt: organization.plan_expires_at,
+  });
+  const planLabel = planBadgeLabel(planState) ?? "—";
+  const planDetail =
+    planState.status === "trialing" && planState.trialEndsAt
+      ? `trial até ${formatDay(planState.trialEndsAt)}`
+      : planState.status === "active"
+        ? planState.planExpiresAt
+          ? `${planState.tier} · vence em ${formatDay(planState.planExpiresAt)}`
+          : `${planState.tier} · sem vencimento`
+        : planState.status === "expired" && planState.planExpiresAt
+          ? `${planState.tier} vencido em ${formatDay(planState.planExpiresAt)}`
+          : planState.status === "trial_expired" && planState.trialEndsAt
+            ? `trial encerrado em ${formatDay(planState.trialEndsAt)}`
+            : null;
 
   const nuvemshopStatus = integrations.nuvemshop_status;
   const nuvemshopLabel =
@@ -81,7 +107,23 @@ export function TenantOverview({ organization, counts, integrations }: TenantOve
           Informações
         </h2>
         <div>
-          <InfoRow label="Plano" value={<Badge variant="neutral" className="capitalize">{plan}</Badge>} />
+          <InfoRow
+            label="Plano"
+            value={
+              <span className="flex flex-wrap items-center justify-end gap-2">
+                <Badge variant={planState.hasProAccess ? "success" : "neutral"}>{planLabel}</Badge>
+                {planDetail ? (
+                  <span className="text-xs font-normal text-muted-foreground">{planDetail}</span>
+                ) : null}
+                <Link
+                  href={`/admin/assinantes/${organization.id}`}
+                  className="text-xs font-normal underline"
+                >
+                  Gerenciar plano
+                </Link>
+              </span>
+            }
+          />
           <InfoRow label="Razão social" value={organization.legal_name} />
           <InfoRow label="CNPJ" value={organization.cnpj} />
           <InfoRow label="Onboarding concluído" value={formatDate(organization.onboarded_at)} />

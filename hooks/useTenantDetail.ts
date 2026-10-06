@@ -12,11 +12,16 @@ export interface TenantOrganization {
   display_name: string;
   legal_name: string | null;
   cnpj: string | null;
-  status: "active" | "suspended" | "onboarding" | "redacted";
+  /** `organizations_status_check`: "em onboarding" é `onboarded_at IS NULL`, não um status. */
+  status: "active" | "suspended" | "redacted" | "archived";
   onboarded_at: string | null;
   suspended_at: string | null;
   created_at: string;
   settings: Record<string, unknown> | null;
+  /** Fonte da verdade do plano (migration 0082). Ver lib/plan/resolve.ts. */
+  plan: string | null;
+  trial_ends_at: string | null;
+  plan_expires_at: string | null;
 }
 
 export interface TenantCounts {

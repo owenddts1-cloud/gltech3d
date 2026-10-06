@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useCreateTenant } from "@/hooks/useCreateTenant";
 import { ApiError } from "@/lib/api/types";
+import { slugify } from "@/lib/text/slugify";
 
 // ---------------------------------------------------------------------------
 // Schema (mirrors server Zod; client keeps it in sync)
@@ -38,19 +39,8 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// ---------------------------------------------------------------------------
-// Slug helper
-// ---------------------------------------------------------------------------
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
-}
+// `slugify` vive em lib/text/slugify.ts — a tela de aprovação do Calc3D PRO
+// sugere o mesmo slug e não pode usar outra regra.
 
 // ---------------------------------------------------------------------------
 // CNPJ mask
