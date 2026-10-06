@@ -10,8 +10,12 @@
 
 	# O runner de agente de IA (ToolLoop) pode levar até ~5min por requisição.
 	# Timeout estendido só nessa rota pra o proxy não cortar a resposta longa.
+	# X-Real-IP é SOBRESCRITO com o IP real da conexão. O app (lib/api/client-ip.ts)
+	# confia nesse cabeçalho para o rate limit por IP; se o Caddy repassasse o valor
+	# mandado pelo cliente, qualquer um burlaria o limite trocando o cabeçalho.
 	@agentrun path /api/internal/agents/run*
 	reverse_proxy @agentrun app:3000 {
+		header_up X-Real-IP {remote_host}
 		transport http {
 			read_timeout 320s
 			write_timeout 320s
@@ -19,5 +23,7 @@
 	}
 
 	# Todo o resto do app.
-	reverse_proxy app:3000
+	reverse_proxy app:3000 {
+		header_up X-Real-IP {remote_host}
+	}
 }

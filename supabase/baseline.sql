@@ -7517,3 +7517,485 @@ comment on column public.contacts.instagram_user_id is
 comment on column public.contacts.instagram_username is
   'Handle atual, so para exibicao. Nunca usar para casar identidade.';
 
+
+-- ---- pro_signup_requests + bucket pro-receipts (migration 0081) ----
+-- Fila de pedidos do Calc3D PRO (Pix manual). Tabela de PLATAFORMA, nao
+-- tenant-aware: `organization_id` e nullable porque o pedido nasce ANTES da
+-- organization existir — e a aprovacao que a cria. Mesmo desenho de `incidents`
+-- (migration 0021). Bloco idempotente e auto-curativo: o update.sh re-aplica
+-- isto em bancos de clone, por isso a deduplicacao vem ANTES do indice unico.
+
+create table if not exists public.pro_signup_requests (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references public.organizations(id) on delete set null,
+  status text not null default 'pending'
+    check (status in ('pending','approved','rejected','cancelled')),
+  plan text not null default 'pro' check (plan in ('pro')),
+  buyer_name  text not null,
+  buyer_email text not null,
+  buyer_phone text,
+  company_name text,
+  amount_cents integer not null check (amount_cents > 0),
+  currency text not null default 'BRL' check (currency = 'BRL'),
+  pix_txid text,
+  declared_paid_at timestamptz not null,
+  receipt_storage_path text,
+  request_ip text,
+  user_agent text,
+  reviewed_by uuid references auth.users(id) on delete set null,
+  reviewed_at timestamptz,
+  review_note text,
+  invited_user_email text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists pro_signup_requests_pending_idx
+  on public.pro_signup_requests (created_at desc)
+  where status = 'pending';
+
+create index if not exists pro_signup_requests_email_idx
+  on public.pro_signup_requests (lower(buyer_email), created_at desc);
+
+-- Dedup ANTES da constraint (doutrina de migrations, item 8).
+update public.pro_signup_requests r
+   set status = 'cancelled'
+ where r.status = 'pending'
+   and r.id <> (
+     select r2.id
+       from public.pro_signup_requests r2
+      where r2.status = 'pending'
+        and lower(r2.buyer_email) = lower(r.buyer_email)
+      order by r2.created_at desc, r2.id desc
+      limit 1
+   );
+
+create unique index if not exists pro_signup_requests_one_pending_per_email
+  on public.pro_signup_requests (lower(buyer_email))
+  where status = 'pending';
+
+alter table public.pro_signup_requests enable row level security;
+
+drop policy if exists platform_admin_only_pro_signup_requests on public.pro_signup_requests;
+create policy platform_admin_only_pro_signup_requests on public.pro_signup_requests for all
+  using (public.fn_is_platform_admin()) with check (public.fn_is_platform_admin());
+
+drop trigger if exists pro_signup_requests_updated_at on public.pro_signup_requests;
+create trigger pro_signup_requests_updated_at before update on public.pro_signup_requests
+  for each row execute function public.fn_set_updated_at();
+
+comment on table public.pro_signup_requests is
+  'Fila de pedidos de liberacao do Calc3D PRO (Pix manual). Tabela de plataforma, nao tenant-aware: organization_id so e preenchido na aprovacao.';
+comment on column public.pro_signup_requests.organization_id is
+  'Tenant provisionado na aprovacao. Nulo enquanto o pedido esta pendente — o pedido nasce antes da organizacao existir.';
+comment on column public.pro_signup_requests.amount_cents is
+  'Derivado de lib/pricing/pro-plans.ts no servidor. Nunca vem do corpo da requisicao.';
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('pro-receipts', 'pro-receipts', false, 5242880,
+        array['image/png','image/jpeg','image/webp','application/pdf'])
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists platform_admin_read_pro_receipts on storage.objects;
+create policy platform_admin_read_pro_receipts on storage.objects for select
+  using (bucket_id = 'pro-receipts' and public.fn_is_platform_admin());
+
+-- ---- organizations: plan / trial_ends_at / plan_expires_at (migration 0082) ----
+-- Plano e trial deixam de viver em `settings->>'plan'` e viram colunas: o gate
+-- PRO e o trial de 7 dias precisam de dado consultavel e com CHECK.
+--
+-- `trial_days_left`, `expired` e `is_pro` NAO entram aqui — sao calculados em
+-- lib/plan/resolve.ts. So os dois fatos sao persistidos.
+--
+-- SEM POLICY NOVA de proposito: a escrita em `organizations` segue restrita a
+-- platform admin (`orgs_write_platform_admin`), e e isso que impede um `admin`
+-- de tenant de se auto-promover a PRO pela anon key. Nao acrescente policy aqui.
+--
+-- Bloco idempotente e auto-curativo: o update.sh re-aplica isto em clones, por
+-- isso a normalizacao dos dados vem ANTES do CHECK.
+
+alter table public.organizations
+  add column if not exists plan text not null default 'standard',
+  add column if not exists trial_ends_at timestamptz,
+  add column if not exists plan_expires_at timestamptz;
+
+update public.organizations
+   set plan = settings->>'plan'
+ where plan = 'standard'
+   and coalesce(settings->>'plan', '') <> '';
+
+update public.organizations
+   set plan = 'standard'
+ where plan is null
+    or plan not in ('standard', 'pro', 'enterprise');
+
+alter table public.organizations
+  drop constraint if exists organizations_plan_check;
+alter table public.organizations
+  add constraint organizations_plan_check
+  check (plan = any (array['standard', 'pro', 'enterprise']));
+
+comment on column public.organizations.plan is
+  'Plano vigente. standard = gratuito (Calculadora + Dashboard). FONTE DA VERDADE — settings->>''plan'' e legado.';
+comment on column public.organizations.trial_ends_at is
+  'Fim do trial de 7 dias do auto-cadastro. Fato historico: NAO e limpo quando a org vira paga.';
+comment on column public.organizations.plan_expires_at is
+  'Fim do acesso pago. NULL com plan=pro significa SEM EXPIRACAO (orgs anteriores a esta migration).';
+
+
+-- ---- guardas de tenant nas RPCs SECURITY DEFINER, listagem de buckets e insert de auditoria (migration 0083) ----
+-- Ver o cabecalho de supabase/migrations/20261006120000_0083_tenant_rpc_guards.sql.
+-- Idempotente: re-aplicavel pelo update.sh sem efeito duplicado.
+-- 1. ------------------------------------------------------------------------
+create or replace function public.fn_assert_org_access(p_organization_id uuid)
+returns void
+language plpgsql
+stable
+set search_path to 'public'
+as $$
+declare
+  v_claims text := nullif(current_setting('request.jwt.claims', true), '');
+  v_role   text := coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    case when v_claims is not null then v_claims::jsonb ->> 'role' end
+  );
+begin
+  -- No JWT at all = not a PostgREST request (psql, pg_cron, migrations,
+  -- triggers fired by those). Service role = the app's trusted server side.
+  if v_role is null or v_role = 'service_role' then
+    return;
+  end if;
+
+  if p_organization_id is null then
+    raise exception 'organization_id obrigatorio' using errcode = '42501';
+  end if;
+
+  if p_organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin() then
+    return;
+  end if;
+
+  raise exception 'forbidden_organization' using errcode = '42501';
+end $$;
+
+comment on function public.fn_assert_org_access(uuid) is
+  'Raises 42501 unless the JWT caller is a member of the org (or platform admin). No-JWT and service_role callers pass. Migration 0083.';
+
+-- 2. ------------------------------------------------------------------------
+create or replace function public.emit_event(
+  p_event_type text,
+  p_entity_kind text,
+  p_entity_id uuid,
+  p_payload jsonb default '{}'::jsonb,
+  p_metadata jsonb default '{}'::jsonb,
+  p_organization_id uuid default null::uuid
+) returns uuid
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_org_id uuid;
+  v_event_id uuid;
+begin
+  v_org_id := p_organization_id;
+  if v_org_id is null then
+    -- Try to resolve from caller's first org (best-effort; trigger callers MUST pass it)
+    select organization_id into v_org_id
+      from public.user_organizations
+      where user_id = auth.uid() and revoked_at is null
+      limit 1;
+  end if;
+  if v_org_id is null then
+    raise exception 'emit_event: organization_id obrigatorio';
+  end if;
+
+  -- Tenant guard (0083): SECURITY DEFINER bypasses RLS, so membership is
+  -- checked explicitly before writing into another org's event queue.
+  perform public.fn_assert_org_access(v_org_id);
+
+  insert into public.event_log
+    (organization_id, event_type, entity_kind, entity_id, payload, metadata)
+  values
+    (v_org_id, p_event_type, p_entity_kind, p_entity_id,
+     coalesce(p_payload, '{}'::jsonb),
+     coalesce(p_metadata, '{}'::jsonb)
+       || jsonb_build_object('emitted_at', extract(epoch from now())))
+  returning id into v_event_id;
+
+  return v_event_id;
+end $$;
+
+-- 3. ------------------------------------------------------------------------
+revoke execute on function public.activate_kb_version(uuid, uuid) from public, anon, authenticated;
+grant  execute on function public.activate_kb_version(uuid, uuid) to service_role;
+
+revoke execute on function public.fn_publish_ai_agent_version(uuid, uuid, uuid) from public, anon, authenticated;
+grant  execute on function public.fn_publish_ai_agent_version(uuid, uuid, uuid) to service_role;
+
+revoke execute on function public.retrieve_top_k_chunks(uuid, uuid, public.vector, integer, real) from public, anon, authenticated;
+grant  execute on function public.retrieve_top_k_chunks(uuid, uuid, public.vector, integer, real) to service_role;
+
+-- 4. ------------------------------------------------------------------------
+drop policy if exists "public_read_landing_media" on storage.objects;
+drop policy if exists "tenant_read_landing_media" on storage.objects;
+create policy "tenant_read_landing_media" on storage.objects for select
+  using (
+    bucket_id = 'landing-media'
+    and exists (
+      select 1 from public.user_organizations uo
+      where uo.user_id = auth.uid()
+        and uo.revoked_at is null
+        and uo.organization_id::text = split_part(name, '/', 1)
+    )
+  );
+
+drop policy if exists "public_read_avatars" on storage.objects;
+drop policy if exists "own_read_avatars" on storage.objects;
+create policy "own_read_avatars" on storage.objects for select
+  using (bucket_id = 'avatars' and split_part(name, '/', 1) = auth.uid()::text);
+
+-- 5. ------------------------------------------------------------------------
+drop policy if exists "audit_log_insert_tenant_member" on public.api_audit_log;
+create policy "audit_log_insert_tenant_member" on public.api_audit_log
+  for insert to authenticated
+  with check (
+    organization_id in (select public.fn_user_org_ids())
+    or public.fn_is_platform_admin()
+  );
+
+
+-- ---- DELETE por papel nas tabelas de negocio + org suspensa perde acesso RLS (migration 0084) ----
+-- Ver o cabecalho de supabase/migrations/20261007120000_0084_role_delete_policies_and_suspended_orgs.sql.
+-- Idempotente: re-aplicavel pelo update.sh. Re-aplicar o dump recria as policies *_all
+-- (CREATE POLICY do snapshot) e este bloco as derruba de novo — o estado final e o mesmo.
+-- 1. ------------------------------------------------------------------------
+create or replace function public.fn_user_org_ids()
+returns setof uuid
+language sql
+stable
+security definer
+set search_path to 'public'
+as $$
+  select uo.organization_id
+    from public.user_organizations uo
+    join public.organizations o on o.id = uo.organization_id
+   where uo.user_id = auth.uid()
+     and uo.revoked_at is null
+     and o.status = 'active';
+$$;
+
+comment on function public.fn_user_org_ids() is
+  'Orgs the JWT caller belongs to (membership not revoked AND organizations.status = active). Migration 0084.';
+
+create or replace function public.fn_user_role_in_org(p_org uuid)
+returns text
+language sql
+stable
+security definer
+set search_path to 'public'
+as $$
+  select uo.role
+    from public.user_organizations uo
+    join public.organizations o on o.id = uo.organization_id
+   where uo.user_id = auth.uid()
+     and uo.organization_id = p_org
+     and uo.revoked_at is null
+     and o.status = 'active'
+   limit 1;
+$$;
+
+comment on function public.fn_user_role_in_org(uuid) is
+  'Role of the JWT caller in an ACTIVE org (null if not a member or the org is suspended). Migration 0084.';
+
+-- 2. ------------------------------------------------------------------------
+do $$
+declare
+  r record;
+  v_member text;
+  v_delete text;
+begin
+  for r in
+    select * from (values
+      ('contacts',                'tenant_isolation_contacts',                'admin',   true),
+      ('financial_records',       'tenant_isolation_financial_records',       'admin',   false),
+      ('crm_leads',               'tenant_isolation_crm_leads',               'manager', true),
+      ('conversations',           'conversations_tenant_isolation',           'manager', true),
+      ('messages',                'messages_tenant_isolation',                'manager', true),
+      ('print_jobs',              'tenant_isolation_print_jobs',              'manager', false),
+      ('service_orders',          'tenant_isolation_service_orders',          'manager', false),
+      ('products',                'tenant_isolation_products',                'manager', false),
+      ('inventory_assets',        'tenant_isolation_inventory_assets',        'manager', false),
+      ('projects',                'tenant_isolation_projects',                'manager', false),
+      ('suppliers',               'tenant_isolation_suppliers',               'manager', false),
+      ('supplier_purchases',      'tenant_isolation_supplier_purchases',      'manager', false),
+      ('calendar_events',         'tenant_isolation_calendar_events',         'manager', false),
+      ('marketplace_orders',      'tenant_isolation_marketplace_orders',      'manager', false),
+      ('service_order_documents', 'tenant_isolation_service_order_documents', 'manager', false),
+      ('filaments',               'tenant_isolation_filaments',               'member',  false),
+      ('printers',                'tenant_isolation_printers',                'member',  false),
+      ('service_order_items',     'tenant_isolation_service_order_items',     'member',  false)
+    ) as t(tbl, prefix, delete_min_role, with_platform_admin)
+  loop
+    if to_regclass(format('public.%I', r.tbl)) is null then
+      raise notice '0084: table public.% not found, skipped', r.tbl;
+      continue;
+    end if;
+
+    -- Same expression the old FOR ALL policy used for this table.
+    v_member := case when r.with_platform_admin
+      then '(organization_id in (select public.fn_user_org_ids()) or public.fn_is_platform_admin())'
+      else '(organization_id in (select public.fn_user_org_ids()))'
+    end;
+
+    v_delete := case when r.delete_min_role = 'member'
+      then v_member
+      else format('(public.fn_role_at_least(organization_id, %L) or public.fn_is_platform_admin())', r.delete_min_role)
+    end;
+
+    execute format('drop policy if exists %I on public.%I', r.prefix || '_all', r.tbl);
+
+    execute format('drop policy if exists %I on public.%I', r.prefix || '_select', r.tbl);
+    execute format('create policy %I on public.%I for select using %s',
+                   r.prefix || '_select', r.tbl, v_member);
+
+    execute format('drop policy if exists %I on public.%I', r.prefix || '_insert', r.tbl);
+    execute format('create policy %I on public.%I for insert with check %s',
+                   r.prefix || '_insert', r.tbl, v_member);
+
+    execute format('drop policy if exists %I on public.%I', r.prefix || '_update', r.tbl);
+    execute format('create policy %I on public.%I for update using %s with check %s',
+                   r.prefix || '_update', r.tbl, v_member, v_member);
+
+    execute format('drop policy if exists %I on public.%I', r.prefix || '_delete', r.tbl);
+    execute format('create policy %I on public.%I for delete using %s',
+                   r.prefix || '_delete', r.tbl, v_delete);
+  end loop;
+end $$;
+
+
+-- ---- bucket privado orcamentos da pagina publica /orcamento (migration 0085) ----
+-- Ver o cabecalho de supabase/migrations/20261007130000_0085_orcamentos_bucket.sql.
+-- Idempotente: upsert do bucket, drop policy if exists.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('orcamentos', 'orcamentos', false, 52428800,
+        array[
+          'model/stl',
+          'application/sla',
+          'application/vnd.ms-pki.stl',
+          'model/3mf',
+          'application/vnd.ms-package.3dmanufacturing-3dmodel+xml',
+          'model/obj',
+          'application/step',
+          'model/step',
+          'image/png',
+          'image/jpeg',
+          'image/webp',
+          'application/pdf'
+        ])
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists platform_admin_read_orcamentos on storage.objects;
+create policy platform_admin_read_orcamentos on storage.objects for select
+  using (bucket_id = 'orcamentos' and public.fn_is_platform_admin());
+
+
+-- ---- control_sheets: abas personalizadas do Controle no banco (migration 0086) ----
+-- Ver o cabecalho de supabase/migrations/20261007140000_0086_control_sheets.sql.
+-- Idempotente: create if not exists, drop-before-create em constraints/policies/triggers.
+create table if not exists public.control_sheets (
+  id              uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name            text not null,
+  position        numeric not null default 0,
+  cells           jsonb not null default '[]'::jsonb,
+  columns         jsonb,
+  created_by      uuid default auth.uid() references auth.users(id) on delete set null,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+
+-- Re-applied over a table created before the default existed.
+alter table public.control_sheets alter column created_by set default auth.uid();
+
+alter table public.control_sheets drop constraint if exists control_sheets_name_length;
+alter table public.control_sheets add constraint control_sheets_name_length
+  check (char_length(name) between 1 and 60);
+
+alter table public.control_sheets drop constraint if exists control_sheets_cells_shape;
+alter table public.control_sheets add constraint control_sheets_cells_shape
+  check (jsonb_typeof(cells) = 'array');
+
+alter table public.control_sheets drop constraint if exists control_sheets_cells_size;
+alter table public.control_sheets add constraint control_sheets_cells_size
+  check (octet_length(cells::text) < 1000000);
+
+alter table public.control_sheets drop constraint if exists control_sheets_columns_size;
+alter table public.control_sheets add constraint control_sheets_columns_size
+  check (columns is null or octet_length(columns::text) < 100000);
+
+create index if not exists control_sheets_org_position_idx
+  on public.control_sheets (organization_id, position);
+
+alter table public.control_sheets enable row level security;
+
+-- Read: any member of the (active) org. Write: agent and above, or platform
+-- admin. A `viewer` is read-only everywhere else in the product, and is here too.
+drop policy if exists tenant_isolation_control_sheets_all on public.control_sheets;
+drop policy if exists tenant_isolation_control_sheets_select on public.control_sheets;
+create policy tenant_isolation_control_sheets_select on public.control_sheets
+  for select using (organization_id in (select public.fn_user_org_ids()));
+drop policy if exists tenant_isolation_control_sheets_insert on public.control_sheets;
+create policy tenant_isolation_control_sheets_insert on public.control_sheets
+  for insert with check (
+    (public.fn_role_at_least(organization_id, 'agent') or public.fn_is_platform_admin())
+    and (created_by is null or created_by = auth.uid())
+  );
+drop policy if exists tenant_isolation_control_sheets_update on public.control_sheets;
+create policy tenant_isolation_control_sheets_update on public.control_sheets
+  for update using (public.fn_role_at_least(organization_id, 'agent') or public.fn_is_platform_admin())
+  with check (public.fn_role_at_least(organization_id, 'agent') or public.fn_is_platform_admin());
+drop policy if exists tenant_isolation_control_sheets_delete on public.control_sheets;
+create policy tenant_isolation_control_sheets_delete on public.control_sheets
+  for delete using (public.fn_role_at_least(organization_id, 'agent') or public.fn_is_platform_admin());
+
+revoke all on public.control_sheets from anon;
+grant select, insert, update, delete on public.control_sheets to authenticated;
+grant all on public.control_sheets to service_role;
+
+drop trigger if exists trg_control_sheets_updated_at on public.control_sheets;
+create trigger trg_control_sheets_updated_at
+  before update on public.control_sheets
+  for each row execute function public.fn_set_updated_at();
+
+-- `created_by` is authorship, not editable data. INSERT: the column defaults
+-- to the caller and the policy refuses anyone else's id. UPDATE: RLS cannot
+-- compare old and new values (another agent legitimately edits the sheet), so
+-- a trigger keeps the original author.
+create or replace function public.fn_control_sheets_keep_created_by()
+returns trigger
+language plpgsql
+set search_path to 'public', 'pg_temp'
+as $$
+begin
+  new.created_by := old.created_by;
+  return new;
+end $$;
+
+drop trigger if exists trg_control_sheets_keep_created_by on public.control_sheets;
+create trigger trg_control_sheets_keep_created_by
+  before update on public.control_sheets
+  for each row execute function public.fn_control_sheets_keep_created_by();
+
+drop trigger if exists trg_control_sheets_audit on public.control_sheets;
+create trigger trg_control_sheets_audit
+  after insert or delete or update of name on public.control_sheets
+  for each row execute function public.fn_audit_log_row();
+
+comment on table public.control_sheets is
+  'Custom spreadsheet tabs of the Controle screen, per org. cells = jsonb array of string arrays (shape in lib/control/sheets.ts). Migration 0086.';
