@@ -2,8 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
-import { savePrintFarmSchema } from "@/lib/schemas/printers";
+import { assertProAccess } from "@/lib/plan/server";
+import { energyTariffSchema, savePrintFarmSchema } from "@/lib/schemas/printers";
 import { revalidatePath } from "next/cache";
+import { mergeOwnOrgSettings } from "@/lib/tenants/update-own-org";
 
 // ---------------------------------------------------------------------------
 // Row → client (camelCase) mappers. The frontend keeps its own string ids
@@ -109,6 +111,34 @@ export async function fetchPrintersAndFilaments() {
   };
 }
 
+/**
+ * Saves only the energy tariff (R$/kWh). Before this, the dashboard input just
+ * updated local state and the value was persisted only as a side effect of a
+ * printer/filament change, so editing the tariff alone was lost on reload.
+ */
+export async function saveEnergyTariff(kEnergy: unknown) {
+  const authUser = await loadAuthUser();
+  if (!authUser) return { ok: false as const, error: "Unauthenticated" };
+  const activeOrg = await resolveActiveOrg(authUser);
+  if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
+
+  const parsed = energyTariffSchema.safeParse(kEnergy);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Tarifa inválida" };
+  }
+
+  // Service role scoped to the session org (see lib/tenants/update-own-org.ts).
+  const saved = await mergeOwnOrgSettings(activeOrg.orgId, { k_energy: parsed.data });
+  if (!saved.ok) return { ok: false as const, error: saved.error };
+
+  revalidatePath("/app/dashboard");
+  revalidatePath("/app/printers");
+  revalidatePath("/app/calculator");
+  return { ok: true as const, kEnergy: parsed.data };
+}
+
 export async function savePrintersAndFilaments(
   printers: unknown[],
   filaments: unknown[],
@@ -118,6 +148,8 @@ export async function savePrintersAndFilaments(
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
   const orgId = activeOrg.orgId;
 
   const parsed = savePrintFarmSchema.safeParse({ printers, filaments, kEnergy });
@@ -178,26 +210,22 @@ export async function savePrintersAndFilaments(
   {
     let q = supabase.from("filaments").delete().eq("organization_id", orgId);
     if (keepFil.length > 0) q = q.not("client_id", "in", `(${keepFil.join(",")})`);
-    await q;
+    const { error } = await q;
+    if (error) return { ok: false as const, error: error.message };
   }
   {
     let q = supabase.from("printers").delete().eq("organization_id", orgId);
     if (keepPrn.length > 0) q = q.not("client_id", "in", `(${keepPrn.join(",")})`);
-    await q;
+    const { error } = await q;
+    if (error) return { ok: false as const, error: error.message };
   }
 
-  // k_energy (tarifa) stays an org-level scalar in settings.
+  // k_energy (tarifa) stays an org-level scalar in settings. Written with the
+  // service role scoped to the session org: through the user client RLS matched
+  // zero rows and the tariff was silently never saved.
   if (parsed.data.kEnergy !== undefined) {
-    const { data: orgRow } = await supabase
-      .from("organizations")
-      .select("settings")
-      .eq("id", orgId)
-      .single();
-    const settings = (orgRow?.settings as Record<string, unknown>) || {};
-    await supabase
-      .from("organizations")
-      .update({ settings: { ...settings, k_energy: parsed.data.kEnergy } })
-      .eq("id", orgId);
+    const saved = await mergeOwnOrgSettings(orgId, { k_energy: parsed.data.kEnergy });
+    if (!saved.ok) return { ok: false as const, error: saved.error };
   }
 
   // Audit is emitted automatically by the fn_audit_log_row triggers on

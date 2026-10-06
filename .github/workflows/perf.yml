@@ -38,4 +38,20 @@ jobs:
             if [ -d .next/static ]; then du -sh .next/static; fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # NOTE: Lighthouse CI + bundle-analyzer thresholds deferred (S-12.05 follow-up).
+      # Fails (exit 1) when a route's first-load JS exceeds perf-budgets.json.
+      - name: Bundle budget
+        run: |
+          set -o pipefail
+          node scripts/check-bundle-budget.mjs | tee bundle-budget.txt
+          {
+            echo "## Bundle budget"
+            echo '```'
+            cat bundle-budget.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Needs the build above: without .next it would skip, not pass.
+      - name: Bundle isolation (no three.js on the Dashboard)
+        run: npx vitest run tests/unit/bundle-isolation.test.ts
+
+      # NOTE: Lighthouse CI deferred (S-12.05 follow-up).

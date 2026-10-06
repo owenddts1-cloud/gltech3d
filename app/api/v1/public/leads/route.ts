@@ -21,16 +21,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { resolveGltechOrgId } from "@/lib/marketing/gltech-org";
 import { landingLeadSchema, normalizeBrPhone } from "@/lib/schemas/public-leads";
-import { sendEmail } from "@/lib/email/resend";
+import { sendEmail } from "@/lib/email/send";
 import { buildLeadNotifyEmail } from "@/lib/email/templates/lead-notify";
 import { buildLeadWelcomeEmail } from "@/lib/email/templates/lead-welcome";
 import { buildNewsletterWelcomeEmail } from "@/lib/email/templates/newsletter-welcome";
 import { sendWAHA, resolveWahaChatId } from "@/lib/waha/send";
 
+import { ownerNotifyEmail } from "@/lib/email/owner";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const DIRETORIA_EMAIL = "diretoria.gltech@gmail.com";
 const WHATSAPP_URL = "https://wa.me/5531999284834";
 
 function clientIp(req: NextRequest): string {
@@ -191,7 +191,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       createdAt,
     });
     jobs.push(bestEffortEmail("diretoria_notify", requestId, {
-      to: DIRETORIA_EMAIL,
+      to: ownerNotifyEmail(),
       subject: notify.subject,
       html: notify.html,
       text: notify.text,

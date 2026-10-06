@@ -10,6 +10,8 @@ import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { ok, fail } from "@/lib/api/wrappers";
+import { requireProApi } from "@/lib/plan/api";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -54,6 +56,9 @@ async function resolveContext(requestId: string) {
       }),
     };
   }
+  // PATCH and DELETE are the only callers, and both write.
+  const planDenied = await requireProApi(activeOrg.orgId, requestId);
+  if (planDenied) return { error: planDenied };
   return { authUser, activeOrg };
 }
 
@@ -184,6 +189,10 @@ export async function PATCH(
     console.warn("[ai-knowledge-sources] emit_event failed (non-blocking):", emitErr.message);
   }
 
+  deferBroadcast(() =>
+    broadcastOrg(activeOrg.orgId, "kb-sources", "source.updated", { source_id: sourceId, agent_id: ksRow.agent_id }),
+  );
+
   return ok(
     { data: { id: sourceId, ...(itemsCount !== undefined ? { items_count: itemsCount } : {}) } },
     { requestId },
@@ -233,6 +242,10 @@ export async function DELETE(
     console.error("[ai-knowledge-sources] DELETE archive failed:", archiveErr.message);
     return fail("internal_error", "Erro ao arquivar fonte.", 500, { requestId });
   }
+
+  deferBroadcast(() =>
+    broadcastOrg(activeOrg.orgId, "kb-sources", "source.deleted", { source_id: sourceId, status: "archived" }),
+  );
 
   return ok({ data: { id: sourceId, status: "archived" } }, { requestId });
 }

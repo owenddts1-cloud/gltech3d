@@ -1,6 +1,6 @@
 import type { DocumentSnapshot } from "@/lib/schemas/service-order-documents";
 import { formatDateBr } from "@/lib/format/document";
-import { validUntil } from "@/app/app/service-orders/_lib/document-draft";
+import { validUntil } from "@/app/app/(pro)/service-orders/_lib/document-draft";
 import { ShieldCheck, Info } from "@/lib/ui/icons";
 
 /**

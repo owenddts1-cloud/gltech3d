@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/types";
 import type { Actor, HandlerCtx } from "@/lib/api/handlers/types";
 import { audit } from "@/lib/audit";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import type { CreateLeadInput, UpdateLeadInput } from "@/lib/schemas";
 
 type SB = SupabaseClient;
@@ -247,6 +248,12 @@ export async function createLeadHandler(
     },
   });
 
+  const createdIds = {
+    lead_id: (lead as { id: string }).id,
+    pipeline_id: (lead as { pipeline_id: string }).pipeline_id,
+  };
+  deferBroadcast(() => broadcastOrg(ctx.organization_id, "leads", "lead.created", createdIds));
+
   return lead as Record<string, unknown>;
 }
 
@@ -329,6 +336,14 @@ export async function updateLeadHandler(
     requestId: ctx.requestId,
     metadata: { ...a.metadataActor, fields },
   });
+
+  const updatedIds = {
+    lead_id: leadId,
+    pipeline_id: (updated as { pipeline_id?: string }).pipeline_id,
+  };
+  deferBroadcast(() =>
+    broadcastOrg(existing.organization_id, "leads", "lead.updated", updatedIds),
+  );
 
   return updated as Record<string, unknown>;
 }
@@ -463,6 +478,9 @@ export async function moveLeadHandler(
       ...(input.reason ? { reason: input.reason } : {}),
     },
   });
+
+  const movedIds = { lead_id: leadId, pipeline_id: lead.pipeline_id as string };
+  deferBroadcast(() => broadcastOrg(lead.organization_id as string, "leads", "lead.moved", movedIds));
 
   return finalLead;
 }

@@ -22,6 +22,7 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { env } from "@/lib/env";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { requireProApi } from "@/lib/plan/api";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { testRunSchema } from "@/lib/ai/agents/validation";
@@ -43,6 +44,8 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
   if (!authUser) return fail("unauthenticated", "Auth required.", 401, { requestId });
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return fail("forbidden", "Sem organização ativa.", 403, { requestId });
+  const planDenied = await requireProApi(activeOrg.orgId, requestId);
+  if (planDenied) return planDenied;
   if (ROLE_RANK[activeOrg.role] < ROLE_RANK.admin) {
     return fail("forbidden_role", "Permissão insuficiente. Requer role admin.", 403, { requestId });
   }
@@ -159,15 +162,16 @@ async function runStubbedTest(args: StubArgs): Promise<Record<string, unknown>> 
   const toolCalls = [
     {
       step: 1,
-      tool_name: "(stub)",
+      tool_name: "(simulação)",
       args: { sample_message: args.sampleMessage },
-      result: { ok: true, note: "INTERNAL_AGENT_RUN_STUB=true — runtime real chega na S-13.08." },
+      // Customer-facing: this trace is rendered in the agent UI and run history.
+      result: { ok: true, note: "Resposta simulada: o motor de IA ainda não está ativado nesta conta." },
       started_at: args.startedAt.toISOString(),
       ended_at: finishedAt.toISOString(),
     },
   ];
 
-  const finalText = `[STUB] Resposta simulada para "${args.sampleMessage.slice(0, 80)}".`;
+  const finalText = `Resposta simulada para "${args.sampleMessage.slice(0, 80)}".`;
 
   const admin = createAdminClient();
   await admin
@@ -198,6 +202,9 @@ async function runStubbedTest(args: StubArgs): Promise<Record<string, unknown>> 
       session: args.version.channel_session_id,
       chat_id: args.sampleContact?.phone ?? null,
     },
+    // `simulated` is what the UI reads to show the "Simulado" badge; `stub` is
+    // kept for backward compatibility with existing clients.
+    simulated: true,
     stub: true,
   };
 }
@@ -221,5 +228,5 @@ async function callInternalRuntime(args: {
       sampleContact: args.sampleContact,
     },
   });
-  return { ...result, stub: false };
+  return { ...result, simulated: false, stub: false };
 }

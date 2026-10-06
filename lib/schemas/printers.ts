@@ -51,5 +51,11 @@ export const savePrintFarmSchema = z.object({
   kEnergy: z.coerce.number().nonnegative().max(100).optional(),
 });
 
+/** Energy tariff (R$/kWh) saved on its own from the dashboard (organizations.settings.k_energy). */
+export const energyTariffSchema = z.coerce
+  .number({ invalid_type_error: "Tarifa inválida" })
+  .min(0.01, "A tarifa mínima é R$ 0,01/kWh")
+  .max(10, "A tarifa máxima é R$ 10,00/kWh");
+
 export type FilamentInput = z.infer<typeof filamentInputSchema>;
 export type PrinterInput = z.infer<typeof printerInputSchema>;

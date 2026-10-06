@@ -3,6 +3,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { resolveSentryDsn } from "./lib/sentry/dsn";
+import { createTracesSampler } from "./lib/sentry/sampling";
 
 const SENSITIVE_HEADERS = [
   "authorization",
@@ -23,7 +24,9 @@ function scrubMessage(input: string): string {
 Sentry.init({
   dsn: resolveSentryDsn(process.env.SENTRY_DSN),
 
-  tracesSampleRate: 1,
+  // 10% in production, 100% in dev; /monitoring (tunnel) and health checks
+  // are never traced. See lib/sentry/sampling.ts.
+  tracesSampler: createTracesSampler(),
   enableLogs: true,
   sendDefaultPii: false,
 

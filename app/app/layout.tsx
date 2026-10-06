@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { loadAppShellContext } from "@/lib/auth/app-shell";
 import { AuthProvider } from "@/hooks/auth/AuthProvider";
+import { TrialBanner } from "@/components/app/TrialBanner";
 import { AppShell } from "./_components/AppShell";
 import { MfaEnrollGate } from "@/components/auth/MfaEnrollGate";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -14,7 +15,7 @@ import {
 } from "@/components/app/ImpersonateBanner";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, activeOrg, mustEnrollMfa } = await loadAppShellContext();
+  const { user, activeOrg, plan, mustEnrollMfa } = await loadAppShellContext();
 
   // Read sidebar collapsed state SSR to avoid flash.
   const store = await cookies();
@@ -45,8 +46,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <AuthProvider user={user} activeOrg={activeOrg}>
+    <AuthProvider user={user} activeOrg={activeOrg} plan={plan}>
       <ImpersonateBanner impersonating={impersonating} />
+      <TrialBanner />
       {mustEnrollMfa ? <MfaEnrollGate /> : <AppShell sidebarCollapsed={collapsed}>{children}</AppShell>}
     </AuthProvider>
   );

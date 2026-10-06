@@ -10,6 +10,7 @@ import {
   type PipelineConfigPatch,
 } from "@/lib/schemas/settings";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { assertProAccess } from "@/lib/plan/server";
 import { ROLE_RANK } from "@/lib/auth/types";
 
 export type UpdatePipelineConfigResult =
@@ -32,6 +33,8 @@ export async function updatePipelineConfig(
   if (!authUser) return { ok: false, error: "unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false, error: "forbidden_tenant" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false, error: denied };
   if (!authUser.is_platform_admin && ROLE_RANK[activeOrg.role] < ROLE_RANK.admin) {
     return { ok: false, error: "forbidden_role" };
   }

@@ -13,12 +13,17 @@
  *   `mcp:read`         -> habilita read tools desta wave
  *   `mcp:write`        -> habilita write tools (S-13.04)
  */
-import { createHash } from "node:crypto";
-
 import type { Actor } from "@/lib/api/handlers/types";
+import {
+  ApiTokenError,
+  extractBearer,
+  parseTokenScopes,
+  validateApiToken,
+} from "@/lib/auth/api-token";
 import type { Role } from "@/lib/auth/types";
 import { ROLE_RANK } from "@/lib/auth/types";
-import { createAdminClient } from "@/lib/supabase/admin";
+
+export { extractBearer };
 
 export interface McpAuthResult {
   organizationId: string;
@@ -41,11 +46,6 @@ export class McpAuthError extends Error {
 
 const VALID_ROLES = new Set<Role>(["viewer", "agent", "manager", "admin"]);
 
-function parseScopes(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((s): s is string => typeof s === "string");
-}
-
 function scopesRole(scopes: string[]): Role {
   for (const s of scopes) {
     if (s.startsWith("role:")) {
@@ -67,13 +67,12 @@ function deriveActor(scopes: string[], tokenId: string): Actor {
   return { type: "user", id: tokenId, role };
 }
 
-export function extractBearer(authHeader: string | null): string | null {
-  if (!authHeader) return null;
-  const m = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
-  if (!m) return null;
-  return m[1]!.trim();
-}
-
+/**
+ * Validates `Authorization: Bearer dsk_...` for the MCP server. Token lookup,
+ * revocation/expiry checks and `last_used_at` live in the shared
+ * `validateApiToken` (lib/auth/api-token.ts); this maps its errors to MCP
+ * JSON-RPC codes and derives role/actor from the scopes.
+ */
 export async function validateBearerToken(
   authHeader: string | null,
 ): Promise<McpAuthResult> {
@@ -81,50 +80,30 @@ export async function validateBearerToken(
   if (!plaintext) {
     throw new McpAuthError(-32001, 401, "Missing or malformed Authorization header.");
   }
-  if (!plaintext.startsWith("dsk_")) {
-    throw new McpAuthError(-32001, 401, "Invalid token format.");
+
+  let token;
+  try {
+    token = await validateApiToken(plaintext);
+  } catch (err) {
+    if (err instanceof ApiTokenError) {
+      throw new McpAuthError(
+        err.code === "token_lookup_failed" ? -32603 : -32001,
+        err.httpStatus,
+        err.message,
+      );
+    }
+    throw err;
   }
 
-  const tokenHash = createHash("sha256").update(plaintext).digest();
-  const hashLiteral = `\\x${tokenHash.toString("hex")}`;
-
-  const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("api_tokens")
-    .select("id, organization_id, scopes, revoked_at, expires_at")
-    .eq("token_hash", hashLiteral)
-    .maybeSingle();
-
-  if (error) {
-    throw new McpAuthError(-32603, 500, `Token lookup failed: ${error.message}`);
-  }
-  if (!data) {
-    throw new McpAuthError(-32001, 401, "Token not recognized.");
-  }
-  if (data.revoked_at) {
-    throw new McpAuthError(-32001, 401, "Token revoked.");
-  }
-  if (data.expires_at && new Date(data.expires_at) < new Date()) {
-    throw new McpAuthError(-32001, 401, "Token expired.");
-  }
-
-  const scopes = parseScopes(data.scopes);
+  const scopes = parseTokenScopes(token.scopes);
   const role = scopesRole(scopes);
-  const actor = deriveActor(scopes, data.id);
-
-  supabase
-    .from("api_tokens")
-    .update({ last_used_at: new Date().toISOString() })
-    .eq("id", data.id)
-    .then(({ error: updErr }) => {
-      if (updErr) console.error("[mcp.auth] last_used_at update failed", updErr.message);
-    });
+  const actor = deriveActor(scopes, token.tokenId);
 
   return {
-    organizationId: data.organization_id,
+    organizationId: token.organizationId,
     role,
     actor,
-    apiTokenId: data.id,
+    apiTokenId: token.tokenId,
     scopes,
   };
 }

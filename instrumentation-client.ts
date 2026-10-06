@@ -4,6 +4,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { resolveSentryDsn } from "./lib/sentry/dsn";
+import { createTracesSampler } from "./lib/sentry/sampling";
 
 const SENSITIVE_HEADERS = [
   "authorization",
@@ -28,7 +29,9 @@ Sentry.init({
 
   integrations: [Sentry.replayIntegration()],
 
-  tracesSampleRate: 1,
+  // 10% in production, 100% in dev; /monitoring (tunnel) and health checks
+  // are never traced. See lib/sentry/sampling.ts.
+  tracesSampler: createTracesSampler(),
   enableLogs: true,
 
   replaysSessionSampleRate: 0.1,

@@ -5,7 +5,7 @@ import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import {
   computeReportBreakdowns,
   type FinRow, type SoRow, type MoRow, type ProjRow,
-} from "@/app/app/reports/_lib/breakdowns-compute";
+} from "@/app/app/(pro)/reports/_lib/breakdowns-compute";
 import type { ReportBreakdowns } from "./types";
 
 /**

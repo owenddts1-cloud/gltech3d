@@ -1,7 +1,7 @@
 "use server";
 
-import { requireAuth } from "@/lib/auth/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
+import { createClient } from "@/lib/supabase/server";
 import type { CatalogProductItem } from "@/lib/catalog/whatsapp-formatter";
 
 export interface CatalogProductDetail extends CatalogProductItem {
@@ -20,22 +20,17 @@ export async function fetchCatalogProducts(): Promise<{
 }> {
   try {
     const user = await requireAuth();
-    const admin = createAdminClient();
-
-    // Busca a org do usuário logado
-    const { data: uo } = await admin
-      .from("user_organizations")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .eq("revoked_at", null)
-      .limit(1)
-      .maybeSingle();
-
-    if (!uo?.organization_id) {
+    // Active org from the session (the tenant switcher), not "first membership":
+    // a user in two orgs would otherwise see the other org's catalog. The old
+    // `.eq("revoked_at", null)` also never matched, so this always failed.
+    const activeOrg = await resolveActiveOrg(user);
+    if (!activeOrg) {
       return { ok: false, products: [], categories: [], error: "Organização não encontrada" };
     }
+    // User client: RLS is a second fence on top of the explicit org filter.
+    const supabase = await createClient();
 
-    const { data: rows, error } = await admin
+    const { data: rows, error } = await supabase
       .from("products")
       .select(`
         id,
@@ -54,7 +49,7 @@ export async function fetchCatalogProducts(): Promise<{
         is_published,
         bestseller_rank
       `)
-      .eq("organization_id", uo.organization_id)
+      .eq("organization_id", activeOrg.orgId)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
 

@@ -10,7 +10,11 @@ import { generateRecoveryCodes, hashRecoveryCode } from "@/lib/auth/recovery-cod
 
 export type ConfirmMfaEnrollResult =
   | { ok: true; recovery_codes: string[] }
-  | { ok: false; error: "invalid_code" | "challenge_failed" | "verify_failed"; message?: string };
+  | {
+      ok: false;
+      error: "invalid_code" | "challenge_failed" | "verify_failed" | "recovery_codes_failed";
+      message?: string;
+    };
 
 /**
  * Confirms a TOTP enrollment by issuing a challenge + verifying the code, then
@@ -72,7 +76,17 @@ export async function confirmMfaEnroll(
     insertErr = r.error;
   }
   if (insertErr) {
+    // Never hand out codes that were not persisted: the user would file them
+    // away as their only way back in, and they would not work. The factor IS
+    // verified at this point, so the way out is regenerating from Security.
     console.error("[confirmMfaEnroll] failed to insert recovery codes:", insertErr.message);
+    return {
+      ok: false,
+      error: "recovery_codes_failed",
+      message:
+        "A verificação em duas etapas foi ativada, mas não conseguimos salvar os códigos de recuperação. " +
+        "Recarregue a página e gere novos códigos em Configurações → Segurança.",
+    };
   }
 
   await audit({

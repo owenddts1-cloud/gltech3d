@@ -6,6 +6,7 @@ import { type NextRequest } from "next/server";
 
 import { ApiError } from "@/lib/api/types";
 import { fail, ok } from "@/lib/api/wrappers";
+import { requireProApiForSession } from "@/lib/plan/api";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { sendMessageSchema, validateRequest, type SendMessageInput } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (authErr || !user) {
     return fail("unauthenticated", "Auth required.", 401, { requestId });
   }
+  const planDenied = await requireProApiForSession(requestId);
+  if (planDenied) return planDenied;
 
   const authUser = await loadAuthUser();
   const activeOrg = authUser ? await resolveActiveOrg(authUser) : null;

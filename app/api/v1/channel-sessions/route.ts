@@ -12,6 +12,7 @@ import type { NextRequest } from "next/server";
 import { audit } from "@/lib/audit";
 import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { requireProApi } from "@/lib/plan/api";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { createChannelSchema } from "@/lib/schemas/channels";
 import { createClient } from "@/lib/supabase/server";
@@ -46,6 +47,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!user) return fail("unauthenticated", "Auth required.", 401, { requestId });
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) return fail("forbidden_tenant", "Nenhuma organização ativa.", 403, { requestId });
+  const planDenied = await requireProApi(activeOrg.orgId, requestId);
+  if (planDenied) return planDenied;
   if (!user.is_platform_admin && ROLE_RANK[activeOrg.role] < ROLE_RANK.admin) {
     return fail("forbidden_role", "Apenas administradores podem conectar números.", 403, { requestId });
   }

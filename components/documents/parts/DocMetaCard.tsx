@@ -1,5 +1,5 @@
 import type { DocumentSnapshot } from "@/lib/schemas/service-order-documents";
-import { validUntil } from "@/app/app/service-orders/_lib/document-draft";
+import { validUntil } from "@/app/app/(pro)/service-orders/_lib/document-draft";
 import { formatDateBr } from "@/lib/format/document";
 import { FileText, CalendarBlank, Clock } from "@/lib/ui/icons";
 

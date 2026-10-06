@@ -4,13 +4,14 @@ import { env } from "@/lib/env";
 import { loadAuthUser } from "@/lib/auth/server";
 
 /**
- * Status da integração automática com a Shopee. Retorna SÓ um booleano —
- * nunca os valores das chaves. Enquanto false, a aba Shopee opera no modo
- * manual e mostra o card "aguardando credenciais".
+ * Se as credenciais da Shopee (SHOPEE_PARTNER_ID / SHOPEE_PARTNER_KEY) foram
+ * informadas. Retorna SÓ um booleano — nunca os valores das chaves.
  *
- * A integração completa (OAuth + webhook de pedidos → marketplace_orders) fica
- * bloqueada até o dono da loja criar o app de desenvolvedor na Shopee e
- * preencher SHOPEE_PARTNER_ID / SHOPEE_PARTNER_KEY.
+ * Não existe integração automática ainda (sem OAuth, sem webhook de pedidos,
+ * sem sync): nos dois estados as vendas da Shopee são lançadas manualmente, e o
+ * ShopeeStatusCard diz isso. `configured = true` só acrescenta no card que as
+ * credenciais já foram informadas e serão usadas quando a integração
+ * (planejada) for liberada.
  */
 export async function getShopeeIntegrationStatus(): Promise<{
   ok: boolean;

@@ -171,6 +171,50 @@ const schema = z.object({
   SHOPEE_PARTNER_ID: z.string().optional().default(""),
   SHOPEE_PARTNER_KEY: z.string().optional().default(""),
 
+  // Envio de e-mail por SMTP. Caminho de entrega REAL do projeto.
+  //
+  // O Resend so entrega a TERCEIROS com dominio verificado, e aqui nao ha
+  // dominio proprio (gltech3d.com.br nao esta registrado; .vercel.app nao
+  // aceita registros DNS). Sem SMTP o cliente nunca receberia o link de
+  // ativacao nem a redefinicao de senha.
+  //
+  // Genericas de proposito: servem Gmail, Zoho, Brevo, Mailgun. Todas opcionais
+  // — obrigatoria derrubaria o boot de quem clonou e nao envia e-mail.
+  // SMTP_PASSWORD e SENHA DE APP (16 chars), nunca a senha da conta. NUNCA logar.
+  SMTP_HOST: z.string().optional().default(""),
+  SMTP_PORT: z.string().optional().default(""),
+  SMTP_USER: z.string().optional().default(""),
+  SMTP_PASSWORD: z.string().optional().default(""),
+  SMTP_FROM: z.string().optional().default(""),
+
+  // Calc3D PRO — venda por Pix manual (/calc3d-pro).
+  //
+  // Todas opcionais: uma obrigatória aqui derrubaria o boot de quem clonou o
+  // projeto e não vende nada. Sem elas a página ainda calcula e mostra a vitrine;
+  // só o bloco de pagamento avisa que não está configurado.
+  //
+  // PRO_SIGNUP_NOTIFY_EMAIL: para onde vai o pedido de liberação. Vazio → cai no
+  // endereço da diretoria, o mesmo que a rota de leads já usa.
+  PRO_SIGNUP_NOTIFY_EMAIL: z.string().optional().default(""),
+  // HMAC dos botões "Aprovar e liberar" / "Recusar" do e-mail ao dono
+  // (lib/pro-signup/email-action-token.ts). Vazio → os botões não aparecem e o
+  // e-mail só traz o link para o painel. Se preenchida, precisa de ≥32 chars:
+  // quem tem este segredo aprova pagamentos sem login.
+  PRO_APPROVAL_TOKEN_SECRET: z
+    .string()
+    .optional()
+    .default("")
+    .refine((v) => v === "" || v.length >= 32, {
+      message: "PRO_APPROVAL_TOKEN_SECRET precisa de pelo menos 32 caracteres (ou fique vazia)",
+    }),
+  // Chave Pix exibida na página. Pública por natureza — é o que o comprador copia.
+  NEXT_PUBLIC_PIX_KEY: z.string().optional().default(""),
+  // Nome do recebedor, para o comprador conferir antes de pagar.
+  NEXT_PUBLIC_PIX_RECEIVER_NAME: z.string().optional().default(""),
+  // Pix copia e cola (BR Code), com valor fixo. Validado contra o preço do
+  // plano em lib/pix/config.ts — se divergir, a página esconde o código.
+  NEXT_PUBLIC_PIX_COPIA_E_COLA: z.string().optional().default(""),
+
   // App URLs
   NEXT_PUBLIC_APP_URL: z
     .string()

@@ -12,7 +12,7 @@
  *   respeitam a moeda da linha (`currency` da tabela), não só BRL.
  * - `components/kanban/StageColumn.tsx` e os gráficos usam
  *   `maximumFractionDigits: 0` para caber no eixo.
- * - `app/app/control/_components/SpreadsheetGrid.tsx` devolve string vazia em
+ * - `app/app/(pro)/control/_components/SpreadsheetGrid.tsx` devolve string vazia em
  *   valor nulo ou zero, porque célula de planilha vazia não mostra "R$ 0,00".
  * - Os módulos de IA e o e-mail de alarme instanciam o formatter uma vez e
  *   chamam `.format()` em vários pontos.

@@ -4,7 +4,9 @@ import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConversationListItem } from "./ConversationListItem";
-import { EmptyInbox } from "@/components/empty";
+import { EmptyState, EmptyFilterResults } from "@/components/empty";
+import { usePermission } from "@/hooks/auth/AuthProvider";
+import { ChatCircle } from "@/lib/ui/icons";
 import {
   useConversationsRealtime,
   type ConversationsFilters,
@@ -31,6 +33,8 @@ export function ConversationList({
   onVisibleChange,
 }: Props) {
   const q = useConversationsRealtime(filters, orgId);
+  // /app/connections is admin-only; only offer the link to who can open it.
+  const canManageChannels = usePermission("channels.manage");
 
   const items = useMemo(() => {
     const all: ConversationWithContact[] = q.data?.pages.flatMap((p) => p.data) ?? [];
@@ -73,9 +77,27 @@ export function ConversationList({
   }
 
   if (items.length === 0) {
+    // Search / channel / unread filters narrow the list: an empty result there
+    // says nothing about the channel setup, so no "connect" CTA.
+    const narrowed = Boolean(filters.search || filters.channel_session_id || clientFilter);
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <EmptyInbox />
+        {narrowed ? (
+          <EmptyFilterResults />
+        ) : (
+          <EmptyState
+            icon={ChatCircle}
+            headline="Nenhuma conversa nesta aba"
+            subcopy={
+              canManageChannels
+                ? "As conversas chegam pelo WhatsApp conectado e aparecem aqui em tempo real. Se ainda não conectou um número, faça isso em Conexões. Confira também as outras abas."
+                : "As conversas chegam pelo WhatsApp conectado e aparecem aqui em tempo real. Confira as outras abas ou peça a um administrador para conectar um número."
+            }
+            primary={
+              canManageChannels ? { label: "Ir para Conexões", href: "/app/connections" } : undefined
+            }
+          />
+        )}
       </div>
     );
   }

@@ -13,6 +13,8 @@ import type { NextRequest } from "next/server";
 import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { requireProApi } from "@/lib/plan/api";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -34,6 +36,8 @@ export async function POST(_req: NextRequest, ctx: RouteCtx): Promise<Response> 
   if (!activeOrg) {
     return fail("forbidden_tenant", "Sem organização ativa.", 403, { requestId });
   }
+  const planDenied = await requireProApi(activeOrg.orgId, requestId);
+  if (planDenied) return planDenied;
   if (ROLE_RANK[activeOrg.role] < ROLE_RANK.agent) {
     return fail(
       "forbidden_role",
@@ -70,6 +74,12 @@ export async function POST(_req: NextRequest, ctx: RouteCtx): Promise<Response> 
     resourceId: id,
     requestId,
   });
+
+  deferBroadcast(() =>
+    broadcastOrg(activeOrg.orgId, "conversations", "conversation.updated", {
+      conversation_id: id,
+    }),
+  );
 
   return ok({ reactivated: true }, { requestId });
 }

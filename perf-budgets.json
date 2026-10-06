@@ -1,0 +1,10 @@
+{
+  "$comment": "First-load JS budgets in KB (gzip -9, de-duplicated: page entry + ancestor layouts/boundaries + Next runtime). Checked by scripts/check-bundle-budget.mjs in .github/workflows/perf.yml. Initial budgets = production build of 2026-10-06 + ~15%. Raise a budget only in the PR that intentionally grows the route, and say why. Known heavy item: Sentry (with Replay) sits in the root main chunk (~170 KB gzip on every route).",
+  "baseline": { "measuredAt": "2026-10-06", "buildId": "yqPAarijQh9xxoc4kpEXe" },
+  "routes": [
+    { "route": "/", "entry": "/(marketing)/page", "maxGzipKB": 440, "baselineGzipKB": 381.9 },
+    { "route": "/calc3d-pro", "entry": "/(marketing)/calc3d-pro/page", "maxGzipKB": 495, "baselineGzipKB": 426.4 },
+    { "route": "/app/dashboard", "entry": "/app/dashboard/page", "maxGzipKB": 600, "baselineGzipKB": 518.6 },
+    { "route": "/app/inbox", "entry": "/app/(pro)/inbox/page", "maxGzipKB": 675, "baselineGzipKB": 584.7 }
+  ]
+}

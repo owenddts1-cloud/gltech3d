@@ -11,7 +11,9 @@ export default async function OnboardingIndex() {
   if (!activeOrg) redirect("/login");
 
   const { state, onboardedAt } = await loadOnboardingState(activeOrg.orgId);
-  if (onboardedAt) redirect("/app/inbox");
+  // /app/dashboard e nao /app/inbox: o Inbox e modulo PRO, e quem chega aqui
+  // sem plano seria jogado na tela de upgrade sem entender por que.
+  if (onboardedAt) redirect("/app/dashboard");
 
   if (!state.welcome) redirect("/onboarding/welcome");
   if (!state.whatsapp) redirect("/onboarding/connect-whatsapp");

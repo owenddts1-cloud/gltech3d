@@ -13,11 +13,11 @@ import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
+import { isUsableServiceRoleKey } from "@/lib/supabase/service-role-key";
 import type { AuditAction } from "./actions";
 
 export function isServiceRoleConfigured(): boolean {
-  const key = env.SUPABASE_SERVICE_ROLE_KEY;
-  return key.length > 50 && !key.startsWith("PLACEHOLDER");
+  return isUsableServiceRoleKey(env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 interface AuditEntry {
@@ -37,10 +37,10 @@ interface AuditEntry {
 
 export async function audit(entry: AuditEntry): Promise<void> {
   try {
-    // Prefer service-role admin (bypasses RLS, works for unauthenticated audit
-    // events like login_failed). Fall back to user-scoped client when service
-    // role is missing in dev — RLS policy `audit_log_insert_tenant_member` has
-    // null qual so authenticated users can insert their own audit rows.
+    // Service role is the normal path: audit rows are written for events with
+    // no session at all (login_failed, sign-out, webhooks, cron, public forms),
+    // which the user client cannot insert under RLS. The user-client branch only
+    // exists for local setups still holding the .env.example placeholder.
     const client = isServiceRoleConfigured() ? createAdminClient() : await createClient();
     const { error } = await client.from("api_audit_log").insert({
       action: entry.action,

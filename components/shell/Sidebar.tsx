@@ -4,11 +4,13 @@ import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { motion } from "motion/react";
 import {
-  CaretDoubleLeft, CaretDoubleRight, CaretDown, House, SignOut, Lightning,
+  CaretDoubleLeft, CaretDoubleRight, CaretDown, House, SignOut, Lightning, Lock,
 } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { toggleSidebar } from "@/app/actions/shell/toggleSidebar";
-import { usePermission, useUser, useAuth, useActiveOrg } from "@/hooks/auth/AuthProvider";
+import { usePermission, useUser, useAuth, useActiveOrg, usePlan } from "@/hooks/auth/AuthProvider";
+import { requiresProAccess } from "@/lib/plan/modules";
+import { planBadgeLabel } from "@/lib/plan/resolve";
 import { ConnectionHealthDot } from "@/components/connections/ConnectionHealthDot";
 import { Logo } from "./Logo";
 import { isGroup, type NavEntry, type NavGroup, type NavLeaf } from "./nav-crm";
@@ -29,46 +31,88 @@ export function Sidebar({ collapsed, nav }: { collapsed: boolean; nav: NavEntry[
   const [isPending, startTransition] = useTransition();
   const canLgpd = usePermission("lgpd.execute_redact");
   const canAiAgents = usePermission("ai.agents.view");
+  const canOrgSettings = usePermission("org.settings.manage");
+  const canChannels = usePermission("channels.manage");
   const user = useUser();
   const activeOrg = useActiveOrg();
   const { signOut } = useAuth();
 
+  const plan = usePlan();
+
+  // Every `permission` used in the nav must be wired here. An unwired key is
+  // HIDDEN (fail closed), so a forgotten entry shows up as a missing item in
+  // review instead of a menu link that leads to /403. Server guards stay the
+  // real authority.
   const permissions: Record<string, boolean> = {
     "lgpd.execute_redact": canLgpd,
     "ai.agents.view": canAiAgents,
+    "org.settings.manage": canOrgSettings,
+    "channels.manage": canChannels,
   };
-  const canSee = (perm?: string) => (perm ? permissions[perm] ?? true : true);
+  const canSee = (perm?: string) => (perm ? permissions[perm] ?? false : true);
+
+  /**
+   * Item travado = ha plano resolvido, ele nao da acesso PRO, e a rota exige PRO.
+   *
+   * `plan !== null` e fail-open COSMETICO de proposito: sem plano resolvido a UI
+   * nao decora nada, em vez de chutar um cadeado. Quem decide acesso de verdade
+   * e `requirePro()` no servidor, que trata `null` como sem acesso.
+   *
+   * Nao existe campo `requiresPro` em `NavLeaf`: ele duplicaria o mapa
+   * rota -> PRO que `lib/plan/modules.ts` ja tem, e as duas listas divergiriam
+   * em silencio (menu aberto, servidor trancando).
+   */
+  const isLocked = (href: string) =>
+    plan !== null && !plan.hasProAccess && requiresProAccess(href);
+
+  const upgradeHref = (href: string) =>
+    `/app/settings/billing?locked=${encodeURIComponent(href)}`;
 
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   function renderLeaf(item: NavLeaf, opts?: { nested?: boolean }) {
     const active = isActive(pathname, item.href);
+    const locked = isLocked(item.href);
     const Icon = item.icon;
     return (
       <Link
         key={item.href}
-        href={item.href}
-        title={collapsed ? item.label : undefined}
-        aria-current={active ? "page" : undefined}
+        // Travado leva para a tela de upgrade, nao para a rota — que redirecionaria
+        // para la de qualquer forma, so que depois de um round-trip.
+        href={locked ? upgradeHref(item.href) : item.href}
+        // Continua sendo <Link> e nao <button disabled>: a navegacao por teclado
+        // segue funcionando, e `Sidebar.test.tsx` exige role="link" nos itens.
+        title={locked ? `${item.label} — disponível no PRO` : collapsed ? item.label : undefined}
+        aria-current={active && !locked ? "page" : undefined}
+        data-locked={locked ? "true" : undefined}
         className={cn(
           "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors z-10",
-          active
+          active && !locked
             ? "text-sidebar-text-active font-semibold"
             : "text-sidebar-text hover:text-sidebar-text-active",
+          locked && "opacity-60",
           collapsed && "justify-center px-2",
           opts?.nested && !collapsed && "ml-3 pl-4",
         )}
       >
-        {active && (
+        {active && !locked && (
           <motion.div
             layoutId="sidebar-active-pill"
             className="absolute inset-0 bg-sidebar-accent/15 border-l-2 border-sidebar-accent rounded-r-md -z-10"
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
           />
         )}
-        <Icon size={opts?.nested ? 16 : 18} weight={active ? "fill" : "regular"} aria-hidden className="shrink-0" />
+        <Icon size={opts?.nested ? 16 : 18} weight={active && !locked ? "fill" : "regular"} aria-hidden className="shrink-0" />
         {!collapsed && <span className="truncate">{item.label}</span>}
-        {item.healthDot && (
+        {locked && (
+          <Lock
+            size={13}
+            weight="fill"
+            aria-hidden
+            className={cn("shrink-0 opacity-70", collapsed ? "absolute right-1 top-1" : "ml-auto")}
+          />
+        )}
+        {item.healthDot && !locked && (
           <ConnectionHealthDot className={cn(collapsed ? "absolute right-1.5 top-1.5" : "ml-auto")} />
         )}
       </Link>
@@ -122,6 +166,11 @@ export function Sidebar({ collapsed, nav }: { collapsed: boolean; nav: NavEntry[
         >
           <Icon size={18} weight={groupActive ? "fill" : "regular"} aria-hidden className="shrink-0" />
           <span className="truncate">{group.label}</span>
+          {/* Grupo inteiro travado: mostra o cadeado, NAO esconde. Esconder e o
+              caminho de `permission`; aqui o ponto do cadeado e vender. */}
+          {children.every((c) => isLocked(c.href)) && (
+            <Lock size={12} weight="fill" aria-hidden className="ml-auto shrink-0 opacity-60" />
+          )}
           <CaretDown
             size={14}
             aria-hidden
@@ -184,10 +233,35 @@ export function Sidebar({ collapsed, nav }: { collapsed: boolean; nav: NavEntry[
                   <span className="truncate text-[10px] text-sidebar-text font-medium">
                     {activeOrg?.name || "Workspace"}
                   </span>
-                  <span className="flex items-center gap-0.5 bg-sidebar-accent/10 text-sidebar-accent text-[8px] font-bold px-1 py-0.2 rounded uppercase border border-sidebar-accent/25 tracking-wider">
-                    <Lightning size={6} weight="fill" />
-                    PRO
-                  </span>
+                  {/* Era "PRO" cravado: todo mundo via, inclusive quem nao era.
+                      Agora reflete o estado real e, fora do plano pago, vira
+                      porta de conversao. `null` = plano nao resolvido: nao
+                      desenha nada, em vez de mentir. */}
+                  {(() => {
+                    const badge = planBadgeLabel(plan);
+                    if (!badge) return null;
+                    const paid = plan?.status === "active";
+                    const content = (
+                      <span
+                        className={cn(
+                          "flex items-center gap-0.5 text-[8px] font-bold px-1 py-0.2 rounded uppercase border tracking-wider",
+                          paid
+                            ? "bg-sidebar-accent/10 text-sidebar-accent border-sidebar-accent/25"
+                            : "bg-amber-500/10 text-amber-500 border-amber-500/30",
+                        )}
+                      >
+                        {paid ? <Lightning size={6} weight="fill" /> : <Lock size={6} weight="fill" />}
+                        {badge}
+                      </span>
+                    );
+                    return paid ? (
+                      content
+                    ) : (
+                      <Link href="/app/settings/billing" title="Ver planos">
+                        {content}
+                      </Link>
+                    );
+                  })()}
                 </div>
               </div>
               <motion.button

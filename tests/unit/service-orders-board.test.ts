@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveDropPosition } from "@/app/app/service-orders/_lib/board";
+import { resolveDropPosition } from "@/app/app/(pro)/service-orders/_lib/board";
 
 describe("resolveDropPosition", () => {
   it("posição real = offset da página + índice visível", () => {

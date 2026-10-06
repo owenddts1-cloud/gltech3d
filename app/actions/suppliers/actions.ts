@@ -2,11 +2,17 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { deleteDeniedMessage } from "@/lib/auth/delete-policy";
+import { assertProAccess } from "@/lib/plan/server";
 import { fetchPrintersAndFilaments } from "@/app/actions/printers/actions";
 import {
-  supplierCreateSchema, supplierPurchaseCreateSchema, type SupplierCategory,
+  supplierCreateSchema, supplierPurchaseCreateSchema, supplierUpdateSchema, supplierPatchToRow,
+  type SupplierCategory,
 } from "@/lib/schemas/suppliers";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const idSchema = z.string().uuid();
 
 export interface SupplierView {
   id: string;
@@ -90,6 +96,8 @@ export async function createSupplier(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = supplierCreateSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
@@ -114,17 +122,52 @@ export async function createSupplier(raw: unknown) {
   return { ok: true as const };
 }
 
+/** Edits a supplier. Same gates as create; zero matched rows means not found in this org. */
+export async function updateSupplier(id: string, raw: unknown) {
+  const authUser = await loadAuthUser();
+  if (!authUser) return { ok: false as const, error: "Unauthenticated" };
+  const activeOrg = await resolveActiveOrg(authUser);
+  if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
+
+  const idParsed = idSchema.safeParse(id);
+  if (!idParsed.success) return { ok: false as const, error: "Fornecedor inválido" };
+  const parsed = supplierUpdateSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("suppliers")
+    .update({ ...supplierPatchToRow(parsed.data), updated_at: new Date().toISOString() })
+    .eq("organization_id", activeOrg.orgId)
+    .eq("id", idParsed.data)
+    .select("id");
+  if (error) return { ok: false as const, error: error.message };
+  if (!data || data.length === 0) return { ok: false as const, error: "Fornecedor não encontrado" };
+
+  revalidatePath("/app/suppliers");
+  return { ok: true as const };
+}
+
 export async function deleteSupplier(id: string) {
   const authUser = await loadAuthUser();
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("suppliers").delete()
-    .eq("organization_id", activeOrg.orgId).eq("id", id);
+    .eq("organization_id", activeOrg.orgId).eq("id", id)
+    .select("id");
   if (error) return { ok: false as const, error: error.message };
+  // RLS (0084): DELETE requires manager+; a denied delete removes 0 rows silently.
+  if (!data || data.length === 0) {
+    return { ok: false as const, error: deleteDeniedMessage("suppliers") };
+  }
 
   revalidatePath("/app/suppliers");
   return { ok: true as const };
@@ -135,6 +178,8 @@ export async function createPurchase(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = supplierPurchaseCreateSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };

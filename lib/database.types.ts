@@ -177,7 +177,7 @@ export type Database = {
       ai_agent_versions: {
         Row: {
           agent_id: string
-          channel_session_id: string
+          channel_session_id: string | null
           cost_budget_cents: number
           created_at: string
           created_by: string | null
@@ -187,6 +187,7 @@ export type Database = {
           history_message_window: number
           history_token_window: number
           id: string
+          instagram_account_id: string | null
           max_steps: number
           model: string
           organization_id: string
@@ -202,7 +203,7 @@ export type Database = {
         }
         Insert: {
           agent_id: string
-          channel_session_id: string
+          channel_session_id?: string | null
           cost_budget_cents?: number
           created_at?: string
           created_by?: string | null
@@ -212,6 +213,7 @@ export type Database = {
           history_message_window?: number
           history_token_window?: number
           id?: string
+          instagram_account_id?: string | null
           max_steps?: number
           model: string
           organization_id: string
@@ -227,7 +229,7 @@ export type Database = {
         }
         Update: {
           agent_id?: string
-          channel_session_id?: string
+          channel_session_id?: string | null
           cost_budget_cents?: number
           created_at?: string
           created_by?: string | null
@@ -237,6 +239,7 @@ export type Database = {
           history_message_window?: number
           history_token_window?: number
           id?: string
+          instagram_account_id?: string | null
           max_steps?: number
           model?: string
           organization_id?: string
@@ -277,6 +280,13 @@ export type Database = {
             columns: ["credential_id"]
             isOneToOne: false
             referencedRelation: "ai_provider_credentials_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_agent_versions_instagram_account_id_fkey"
+            columns: ["instagram_account_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_accounts"
             referencedColumns: ["id"]
           },
           {
@@ -1016,6 +1026,78 @@ export type Database = {
           },
         ]
       }
+      automation_rules: {
+        Row: {
+          account_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          keywords: string[]
+          last_matched_at: string | null
+          match_count: number
+          media_id: string | null
+          name: string
+          organization_id: string
+          priority: number
+          public_reply: string | null
+          response_template: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          last_matched_at?: string | null
+          match_count?: number
+          media_id?: string | null
+          name?: string
+          organization_id: string
+          priority?: number
+          public_reply?: string | null
+          response_template?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          last_matched_at?: string | null
+          match_count?: number
+          media_id?: string | null
+          name?: string
+          organization_id?: string
+          priority?: number
+          public_reply?: string | null
+          response_template?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           contact_name: string | null
@@ -1317,6 +1399,8 @@ export type Database = {
           email_normalized: string | null
           force_human: boolean
           id: string
+          instagram_user_id: string | null
+          instagram_username: string | null
           is_anonymized: boolean
           is_blocked: boolean
           is_merged_into: string | null
@@ -1354,6 +1438,8 @@ export type Database = {
           email_normalized?: string | null
           force_human?: boolean
           id?: string
+          instagram_user_id?: string | null
+          instagram_username?: string | null
           is_anonymized?: boolean
           is_blocked?: boolean
           is_merged_into?: string | null
@@ -1391,6 +1477,8 @@ export type Database = {
           email_normalized?: string | null
           force_human?: boolean
           id?: string
+          instagram_user_id?: string | null
+          instagram_username?: string | null
           is_anonymized?: boolean
           is_blocked?: boolean
           is_merged_into?: string | null
@@ -1429,11 +1517,12 @@ export type Database = {
           assigned_to_user_id: string | null
           bot_silenced_until: string | null
           channel: string
-          channel_session_id: string
+          channel_session_id: string | null
           contact_id: string
           created_at: string
           group_chat_id: string | null
           id: string
+          instagram_account_id: string | null
           is_group: boolean
           last_handoff_at: string | null
           last_handoff_reason: string | null
@@ -1457,11 +1546,12 @@ export type Database = {
           assigned_to_user_id?: string | null
           bot_silenced_until?: string | null
           channel?: string
-          channel_session_id: string
+          channel_session_id?: string | null
           contact_id: string
           created_at?: string
           group_chat_id?: string | null
           id?: string
+          instagram_account_id?: string | null
           is_group?: boolean
           last_handoff_at?: string | null
           last_handoff_reason?: string | null
@@ -1485,11 +1575,12 @@ export type Database = {
           assigned_to_user_id?: string | null
           bot_silenced_until?: string | null
           channel?: string
-          channel_session_id?: string
+          channel_session_id?: string | null
           contact_id?: string
           created_at?: string
           group_chat_id?: string | null
           id?: string
+          instagram_account_id?: string | null
           is_group?: boolean
           last_handoff_at?: string | null
           last_handoff_reason?: string | null
@@ -1521,6 +1612,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_instagram_account_id_fkey"
+            columns: ["instagram_account_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_accounts"
             referencedColumns: ["id"]
           },
           {
@@ -2217,6 +2315,71 @@ export type Database = {
           },
         ]
       }
+      instagram_accounts: {
+        Row: {
+          access_token_encrypted: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          ig_user_id: string
+          last_event_at: string | null
+          organization_id: string
+          page_id: string | null
+          profile_picture_url: string | null
+          status: string
+          status_reason: string | null
+          token_expires_at: string | null
+          updated_at: string
+          username: string
+          webhook_path_token: string
+          webhook_verify_token: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ig_user_id: string
+          last_event_at?: string | null
+          organization_id: string
+          page_id?: string | null
+          profile_picture_url?: string | null
+          status?: string
+          status_reason?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          username?: string
+          webhook_path_token?: string
+          webhook_verify_token?: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ig_user_id?: string
+          last_event_at?: string | null
+          organization_id?: string
+          page_id?: string | null
+          profile_picture_url?: string | null
+          status?: string
+          status_reason?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          username?: string
+          webhook_path_token?: string
+          webhook_verify_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_assets: {
         Row: {
           category: string
@@ -2407,6 +2570,7 @@ export type Database = {
           external_order_id: string | null
           fulfillment_status: string
           id: string
+          is_custom_item: boolean
           notes: string | null
           organization_id: string
           payment_status: string
@@ -2430,6 +2594,7 @@ export type Database = {
           external_order_id?: string | null
           fulfillment_status?: string
           id?: string
+          is_custom_item?: boolean
           notes?: string | null
           organization_id: string
           payment_status?: string
@@ -2453,6 +2618,7 @@ export type Database = {
           external_order_id?: string | null
           fulfillment_status?: string
           id?: string
+          is_custom_item?: boolean
           notes?: string | null
           organization_id?: string
           payment_status?: string
@@ -2785,11 +2951,75 @@ export type Database = {
           },
         ]
       }
+      model_versions: {
+        Row: {
+          bounding_box: Json
+          created_at: string
+          created_by: string | null
+          file_path: string
+          id: string
+          model_id: string
+          note: string
+          organization_id: string
+          size_kb: number
+          transform: Json
+          triangles: number
+          version_number: number
+          volume_cm3: number
+        }
+        Insert: {
+          bounding_box?: Json
+          created_at?: string
+          created_by?: string | null
+          file_path: string
+          id?: string
+          model_id: string
+          note?: string
+          organization_id: string
+          size_kb?: number
+          transform?: Json
+          triangles?: number
+          version_number: number
+          volume_cm3?: number
+        }
+        Update: {
+          bounding_box?: Json
+          created_at?: string
+          created_by?: string | null
+          file_path?: string
+          id?: string
+          model_id?: string
+          note?: string
+          organization_id?: string
+          size_kb?: number
+          transform?: Json
+          triangles?: number
+          version_number?: number
+          volume_cm3?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_versions_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models_3d"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "model_versions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       models_3d: {
         Row: {
           bounding_box: Json
           created_at: string
           created_by: string | null
+          current_version_id: string | null
           file_path: string
           folder_id: string | null
           id: string
@@ -2808,6 +3038,7 @@ export type Database = {
           bounding_box?: Json
           created_at?: string
           created_by?: string | null
+          current_version_id?: string | null
           file_path: string
           folder_id?: string | null
           id?: string
@@ -2826,6 +3057,7 @@ export type Database = {
           bounding_box?: Json
           created_at?: string
           created_by?: string | null
+          current_version_id?: string | null
           file_path?: string
           folder_id?: string | null
           id?: string
@@ -2841,6 +3073,13 @@ export type Database = {
           volume_cm3?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "models_3d_current_version_id_fkey"
+            columns: ["current_version_id"]
+            isOneToOne: false
+            referencedRelation: "model_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "models_3d_folder_id_fkey"
             columns: ["folder_id"]
@@ -3011,6 +3250,8 @@ export type Database = {
           media_retention_days: number
           onboarded_at: string | null
           onboarding_state: Json
+          plan: string
+          plan_expires_at: string | null
           privacy_policy_url: string | null
           rate_limit_rps: number
           redacted_at: string | null
@@ -3021,6 +3262,7 @@ export type Database = {
           suspended_by: string | null
           suspended_reason: string | null
           timezone: string
+          trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
@@ -3036,6 +3278,8 @@ export type Database = {
           media_retention_days?: number
           onboarded_at?: string | null
           onboarding_state?: Json
+          plan?: string
+          plan_expires_at?: string | null
           privacy_policy_url?: string | null
           rate_limit_rps?: number
           redacted_at?: string | null
@@ -3046,6 +3290,7 @@ export type Database = {
           suspended_by?: string | null
           suspended_reason?: string | null
           timezone?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -3061,6 +3306,8 @@ export type Database = {
           media_retention_days?: number
           onboarded_at?: string | null
           onboarding_state?: Json
+          plan?: string
+          plan_expires_at?: string | null
           privacy_policy_url?: string | null
           rate_limit_rps?: number
           redacted_at?: string | null
@@ -3071,6 +3318,7 @@ export type Database = {
           suspended_by?: string | null
           suspended_reason?: string | null
           timezone?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -3309,12 +3557,95 @@ export type Database = {
           },
         ]
       }
+      pro_signup_requests: {
+        Row: {
+          amount_cents: number
+          buyer_email: string
+          buyer_name: string
+          buyer_phone: string | null
+          company_name: string | null
+          created_at: string
+          currency: string
+          declared_paid_at: string
+          id: string
+          invited_user_email: string | null
+          organization_id: string | null
+          pix_txid: string | null
+          plan: string
+          receipt_storage_path: string | null
+          request_ip: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          amount_cents: number
+          buyer_email: string
+          buyer_name: string
+          buyer_phone?: string | null
+          company_name?: string | null
+          created_at?: string
+          currency?: string
+          declared_paid_at: string
+          id?: string
+          invited_user_email?: string | null
+          organization_id?: string | null
+          pix_txid?: string | null
+          plan?: string
+          receipt_storage_path?: string | null
+          request_ip?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          buyer_email?: string
+          buyer_name?: string
+          buyer_phone?: string | null
+          company_name?: string | null
+          created_at?: string
+          currency?: string
+          declared_paid_at?: string
+          id?: string
+          invited_user_email?: string | null
+          organization_id?: string | null
+          pix_txid?: string | null
+          plan?: string
+          receipt_storage_path?: string | null
+          request_ip?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pro_signup_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           bestseller_rank: number | null
+          buyer_profile: string | null
           category: string | null
           category_id: string | null
           colors: Json
+          cost_estimate_source: Json
+          cost_estimated_at: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -3330,6 +3661,9 @@ export type Database = {
           links: Json
           margin_pct: number
           material: string | null
+          model_id: string | null
+          model_license: string | null
+          model_source: string
           name: string
           observations: string | null
           organization_id: string
@@ -3347,9 +3681,12 @@ export type Database = {
         }
         Insert: {
           bestseller_rank?: number | null
+          buyer_profile?: string | null
           category?: string | null
           category_id?: string | null
           colors?: Json
+          cost_estimate_source?: Json
+          cost_estimated_at?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -3365,6 +3702,9 @@ export type Database = {
           links?: Json
           margin_pct?: number
           material?: string | null
+          model_id?: string | null
+          model_license?: string | null
+          model_source?: string
           name: string
           observations?: string | null
           organization_id: string
@@ -3382,9 +3722,12 @@ export type Database = {
         }
         Update: {
           bestseller_rank?: number | null
+          buyer_profile?: string | null
           category?: string | null
           category_id?: string | null
           colors?: Json
+          cost_estimate_source?: Json
+          cost_estimated_at?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -3400,6 +3743,9 @@ export type Database = {
           links?: Json
           margin_pct?: number
           material?: string | null
+          model_id?: string | null
+          model_license?: string | null
+          model_source?: string
           name?: string
           observations?: string | null
           organization_id?: string
@@ -3421,6 +3767,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models_3d"
             referencedColumns: ["id"]
           },
           {
@@ -3631,6 +3984,81 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sale_channels_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduled_posts: {
+        Row: {
+          account_id: string
+          attempt_count: number
+          caption: string
+          cover_url: string | null
+          created_at: string
+          created_by: string | null
+          error_log: string | null
+          id: string
+          media_type: string
+          media_urls: string[]
+          meta_container_id: string | null
+          meta_media_id: string | null
+          organization_id: string
+          published_at: string | null
+          scheduled_for: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          attempt_count?: number
+          caption?: string
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_log?: string | null
+          id?: string
+          media_type: string
+          media_urls?: string[]
+          meta_container_id?: string | null
+          meta_media_id?: string | null
+          organization_id: string
+          published_at?: string | null
+          scheduled_for: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          attempt_count?: number
+          caption?: string
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_log?: string | null
+          id?: string
+          media_type?: string
+          media_urls?: string[]
+          meta_container_id?: string | null
+          meta_media_id?: string | null
+          organization_id?: string
+          published_at?: string | null
+          scheduled_for?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_posts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -4178,6 +4606,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_trusted_devices: {
+        Row: {
+          approved_at: string | null
+          created_at: string
+          device_name: string
+          device_token_hash: string
+          expires_at: string
+          id: string
+          ip_address: string | null
+          last_used_at: string
+          status: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          created_at?: string
+          device_name: string
+          device_token_hash: string
+          expires_at: string
+          id?: string
+          ip_address?: string | null
+          last_used_at?: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          created_at?: string
+          device_name?: string
+          device_token_hash?: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          last_used_at?: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       webhook_events_log: {
         Row: {
           archived_at: string | null
@@ -4472,7 +4945,9 @@ export type Database = {
         Row: {
           category_id: string | null
           category_name: string | null
+          depreciation_cost: number | null
           energy_cost: number | null
+          extras_cost: number | null
           filament_grams: number | null
           id: string | null
           material_cost: number | null
@@ -4480,6 +4955,7 @@ export type Database = {
           organization_id: string | null
           print_time_seconds: number | null
           sale_price_cents: number | null
+          total_cost: number | null
         }
         Relationships: [
           {
@@ -4525,6 +5001,14 @@ export type Database = {
           p_payload?: Json
         }
         Returns: string
+      }
+      fn_apply_product_sale_delta: {
+        Args: {
+          p_delta: number
+          p_organization_id: string
+          p_product_id: string
+        }
+        Returns: undefined
       }
       fn_control_month: { Args: { p_date: string }; Returns: string }
       fn_decrypt_oauth: { Args: { ciphertext: string }; Returns: string }
@@ -4581,6 +5065,10 @@ export type Database = {
           published_at: string
           version_id: string
         }[]
+      }
+      fn_reconcile_product_sales: {
+        Args: { p_organization_id?: string }
+        Returns: number
       }
       fn_role_at_least: {
         Args: { p_min: string; p_org: string }
@@ -4670,12 +5158,15 @@ export type Database = {
           created_at: string | null
           file_size_limit: number | null
           id: string
+          lifecycle_configuration: Json | null
+          lifecycle_configuration_generation: string | null
           name: string
           owner: string | null
           owner_id: string | null
           public: boolean | null
           type: Database["storage"]["Enums"]["buckettype"]
           updated_at: string | null
+          versioning_status: string
         }
         Insert: {
           allowed_mime_types?: string[] | null
@@ -4683,12 +5174,15 @@ export type Database = {
           created_at?: string | null
           file_size_limit?: number | null
           id: string
+          lifecycle_configuration?: Json | null
+          lifecycle_configuration_generation?: string | null
           name: string
           owner?: string | null
           owner_id?: string | null
           public?: boolean | null
           type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string | null
+          versioning_status?: string
         }
         Update: {
           allowed_mime_types?: string[] | null
@@ -4696,12 +5190,15 @@ export type Database = {
           created_at?: string | null
           file_size_limit?: number | null
           id?: string
+          lifecycle_configuration?: Json | null
+          lifecycle_configuration_generation?: string | null
           name?: string
           owner?: string | null
           owner_id?: string | null
           public?: boolean | null
           type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string | null
+          versioning_status?: string
         }
         Relationships: []
       }
@@ -4779,9 +5276,12 @@ export type Database = {
       }
       objects: {
         Row: {
+          archived_at: string | null
           bucket_id: string | null
           created_at: string | null
           id: string
+          is_delete_marker: boolean
+          is_versioned: boolean
           last_accessed_at: string | null
           metadata: Json | null
           name: string | null
@@ -4793,9 +5293,12 @@ export type Database = {
           version: string | null
         }
         Insert: {
+          archived_at?: string | null
           bucket_id?: string | null
           created_at?: string | null
           id?: string
+          is_delete_marker?: boolean
+          is_versioned?: boolean
           last_accessed_at?: string | null
           metadata?: Json | null
           name?: string | null
@@ -4807,9 +5310,12 @@ export type Database = {
           version?: string | null
         }
         Update: {
+          archived_at?: string | null
           bucket_id?: string | null
           created_at?: string | null
           id?: string
+          is_delete_marker?: boolean
+          is_versioned?: boolean
           last_accessed_at?: string | null
           metadata?: Json | null
           name?: string | null
@@ -5000,7 +5506,7 @@ export type Database = {
         Returns: string
       }
       get_size_by_bucket: {
-        Args: never
+        Args: { delete_markers?: string; noncurrent_versions?: string }
         Returns: {
           bucket_id: string
           size: number
@@ -5014,6 +5520,7 @@ export type Database = {
           next_key_token?: string
           next_upload_token?: string
           prefix_param: string
+          raw_prefix_param?: string
         }
         Returns: {
           created_at: string
@@ -5024,28 +5531,38 @@ export type Database = {
       list_objects_with_delimiter: {
         Args: {
           _bucket_id: string
+          delete_markers?: string
           delimiter_param: string
           max_keys?: number
           next_token?: string
+          next_token_archived_at?: string
+          next_token_version?: string
+          noncurrent_versions?: string
           prefix_param: string
           sort_order?: string
           start_after?: string
         }
         Returns: {
+          archived_at: string
           created_at: string
           id: string
+          is_delete_marker: boolean
+          is_versioned: boolean
           last_accessed_at: string
           metadata: Json
           name: string
           updated_at: string
+          version: string
         }[]
       }
       operation: { Args: never; Returns: string }
       search: {
         Args: {
           bucketname: string
+          delete_markers?: string
           levels?: number
           limits?: number
+          noncurrent_versions?: string
           offsets?: number
           prefix: string
           search?: string
@@ -5053,16 +5570,22 @@ export type Database = {
           sortorder?: string
         }
         Returns: {
+          archived_at: string
           created_at: string
           id: string
+          is_delete_marker: boolean
+          is_versioned: boolean
           last_accessed_at: string
           metadata: Json
           name: string
           updated_at: string
+          version: string
         }[]
       }
       search_by_timestamp: {
         Args: {
+          delete_markers?: string
+          noncurrent_versions?: string
           p_bucket_id: string
           p_level: number
           p_limit: number
@@ -5071,36 +5594,50 @@ export type Database = {
           p_sort_column_after: string
           p_sort_order: string
           p_start_after: string
+          p_start_after_version?: string
         }
         Returns: {
+          archived_at: string
           created_at: string
           id: string
+          is_delete_marker: boolean
+          is_versioned: boolean
           key: string
           last_accessed_at: string
           metadata: Json
           name: string
           updated_at: string
+          version: string
         }[]
       }
       search_v2: {
         Args: {
           bucket_name: string
+          delete_markers?: string
           levels?: number
           limits?: number
+          noncurrent_versions?: string
           prefix: string
           sort_column?: string
           sort_column_after?: string
           sort_order?: string
           start_after?: string
+          start_after_archived_at?: string
+          start_after_is_continuation?: boolean
+          start_after_version?: string
         }
         Returns: {
+          archived_at: string
           created_at: string
           id: string
+          is_delete_marker: boolean
+          is_versioned: boolean
           key: string
           last_accessed_at: string
           metadata: Json
           name: string
           updated_at: string
+          version: string
         }[]
       }
     }
@@ -5121,12 +5658,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5150,11 +5687,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5175,11 +5712,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5200,11 +5737,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5217,11 +5754,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

@@ -8,6 +8,21 @@ export const PUBLIC_PATHS: RegExp[] = [
   /^\/catalogo(\/.*)?$/,
   /^\/orcamento(\/.*)?$/,
   /^\/tecnologias(\/.*)?$/,
+  /^\/calc3d-pro(\/.*)?$/,
+  /^\/criar-conta$/,
+  // Quem abre estas duas NAO consegue entrar — e esse e o ponto. A credencial e
+  // o token assinado no caminho; exigir sessao aqui tornaria a recuperacao de
+  // conta impossivel.
+  /^\/esqueci-senha$/,
+  /^\/redefinir-senha\/.+$/,
+  // Ativação do comprador do Calc3D PRO: ele ainda NÃO tem conta quando abre
+  // este link — exigir sessão aqui tornaria a ativação impossível. O token
+  // assinado no caminho é a credencial. Mesmo desenho de /team/accept-invite.
+  /^\/ativar\/.+$/,
+  // Aprovação/recusa de pedido PRO em 1 clique pelo e-mail do dono (sem login,
+  // decisão do dono). O GET só exibe o resumo; quem decide é o POST em
+  // /api/v1/public/pro-signup/email-action, com o token assinado como credencial.
+  /^\/aprovar\/.+$/,
   /^\/privacidade(\/.*)?$/,
   /^\/termos(\/.*)?$/,
   /^\/login(\/.*)?$/,

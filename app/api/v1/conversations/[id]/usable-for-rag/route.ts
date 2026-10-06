@@ -16,6 +16,7 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { ApiError } from "@/lib/api/types";
 import { audit } from "@/lib/audit";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { requireProApi } from "@/lib/plan/api";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { validateRequest } from "@/lib/schemas/_validate";
 import { createClient } from "@/lib/supabase/server";
@@ -40,6 +41,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   if (!activeOrg) {
     return fail("forbidden_tenant", "Sem organização ativa.", 403, { requestId });
   }
+  const planDenied = await requireProApi(activeOrg.orgId, requestId);
+  if (planDenied) return planDenied;
   if (ROLE_RANK[activeOrg.role] < ROLE_RANK.agent) {
     return fail("forbidden_role", "Apenas agentes podem alterar opt-in RAG.", 403, { requestId });
   }

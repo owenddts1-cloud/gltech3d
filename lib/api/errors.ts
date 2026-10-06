@@ -25,6 +25,7 @@ export const ApiErrorCodes = {
   forbidden: "forbidden",
   forbidden_role: "forbidden_role",
   forbidden_tenant: "forbidden_tenant",
+  plan_required: "plan_required", // trial vencido / sem Calc3D PRO (lib/plan/api.ts)
   lgpd_anonymization_irreversible: "lgpd_anonymization_irreversible",
 
   // 404
@@ -35,6 +36,7 @@ export const ApiErrorCodes = {
   state_conflict: "state_conflict",
   tenant_already_exists: "tenant_already_exists",
   duplicate_external_id: "duplicate_external_id",
+  contact_has_history: "contact_has_history", // DELETE de contato com conversas/O.S./vendas → anonimizar (LGPD)
 
   // 422 — semântica
   unprocessable_entity: "unprocessable_entity",

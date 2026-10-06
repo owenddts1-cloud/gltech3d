@@ -133,6 +133,13 @@ DeskcommCRM é um CRM operacional multi-tenant para e-commerce com IA conversaci
 | `docs/research/reference-synthesis.md` | Arquitetura herdada do curso WAHA |
 | `tasks/todo.md` | Workflow de construção atual |
 | `docs/runbooks/catalogo-produtos.md` | Como operar o catálogo: custo real, mídia por pastas, links herdados, vínculo venda↔peça |
+| `docs/runbooks/setup-calc3d-pro.md` | Passo a passo de configuracao do Calc3D PRO (e-mail/Resend, Pix, Redis, Vercel, TOTP) com o estado real auditado |
+| `docs/runbooks/calc3d-pro-liberacao.md` | Como operar o Calc3D PRO: trial de 7 dias, Pix manual, aprovacao (UPGRADE vs CRIAR), e passo a passo de configuracao do Pix e do TOTP |
+| `docs/runbooks/pendencias-em-aberto.md` | Lacunas conhecidas com o motivo de ainda nao terem sido fechadas (gate de plano na API, escritas em organizations sem service role, settings.plan legado) |
+| `docs/runbooks/estado-dos-modulos.md` | Estado honesto de cada tela do CRM (funcional / parcial / integração / demonstração) e prioridades |
+| `lib/guides/` + `components/guides/` | Guias por tela: catálogo em `registry.ts` (todo item do menu precisa de guia — `tests/unit/guide-coverage.test.ts`), visibilidade por papel em `permissions.ts` |
+| `lib/tenants/update-own-org.ts` | ÚNICO caminho para o tenant gravar na própria `organizations` (RLS só deixa platform admin; pelo client do usuário o UPDATE casa 0 linhas em silêncio) |
+| `lib/plan/` | Plano e trial: `resolve.ts` (decisao pura), `modules.ts` (allowlist de rotas livres), `server.ts` (gate e concessao) |
 | `docs/runbooks/sessao-do-browser.md` | Por que leitura autenticada NÃO pode sair do cliente do browser (cookie httpOnly) e quais telas ainda estão afetadas |
 | `lib/api/wrappers.ts` | `ok()`, `fail()`, tipos `ApiSuccess<T>` / `ApiError` |
 | `lib/api/errors.ts` | Códigos de erro canônicos |

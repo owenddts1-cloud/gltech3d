@@ -80,3 +80,9 @@ Imports_github/
 # Supabase Storage, nao no repositorio.
 /media-import/
 /media-map.json
+
+# Guia de setup gerado por scripts/gerar-guia-setup.mjs. Carrega chave Pix e
+# e-mail do dono — o script fica versionado (revisavel em PR, qualquer um
+# regenera), o PDF nao. Projeto e open-source.
+docs/guia-setup-calc3d-pro.pdf
+resend-records.json

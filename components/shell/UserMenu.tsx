@@ -13,7 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { PaletteSwitcher } from "@/components/theme/PaletteSwitcher";
-import { SignOut } from "@/lib/ui/icons";
+import { SignOut, Lightbulb, ArrowsClockwise } from "@/lib/ui/icons";
+import { useOptionalGuides } from "@/components/guides/GuideProvider";
 
 function initials(name: string | null, email: string): string {
   if (name && name.trim()) {
@@ -26,6 +27,8 @@ export function UserMenu() {
   const user = useUser();
   const { signOut } = useAuth();
   const [isPending, startTransition] = useTransition();
+  // Null when the menu is rendered outside the guide provider.
+  const guides = useOptionalGuides();
 
   return (
     <div className="flex items-center gap-2">
@@ -49,6 +52,21 @@ export function UserMenu() {
           <DropdownMenuSeparator />
           <PaletteSwitcher />
           <DropdownMenuSeparator />
+          {guides ? (
+            <>
+              {/* Deferred: the dropdown must finish closing (and returning focus)
+                  before a dialog opens, or the dialog loses its focus trap. */}
+              <DropdownMenuItem onSelect={() => window.setTimeout(guides.openCenter, 0)}>
+                <Lightbulb size={16} className="mr-2" aria-hidden />
+                Central de guias
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => window.setTimeout(guides.resetAll, 0)}>
+                <ArrowsClockwise size={16} className="mr-2" aria-hidden />
+                Rever todos os guias
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          ) : null}
           <DropdownMenuItem disabled={isPending} onClick={() => startTransition(async () => { await signOut(); })}>
             <SignOut size={16} className="mr-2" aria-hidden />
             Sair

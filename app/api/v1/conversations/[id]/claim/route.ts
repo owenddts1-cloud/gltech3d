@@ -11,6 +11,8 @@ import { type NextRequest } from "next/server";
 import { audit } from "@/lib/audit";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
+import { requireProApiForSession } from "@/lib/plan/api";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { claimConversationSchema, validateRequest } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
 import type { Conversation } from "@/lib/types/messaging";
@@ -41,6 +43,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   if (authErr || !user) {
     return fail("unauthenticated", "Auth required.", 401, { requestId });
   }
+  const planDenied = await requireProApiForSession(requestId);
+  if (planDenied) return planDenied;
 
   let input;
   try {
@@ -107,6 +111,12 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     .then(({ error: emitErr }) => {
       if (emitErr) console.error("[conversation.claim] emit_event failed", emitErr.message);
     });
+
+  deferBroadcast(() =>
+    broadcastOrg(conv.organization_id, "conversations", "conversation.updated", {
+      conversation_id: conv.id,
+    }),
+  );
 
   return ok(conv, { requestId });
 }

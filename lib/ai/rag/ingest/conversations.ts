@@ -29,6 +29,7 @@ import {
   markVersionFailed,
   markVersionReady,
 } from "@/lib/ai/rag/version";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const CONV_MAX_CHARS = 1600;
@@ -351,6 +352,16 @@ export async function ingestConversationsBatch(
     console.error(
       "[kb-conversations] version finalize failed",
       err instanceof Error ? err.message : String(err),
+    );
+  }
+
+  // Realtime: the knowledge sources screen refetches (ids-only signal).
+  if (processed > 0) {
+    deferBroadcast(() =>
+      broadcastOrg(organizationId, "kb-sources", "source.updated", {
+        source_id: sourceId,
+        agent_id: agentId,
+      }),
     );
   }
 

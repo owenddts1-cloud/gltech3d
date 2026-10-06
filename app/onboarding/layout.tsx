@@ -12,7 +12,9 @@ export default async function OnboardingLayout({ children }: { children: React.R
   if (!activeOrg) redirect("/login");
 
   const { onboardedAt } = await loadOnboardingState(activeOrg.orgId);
-  if (onboardedAt) redirect("/app/inbox");
+  // /app/dashboard e nao /app/inbox: o Inbox e modulo PRO, e quem chega aqui
+  // sem plano seria jogado na tela de upgrade sem entender por que.
+  if (onboardedAt) redirect("/app/dashboard");
 
   const hdrs = await headers();
   const pathname = hdrs.get("x-pathname") ?? "";

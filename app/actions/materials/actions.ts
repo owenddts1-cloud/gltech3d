@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { assertProAccess } from "@/lib/plan/server";
 import { materialQuickCreateSchema } from "@/lib/schemas/materials";
 import { autoSlug } from "@/lib/slug";
 import { revalidatePath } from "next/cache";
@@ -46,6 +47,8 @@ export async function quickCreateMaterial(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "Nenhuma organização ativa" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = materialQuickCreateSchema.safeParse(raw);
   if (!parsed.success) {

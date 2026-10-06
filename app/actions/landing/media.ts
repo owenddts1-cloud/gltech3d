@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { assertProAccess } from "@/lib/plan/server";
 import { revalidateLanding } from "@/lib/landing/repository";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -45,6 +46,8 @@ async function ctx() {
 export async function createMediaUploadUrl(raw: unknown) {
   const c = await ctx();
   if (!c) return { ok: false as const, error: "Não autenticado" };
+  const denied = await assertProAccess(c.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = uploadRequestSchema.safeParse(raw);
   if (!parsed.success) {
@@ -97,6 +100,8 @@ export async function listMedia() {
 export async function deleteMedia(path: string) {
   const c = await ctx();
   if (!c) return { ok: false as const, error: "Não autenticado" };
+  const denied = await assertProAccess(c.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   // Confere o prefixo antes de chamar o Storage. A policy já barra, mas errar
   // aqui em voz alta é melhor do que depender só dela.

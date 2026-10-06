@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { z } from 'zod';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   UploadCloud, 
@@ -10,13 +11,47 @@ import {
   Scale, 
   Clock, 
   Activity,
-  Box,
-  Compass,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import Navbar from '@/components/marketing/Navbar';
 import Footer from '@/components/marketing/Footer';
 import { createClient } from '@/lib/supabase/browser';
+import {
+  ORCAMENTO_BUCKET,
+  ORCAMENTO_MAX_BYTES,
+  ORCAMENTO_MIME_TYPES,
+} from '@/lib/schemas/orcamento-upload';
+
+const slotResponseSchema = z.object({
+  data: z.object({
+    path: z.string(),
+    token: z.string(),
+    contentType: z.enum(ORCAMENTO_MIME_TYPES),
+  }),
+});
+const confirmResponseSchema = z.object({ data: z.object({ fileUrl: z.string().url() }) });
+const errorResponseSchema = z.object({ error: z.object({ message: z.string() }) });
+
+/** POST JSON para as rotas públicas; erro vira Error com a mensagem do servidor. */
+async function postPublicJson(url: string, payload: unknown): Promise<unknown> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  let json: unknown = null;
+  try {
+    json = await res.json();
+  } catch {
+    throw new Error(`resposta inválida do servidor (HTTP ${res.status})`);
+  }
+  if (!res.ok) {
+    const parsed = errorResponseSchema.safeParse(json);
+    throw new Error(parsed.success ? parsed.data.error.message : `falha no envio (HTTP ${res.status})`);
+  }
+  return json;
+}
 
 const MATERIAIS = [
   { 
@@ -188,7 +223,10 @@ export function OrcamentoClient() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
-  
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Descarta o resultado de um upload antigo se o visitante trocou de arquivo.
+  const uploadSeq = useRef(0);
+
   const [analise, setAnalise] = useState<{
     volumeCm3: number;
     triangles: number;
@@ -201,37 +239,52 @@ export function OrcamentoClient() {
     fileInputRef.current?.click();
   };
 
-  // Faz upload do modelo em background para o Supabase Storage
+  // Sobe o modelo em background: o servidor emite a URL assinada (bucket privado
+  // `orcamentos`, migration 0085), o browser envia com o token e o servidor
+  // devolve um link de leitura de 7 dias — é ele que vai na mensagem do WhatsApp.
   const uploadArquivo = async (f: File) => {
+    const seq = ++uploadSeq.current;
+    setUploading(true);
+    setUploadError(null);
     try {
-      setUploading(true);
-      const uniqueId = Math.random().toString(36).substring(2, 10);
-      const safeName = f.name.replace(/[^a-zA-Z0-9.]/g, '_');
-      const path = `${uniqueId}_${safeName}`;
-      
-      const supabase = createClient();
-      const { data, error } = await supabase.storage
-        .from('orcamentos-public')
-        .upload(path, f);
-
-      if (error) {
-        console.error('Erro no upload de storage:', error);
-      } else if (data) {
-        const { data: { publicUrl } } = supabase.storage
-          .from('orcamentos-public')
-          .getPublicUrl(path);
-        setFileUrl(publicUrl);
+      if (f.size > ORCAMENTO_MAX_BYTES) {
+        throw new Error('o arquivo passa de 50 MB');
       }
+      const slot = slotResponseSchema.parse(
+        await postPublicJson('/api/v1/public/orcamento/upload-slot', {
+          filename: f.name,
+          contentType: f.type,
+          sizeBytes: f.size,
+        }),
+      ).data;
+
+      // Muitos navegadores mandam `type` vazio para .stl/.3mf; o servidor já
+      // resolveu o MIME aceito pelo bucket a partir da extensão.
+      const typed = new File([f], f.name, { type: slot.contentType });
+      const supabase = createClient();
+      const { error } = await supabase.storage
+        .from(ORCAMENTO_BUCKET)
+        .uploadToSignedUrl(slot.path, slot.token, typed);
+      if (error) throw new Error(error.message);
+
+      const confirmed = confirmResponseSchema.parse(
+        await postPublicJson('/api/v1/public/orcamento/upload-slot/confirm', { path: slot.path }),
+      ).data;
+      if (seq === uploadSeq.current) setFileUrl(confirmed.fileUrl);
     } catch (err) {
-      console.error(err);
+      if (seq === uploadSeq.current) {
+        setFileUrl(null);
+        setUploadError(err instanceof Error ? err.message : 'falha no envio');
+      }
     } finally {
-      setUploading(false);
+      if (seq === uploadSeq.current) setUploading(false);
     }
   };
 
   const processarArquivo = (f: File) => {
     setFile({ name: f.name, size: f.size });
     setFileUrl(null);
+    setUploadError(null);
     setLoading(true);
 
     // Inicia o upload em background paralelo ao parsing
@@ -280,9 +333,12 @@ export function OrcamentoClient() {
   };
 
   const resetFile = () => {
+    uploadSeq.current += 1;
     setFile(null);
     setAnalise(null);
     setFileUrl(null);
+    setUploadError(null);
+    setUploading(false);
   };
 
   // Cálculos físicos de estimativa baseados na análise geométrica (infill fixado em 20% para estimativas padrão)
@@ -320,7 +376,11 @@ export function OrcamentoClient() {
 
   const getWhatsAppLink = () => {
     if (!file || !analise) return '#';
-    const linkArquivo = fileUrl ? `\n🔗 *Link do Modelo:* ${fileUrl}` : '';
+    const linkArquivo = fileUrl
+      ? `\n🔗 *Link do Modelo (válido por 7 dias):* ${fileUrl}`
+      : uploadError
+        ? `\n📎 O arquivo não subiu pelo site — vou anexá-lo aqui na conversa.`
+        : '';
     const obsText = observacao.trim() ? `\n📝 *Observações:* ${observacao.trim()}` : '';
     
     const text = encodeURIComponent(
@@ -424,6 +484,26 @@ export function OrcamentoClient() {
                   <div className="flex items-center gap-2 text-[11px] font-bold text-[#A6815C]">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Fazendo upload do modelo para compartilhamento...</span>
+                  </div>
+                </motion.div>
+              )}
+
+              {uploadError && !uploading && (
+                <motion.div
+                  key="upload-error"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  role="alert"
+                  className="overflow-hidden"
+                >
+                  <div className="flex items-start gap-2 rounded-xl border border-red-300 bg-red-50 p-3 text-[11px] font-semibold text-red-800">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Não conseguimos enviar o arquivo ({uploadError}). Você ainda pode pedir o
+                      orçamento pelo WhatsApp: a mensagem vai sem o link, e você anexa o arquivo
+                      direto na conversa.
+                    </span>
                   </div>
                 </motion.div>
               )}

@@ -26,8 +26,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { calculateRealCost } from "@/lib/pricing/engine";
-import { savePrintersAndFilaments } from "@/app/actions/printers/actions";
-import { PrintingDetails } from "@/app/app/printers/_components/PrintingDetails";
+import { saveEnergyTariff, savePrintersAndFilaments } from "@/app/actions/printers/actions";
+import { PrintingDetails } from "@/app/app/(pro)/printers/_components/PrintingDetails";
 
 type PrinterStatus = "idle" | "printing" | "error" | "offline" | "maintenance";
 
@@ -160,6 +160,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   const [printJobs, setPrintJobs] = useState<PrintJobItem[]>(initialData.printJobs);
   const serviceOrders = initialData.serviceOrders;
   const [kEnergy, setKEnergy] = useState<number>(initialData.kEnergy);
+  // Last value persisted: onBlur only saves when the tariff actually changed.
+  const [savedKEnergy, setSavedKEnergy] = useState<number>(initialData.kEnergy);
   const [isPending, startSaveTransition] = useTransition();
 
   // Modal / Form states
@@ -292,9 +294,29 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     startSaveTransition(async () => {
       const res = await savePrintersAndFilaments(updatedPrinters, updatedFilaments, kEnergy);
       if (res.ok) {
+        setSavedKEnergy(kEnergy); // the tariff travels with this save too
         toast.success("Configuração salva no banco de dados.");
       } else {
         toast.error(`Erro ao salvar: ${res.error}`);
+      }
+    });
+  };
+
+  const handleEnergyTariffBlur = () => {
+    if (kEnergy === savedKEnergy) return;
+    if (!Number.isFinite(kEnergy) || kEnergy < 0.01 || kEnergy > 10) {
+      toast.error("Tarifa de energia deve ficar entre R$ 0,01 e R$ 10,00 por kWh.");
+      setKEnergy(savedKEnergy);
+      return;
+    }
+    const next = kEnergy;
+    startSaveTransition(async () => {
+      const res = await saveEnergyTariff(next);
+      if (res.ok) {
+        setSavedKEnergy(res.kEnergy);
+        toast.success("Tarifa de energia salva");
+      } else {
+        toast.error(`Erro ao salvar tarifa: ${res.error}`);
       }
     });
   };
@@ -865,6 +887,8 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   step="0.01" 
                   value={kEnergy} 
                   onChange={(e) => setKEnergy(Number(e.target.value))}
+                  onBlur={handleEnergyTariffBlur}
+                  max={10}
                   min={0.01}
                   className="bg-surface-elevated border-border text-text focus:ring-accent focus:border-accent"
                   required

@@ -8,10 +8,36 @@ Você escolhe por impressora no campo **Leitura de status** (`poll_mode`).
 A impressora/host AVISA o CRM quando termina um job. É o mais robusto (funciona mesmo com a
 impressora atrás de NAT/LAN, sem o CRM precisar alcançá-la).
 
-- Endpoint: `POST /api/v1/webhooks/printers?orgId=<ORG>&secret=<PRINTER_WEBHOOK_SECRET>`
+- Endpoint: `POST /api/v1/webhooks/printers`.
+- **Autenticação — token por organização (recomendado):** em **Impressoras → Token do webhook**
+  (só admin), clique em **Gerar token**. É um token de API `dsk_...` com o escopo único
+  `printer:webhook`, mostrado **uma vez** (guardamos só o SHA-256). Envie no cabeçalho:
+  - `Authorization: Bearer dsk_...` (preferido), ou
+  - `X-Webhook-Secret: dsk_...` (para hosts que só deixam configurar esse cabeçalho).
+
+  A organização vem **do token**, não da URL: `?orgId=` é opcional e, se vier, precisa ser a
+  mesma org do token (senão `403 org_mismatch`). Um token só grava na org que o emitiu e não
+  serve para mais nada (o MCP exige `mcp:read`/`mcp:write`). Revogar na mesma tela corta o
+  acesso na hora. O `last_used_at` mostra se a impressora está chamando.
+- Credencial **nunca** na query string (`?secret=`/`?token=`): vai parar em logs da Vercel/CDN.
+- **Simulador do navegador:** a tela de Impressoras chama o webhook com a sessão do usuário
+  logado (org = org ativa).
+- **Legado (deprecado):** `X-Webhook-Secret: <PRINTER_WEBHOOK_SECRET>` (env global, >= 8 chars)
+  ainda é aceito **só para a org do site** (`GLTECH_ORG_ID`/`GLTECH_ORG_SLUG`, ver
+  `lib/marketing/gltech-org.ts`) e loga um aviso de depreciação a cada chamada. Migre para o
+  token e apague a env.
+- Rate limit: 60 chamadas/min por organização.
 - Corpo (JSON): `{ "topic":"print_done", "printer_id":"<client_id ou nome>", "filename":"x.gcode", "weight_grams":45, "print_time_seconds":7200, "filament_id":"<opcional>", "service_order_id":"<uuid opcional>" }`
+- Exemplo:
+
+  ```bash
+  curl -X POST "https://<seu-dominio>/api/v1/webhooks/printers"     -H "Authorization: Bearer dsk_xxxxxxxx_..."     -H "Content-Type: application/json"     -d '{"printer_id":"ender3","filename":"peca.gcode","weight_grams":42,"print_time_seconds":5400}'
+  ```
+- Respostas de erro: `401 missing_token|token_not_recognized|token_revoked|token_expired|unauthorized`,
+  `403 token_missing_scope|org_mismatch|legacy_secret_site_org_only`, `429 rate_limited`,
+  `400 invalid_payload`, `404 printer_not_found`.
 - Efeito: baixa o peso do filamento, calcula o **custo real** (material+energia+depreciação), registra o job e marca a impressora ociosa.
-- Config: variável de ambiente **`PRINTER_WEBHOOK_SECRET`** (>= 8 chars). No Klipper, dispare via macro `print_done` + `[gcode_shell_command]`/webhook do Moonraker no fim da impressão.
+- No Klipper, dispare via macro `print_done` + `[gcode_shell_command]`/webhook do Moonraker no fim da impressão.
 
 ## 2. PULL — leitura ao vivo por IP (botão "Atualizar status")
 
@@ -43,3 +69,5 @@ O status lido atualiza o card automaticamente, **exceto** quando você marcou a 
 - Leitura pelo navegador: `lib/printers/browser-poll.ts`.
 - Leitura pelo servidor: `app/actions/printers/live-status.ts`.
 - Webhook PUSH: `app/api/v1/webhooks/printers/route.ts`.
+- Validação do token (compartilhada com o MCP): `lib/auth/api-token.ts`.
+- Card de token: `components/printers/PrinterWebhookTokenCard.tsx` (renderizado em `app/app/(pro)/printers/page.tsx`).

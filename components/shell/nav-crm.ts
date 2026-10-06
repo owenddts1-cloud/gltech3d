@@ -1,4 +1,5 @@
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+import type { PermissionAction } from "@/lib/auth/permissions";
 import {
   Users, UsersThree, Gear, Buildings,
   Inbox, ScalesSimple, Robot, PlugsConnected,
@@ -11,7 +12,8 @@ export interface NavLeaf {
   href: string;
   label: string;
   icon: PhosphorIcon;
-  permission?: string;
+  /** Action from `lib/auth/permissions.ts`; must match the page's server guard. */
+  permission?: PermissionAction;
   healthDot?: boolean;
 }
 export interface NavGroup {
@@ -37,7 +39,7 @@ export const CRM_NAV: NavEntry[] = [
     children: [
       { href: "/app/projects", label: "Projetos", icon: Ruler },
       { href: "/app/service-orders", label: "Ordens de Serviço", icon: ClipboardText },
-      { href: "/app/settings/tenant", label: "Organização", icon: Buildings },
+      { href: "/app/settings/tenant", label: "Organização", icon: Buildings, permission: "org.settings.manage" },
       { href: "/app/printers", label: "Impressoras & Filamentos", icon: Printer },
       { href: "/app/models", label: "Modelagem", icon: Cube },
       { href: "/app/models/fatiar", label: "Fatiar", icon: Layers },
@@ -73,7 +75,7 @@ export const CRM_NAV: NavEntry[] = [
     icon: AddressBook,
     children: [
       { href: "/app/inbox", label: "Inbox", icon: Inbox },
-      { href: "/app/connections", label: "Conexões", icon: PlugsConnected, healthDot: true },
+      { href: "/app/connections", label: "Conexões", icon: PlugsConnected, healthDot: true, permission: "channels.manage" },
       // "Kanban" (funil de leads genérico /app/pipelines) escondido do menu a
       // pedido do usuário — ele já usa o Kanban de Vendas (/app/sales). Rota
       // continua existindo, só não aparece na navegação.

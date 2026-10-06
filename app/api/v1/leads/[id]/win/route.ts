@@ -9,6 +9,8 @@ import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 import { audit } from "@/lib/audit";
 import { ok, fail } from "@/lib/api/wrappers";
+import { requireProApiForSession } from "@/lib/plan/api";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +30,8 @@ export async function POST(
   if (authErr || !user) {
     return fail("unauthenticated", "Auth required.", 401, { requestId });
   }
+  const planDenied = await requireProApiForSession(requestId);
+  if (planDenied) return planDenied;
 
   const { data: lead, error: selErr } = await supabase
     .from("crm_leads")
@@ -107,6 +111,10 @@ export async function POST(
     requestId,
     metadata: { from_stage_id: lead.stage_id, to_stage_id: wonStage.id },
   });
+
+  const leadIds = { lead_id: leadId, pipeline_id: lead.pipeline_id as string };
+  const leadOrgId = lead.organization_id as string;
+  deferBroadcast(() => broadcastOrg(leadOrgId, "leads", "lead.updated", leadIds));
 
   return ok(finalLead, { requestId });
 }

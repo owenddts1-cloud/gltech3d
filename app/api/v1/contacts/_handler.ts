@@ -1,17 +1,23 @@
 /**
- * Core handlers para /api/v1/contacts (lista + get + create + patch).
+ * Core handlers para /api/v1/contacts (lista + get + create + patch + delete).
  *
  * Reusados pelo Route Handler REST e por MCP tools (S-13.03/04).
  * - Recebem actor polimórfico (`user` | `ai_agent`).
  * - Lançam `ApiError` em caso de erro estruturado; sucesso retorna data.
  * - Audit + emit_event são responsabilidade do handler (DRY entre REST e MCP).
  */
+import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ApiError } from "@/lib/api/types";
 import type { Actor, HandlerCtx } from "@/lib/api/handlers/types";
 import { audit } from "@/lib/audit";
 import { hashCpf, encryptCpfSql } from "@/lib/contacts/cpf";
+import {
+  decideContactDeletion,
+  type ContactHistoryCounts,
+} from "@/lib/contacts/delete-guard";
+import { logger } from "@/lib/logger";
 import type { Contact } from "@/lib/types/contacts";
 import type {
   ContactCreate,
@@ -413,4 +419,161 @@ export async function patchContactHandler(
   });
 
   return contact;
+}
+
+// ---------------------------------------------------------------------------
+// delete
+// ---------------------------------------------------------------------------
+
+/**
+ * Counts every row that references the contact, scoped to the org. Each query
+ * filters `organization_id` explicitly (RLS is the second layer, not the only
+ * one). A failed count throws: deciding "no history" on an error would delete
+ * a contact that has history.
+ */
+async function countContactHistory(
+  supabase: SB,
+  ctx: HandlerCtx,
+  contactId: string,
+): Promise<ContactHistoryCounts> {
+  const org = ctx.organization_id;
+  const byContact = (table: string) =>
+    supabase
+      .from(table)
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", org)
+      .eq("contact_id", contactId);
+
+  const queries = {
+    conversations: byContact("conversations"),
+    messages: byContact("messages"),
+    service_orders: byContact("service_orders"),
+    marketplace_orders: byContact("marketplace_orders"),
+    orders: byContact("orders"),
+    crm_leads: byContact("crm_leads"),
+    crm_lead_activities: byContact("crm_lead_activities"),
+    lgpd_requests: byContact("lgpd_requests"),
+    ai_agent_runs: byContact("ai_agent_runs"),
+    crm_lead_links: supabase
+      .from("crm_lead_links")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", org)
+      .eq("target_kind", "contact")
+      .eq("target_id", contactId),
+    merged_contacts: supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", org)
+      .eq("is_merged_into", contactId),
+  } satisfies Record<keyof ContactHistoryCounts, unknown>;
+
+  const keys = Object.keys(queries) as Array<keyof ContactHistoryCounts>;
+  const results = await Promise.all(keys.map((k) => queries[k]));
+  const counts = {} as ContactHistoryCounts;
+  results.forEach((res, i) => {
+    const key = keys[i]!;
+    if (res.error) {
+      throw new ApiError(
+        500,
+        "internal_error",
+        undefined,
+        ctx.requestId,
+        `Falha ao verificar histórico do contato (${key}).`,
+      );
+    }
+    counts[key] = res.count ?? 0;
+  });
+  return counts;
+}
+
+/**
+ * Hard-deletes a contact that has NO history. With history → 409
+ * `contact_has_history` (the LGPD path for those is anonymization).
+ * Role gate (admin, same as RLS since migration 0084) is enforced by the route.
+ */
+export async function deleteContactHandler(
+  supabase: SB,
+  ctx: HandlerCtx,
+  contactId: string,
+): Promise<{ id: string; deleted: true }> {
+  const { data: existing, error: selErr } = await supabase
+    .from("contacts")
+    .select("id, organization_id, display_name, name")
+    .eq("id", contactId)
+    .eq("organization_id", ctx.organization_id)
+    .maybeSingle();
+
+  if (selErr) {
+    throw new ApiError(500, "internal_error", undefined, ctx.requestId, selErr.message);
+  }
+  if (!existing) {
+    throw new ApiError(404, "not_found", undefined, ctx.requestId, "Contato não encontrado.");
+  }
+
+  const decision = decideContactDeletion(await countContactHistory(supabase, ctx, contactId));
+  if (!decision.allowed) {
+    throw new ApiError(
+      409,
+      "contact_has_history",
+      { ...decision.details },
+      ctx.requestId,
+      "Este contato tem histórico (conversas, O.S. ou vendas). Para remover os dados pessoais, use Anonimizar (LGPD).",
+    );
+  }
+
+  const { data: deleted, error: delErr } = await supabase
+    .from("contacts")
+    .delete()
+    .eq("id", contactId)
+    .eq("organization_id", ctx.organization_id)
+    .select("id");
+
+  if (delErr) {
+    // 23503 = FK violation: history appeared between the count and the delete.
+    if (delErr.code === "23503") {
+      throw new ApiError(
+        409,
+        "contact_has_history",
+        undefined,
+        ctx.requestId,
+        "Este contato tem histórico (conversas, O.S. ou vendas). Para remover os dados pessoais, use Anonimizar (LGPD).",
+      );
+    }
+    throw new ApiError(500, "internal_error", undefined, ctx.requestId, delErr.message);
+  }
+  if (!deleted || deleted.length === 0) {
+    throw new ApiError(404, "not_found", undefined, ctx.requestId, "Contato não encontrado.");
+  }
+
+  const a = actorAuditPayload(ctx.actor);
+  const label = (existing.display_name ?? existing.name ?? "") as string;
+  // No PII in audit/event metadata: only a stable hash of the display name.
+  const displayNameHash = label
+    ? createHash("sha256").update(label.trim().toLowerCase()).digest("hex")
+    : null;
+
+  await supabase
+    .rpc("emit_event", {
+      p_event_type: "contact.deleted",
+      p_entity_kind: "contact",
+      p_entity_id: contactId,
+      p_payload: {},
+      p_metadata: { request_id: ctx.requestId, ...a.metadataActor },
+      p_organization_id: ctx.organization_id,
+    })
+    .then(({ error }) => {
+      if (error) logger.error("contacts.delete emit_event failed", { error: error.message });
+    });
+
+  await audit({
+    action: "contact.deleted",
+    actorUserId: a.actorUserId,
+    organizationId: ctx.organization_id,
+    resourceType: "contact",
+    resourceId: contactId,
+    requestId: ctx.requestId,
+    metadata: { ...a.metadataActor, display_name_sha256: displayNameHash },
+  });
+
+  return { id: contactId, deleted: true };
 }

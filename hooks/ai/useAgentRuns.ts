@@ -2,18 +2,30 @@
 /**
  * useAgentRuns — lista runs de um agent (S-13.12).
  *
- * Compõe TanStack Query (GET /api/v1/ai/agents/:id/runs) com Supabase Realtime
- * (`postgres_changes` em `ai_agent_runs` filtrando `agent_id=eq.<id>`). Cada
- * INSERT/UPDATE invalida a query e dispara um toast leve. Toggle `enabled`
- * controla subscribe/unsubscribe pra não vazar canais quando a tab Runs não
- * está ativa.
+ * Compõe TanStack Query (GET /api/v1/ai/agents/:id/runs) com o broadcast do
+ * servidor em `org:<orgId>:agent-runs` (lib/realtime/broadcast.ts — payload só
+ * com ids + status; filtrado aqui por agent_id). `postgres_changes` não serve:
+ * o cliente Supabase do browser não tem sessão (cookie httpOnly). Cada sinal
+ * invalida a query e dispara um toast leve. Toggle `realtime` controla
+ * subscribe/unsubscribe pra não vazar canais quando a tab Runs não está ativa.
  */
-import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { useOptionalActiveOrg } from "@/hooks/auth/AuthProvider";
+import { runToastFor } from "@/hooks/ai/run-toast";
+import {
+  REALTIME_INVALIDATE_INTERVAL_MS,
+  createKeyedThrottle,
+  useThrottledInvalidate,
+} from "@/hooks/realtime/throttle";
+import {
+  realtimeRefetchInterval,
+  useRealtimeChannel,
+} from "@/hooks/realtime/useRealtimeChannel";
 import { apiClient } from "@/lib/api/client";
-import { createClient } from "@/lib/supabase/browser";
+import { readBroadcastPayload, safeOrgChannel } from "@/lib/realtime/channels";
 
 export type RunStatus =
   | "pending"
@@ -64,7 +76,40 @@ export function useAgentRuns(
   const enabled = opts?.enabled ?? true;
   const realtime = opts?.realtime ?? enabled;
   const limit = opts?.limit ?? 25;
-  const qc = useQueryClient();
+  const channel = safeOrgChannel(useOptionalActiveOrg()?.orgId, "agent-runs");
+  const invalidate = useThrottledInvalidate();
+  // Toasts are throttled per level too: a flood of (possibly forged) signals
+  // on the public channel must not become a flood of toasts.
+  const toastThrottle = useMemo(
+    () => createKeyedThrottle(REALTIME_INVALIDATE_INTERVAL_MS),
+    [],
+  );
+  useEffect(() => () => toastThrottle.cancelAll(), [toastThrottle]);
+
+  const onChange = useCallback(
+    (message: unknown) => {
+      const payload = readBroadcastPayload(message);
+      if (!payload || (payload.agent_id && payload.agent_id !== agentId)) return;
+      invalidate(agentRunsKey(agentId));
+      // Only toast for signals explicitly about THIS agent; text is fixed.
+      if (payload.agent_id !== agentId) return;
+      const t = runToastFor(payload);
+      if (!t) return;
+      toastThrottle.run(t.level, () => {
+        if (t.level === "info") toast.info(t.text);
+        else if (t.level === "success") toast.success(t.text);
+        else toast.error(t.text);
+      });
+    },
+    [invalidate, toastThrottle, agentId],
+  );
+
+  const { status } = useRealtimeChannel({
+    name: channel ?? "agent-runs-disabled",
+    broadcast: { event: "*" },
+    onChange,
+    enabled: !!channel && !!agentId && realtime,
+  });
 
   const query = useQuery({
     queryKey: [...agentRunsKey(agentId), limit] as const,
@@ -75,43 +120,8 @@ export function useAgentRuns(
       return res;
     },
     enabled: !!agentId && enabled,
+    refetchInterval: realtime ? realtimeRefetchInterval(status) : false,
   });
-
-  useEffect(() => {
-    if (!agentId || !realtime) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`ai-agent-runs-${agentId}`)
-      .on(
-        "postgres_changes" as never,
-        {
-          event: "*",
-          schema: "public",
-          table: "ai_agent_runs",
-          filter: `agent_id=eq.${agentId}`,
-        },
-        (payload: { eventType?: string; new?: AgentRunRow }) => {
-          qc.invalidateQueries({ queryKey: agentRunsKey(agentId) });
-          if (payload?.eventType === "INSERT" && !payload.new?.is_dry_run) {
-            toast.info("Nova execução iniciada.");
-          }
-          if (payload?.eventType === "UPDATE" && payload.new?.status === "completed") {
-            toast.success("Execução concluída.");
-          }
-          if (
-            payload?.eventType === "UPDATE" &&
-            (payload.new?.status === "failed" || payload.new?.status === "aborted")
-          ) {
-            toast.error(`Execução ${payload.new?.status}.`);
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [agentId, realtime, qc]);
 
   return query;
 }

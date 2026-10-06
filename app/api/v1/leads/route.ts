@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
 import { createLeadSchema, validateRequest, type CreateLeadInput } from "@/lib/schemas";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { requireProApi } from "@/lib/plan/api";
 import { createClient } from "@/lib/supabase/server";
 
 import { createLeadHandler } from "./_handler";
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!activeOrg) {
     return fail("no_active_org", "Nenhuma organização ativa.", 403, { requestId });
   }
+  const planDenied = await requireProApi(activeOrg.orgId, requestId);
+  if (planDenied) return planDenied;
 
   let input;
   try {

@@ -18,7 +18,32 @@ export const supplierCreateSchema = z.object({
   notes: z.string().trim().max(2000).optional().default(""),
 });
 
-export const supplierPurchaseCreateSchema = z.object({
+/**
+ * Patch of a supplier, derived from the create schema. Absent keys stay absent
+ * (Zod 3 `.partial()` skips the inner `.default()`), so untouched columns keep
+ * their stored values.
+ */
+export const supplierUpdateSchema = supplierCreateSchema
+  .partial()
+  .refine((d) => Object.keys(d).length > 0, { message: "Nada para atualizar" });
+
+export type SupplierUpdate = z.infer<typeof supplierUpdateSchema>;
+
+/** Maps a validated patch to `suppliers` columns (only keys that were sent). */
+export function supplierPatchToRow(d: SupplierUpdate): Record<string, string | number | null> {
+  const row: Record<string, string | number | null> = {};
+  if (d.name !== undefined) row.name = d.name;
+  if (d.category !== undefined) row.category = d.category;
+  if (d.contactPerson !== undefined) row.contact_person = d.contactPerson || null;
+  if (d.phone !== undefined) row.phone = d.phone || null;
+  if (d.website !== undefined) row.website = d.website || null;
+  if (d.rating !== undefined) row.rating = d.rating;
+  if (d.avgDeliveryDays !== undefined) row.avg_delivery_days = d.avgDeliveryDays;
+  if (d.notes !== undefined) row.notes = d.notes || null;
+  return row;
+}
+
+export const supplierPurchaseCreateSchema =z.object({
   supplierId: z.string().uuid().nullable().optional(),
   supplierName: z.string().trim().min(1).max(200),
   itemName: z.string().trim().min(1).max(200),

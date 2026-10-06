@@ -11,6 +11,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendMessageHandler } from "@/app/api/v1/messages/_handler";
 import type { Actor } from "@/lib/api/handlers/types";
 import { audit } from "@/lib/audit";
+import { logger } from "@/lib/logger";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SerializedStep } from "./serialize";
 
@@ -55,11 +57,36 @@ export async function finalizeRun(input: FinalizeRunInput): Promise<void> {
     updateRow.error_message = (input.errorMessage ?? "").slice(0, 500);
   }
 
-  await admin
+  const { data: stamped, error: stampErr } = await admin
     .from("ai_agent_runs")
     .update(updateRow)
     .eq("id", input.runId)
-    .eq("organization_id", input.organizationId);
+    .eq("organization_id", input.organizationId)
+    .select("agent_id")
+    .maybeSingle();
+  if (stampErr) {
+    logger.warn("[agent-runtime] finalize update failed", {
+      run_id: input.runId,
+      error: stampErr.message,
+    });
+  }
+
+  // Realtime: ids + status enum only (RunsTable refetches through the API).
+  const finishedIds = {
+    run_id: input.runId,
+    agent_id: (stamped as { agent_id?: string } | null)?.agent_id,
+    status: input.status,
+    is_dry_run: input.isDryRun ?? false,
+  };
+  const finishedEvent =
+    input.status === "completed"
+      ? "run.completed"
+      : input.status === "handoff"
+        ? "run.updated"
+        : "run.failed";
+  deferBroadcast(() =>
+    broadcastOrg(input.organizationId, "agent-runs", finishedEvent, finishedIds),
+  );
 
   // Domain event (best-effort).
   const eventType =

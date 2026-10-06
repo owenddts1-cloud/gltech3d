@@ -78,6 +78,7 @@ export {
   Wallet,
   Tag,
   Question,
+  Lightbulb,
   Keyboard,
   // super app 3D — novas abas
   Printer,

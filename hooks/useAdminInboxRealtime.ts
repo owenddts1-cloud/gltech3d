@@ -1,33 +1,18 @@
 "use client";
-import { useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useRealtimeChannel } from "@/hooks/realtime/useRealtimeChannel";
+import type { RealtimeStatus } from "@/hooks/realtime/useRealtimeChannel";
 
 /**
- * Subscribes to postgres_changes on `messages` (INSERT) without org_id filter —
- * platform admin sees all tenants in real-time.
+ * Platform-admin inbox realtime: intentionally DISABLED.
  *
- * NOTE: postgres_changes requires Supabase Realtime to be enabled and the
- * `messages` table added to the `supabase_realtime` publication.
- * If Realtime is not enabled for this table, events will be silently dropped;
- * the list will still refresh on focus (staleTime = 10s).
+ * The admin inbox is cross-tenant, and Supabase broadcast channels are public
+ * (no Realtime Authorization yet — see docs/runbooks/pendencias-em-aberto.md):
+ * a shared channel would leak every tenant's message activity to anyone with
+ * the anon key. `postgres_changes` does not work either (the browser client has
+ * no session). Freshness comes from polling in `useAdminInbox`
+ * (`ADMIN_INBOX_POLL_MS`).
+ *
+ * Kept as a stable no-op so existing callers (`InboxList`) need no change.
  */
-export function useAdminInboxRealtime() {
-  const qc = useQueryClient();
-
-  const onChange = useCallback(() => {
-    void qc.invalidateQueries({ queryKey: ["admin", "inbox"] });
-  }, [qc]);
-
-  return useRealtimeChannel({
-    name: "admin-inbox-realtime",
-    postgresChanges: {
-      event: "INSERT",
-      schema: "public",
-      table: "messages",
-      // No filter — cross-tenant intentional for platform admin
-    },
-    onChange,
-    enabled: true,
-  });
+export function useAdminInboxRealtime(): { status: RealtimeStatus } {
+  return { status: "closed" };
 }

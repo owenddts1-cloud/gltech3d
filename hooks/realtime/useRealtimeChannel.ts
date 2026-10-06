@@ -2,6 +2,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { subscribeBroadcast } from "@/hooks/realtime/broadcast-registry";
 
 export type RealtimeStatus =
   | "connecting"
@@ -9,6 +10,19 @@ export type RealtimeStatus =
   | "channel_error"
   | "timed_out"
   | "closed";
+
+/** Poll interval when the channel is NOT delivering (joining, error, closed). */
+export const REALTIME_FALLBACK_POLL_MS = 30_000;
+/**
+ * Slow heartbeat while subscribed: a broadcast the server failed to send
+ * (it never retries — see lib/realtime/broadcast.ts) is still reconciled.
+ */
+export const REALTIME_HEARTBEAT_POLL_MS = 120_000;
+
+/** React Query `refetchInterval` for a list kept fresh by a realtime channel. */
+export function realtimeRefetchInterval(status: RealtimeStatus): number {
+  return status === "subscribed" ? REALTIME_HEARTBEAT_POLL_MS : REALTIME_FALLBACK_POLL_MS;
+}
 
 export interface UseRealtimeChannelOpts {
   name: string;
@@ -41,7 +55,28 @@ export function useRealtimeChannel(opts: UseRealtimeChannelOpts): { status: Real
   // every hook call owns its own channel topology.
   const instanceId = useId();
 
+  // Broadcast-only subscriptions join the EXACT topic the server sends to
+  // (`lib/realtime/broadcast.ts`), through a ref-counted registry so several
+  // hook instances on one topic share a single channel.
+  const broadcastOnly = !!broadcast && !postgresChanges;
+
   useEffect(() => {
+    if (!broadcastOnly || !broadcast) return;
+    if (!enabled) {
+      setStatus("closed");
+      return;
+    }
+    return subscribeBroadcast(
+      name,
+      broadcast.event,
+      (message) => onChangeRef.current(message),
+      setStatus,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [broadcastOnly, name, enabled, broadcast?.event]);
+
+  useEffect(() => {
+    if (broadcastOnly) return;
     if (!enabled) {
       setStatus("closed");
       return;
@@ -91,7 +126,7 @@ export function useRealtimeChannel(opts: UseRealtimeChannelOpts): { status: Real
     };
     // intentionally omit onChange (ref); only re-subscribe when channel topology changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, enabled, instanceId, postgresChanges?.event, postgresChanges?.table, postgresChanges?.filter, postgresChanges?.schema, broadcast?.event]);
+  }, [broadcastOnly, name, enabled, instanceId, postgresChanges?.event, postgresChanges?.table, postgresChanges?.filter, postgresChanges?.schema, broadcast?.event]);
 
   return { status };
 }

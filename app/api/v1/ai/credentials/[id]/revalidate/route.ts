@@ -11,6 +11,7 @@ import { type NextRequest } from "next/server";
 import { ok, fail } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { requireProApi } from "@/lib/plan/api";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { byteaToBuffer, decryptKey } from "@/lib/crypto/aes_gcm";
 import { validateProviderKey } from "@/lib/ai/provider-validators";
@@ -34,6 +35,8 @@ export async function POST(
   if (!activeOrg) {
     return fail("forbidden_tenant", "Sem organização ativa.", 403, { requestId });
   }
+  const planDenied = await requireProApi(activeOrg.orgId, requestId);
+  if (planDenied) return planDenied;
   if (ROLE_RANK[activeOrg.role] < ROLE_RANK.admin) {
     return fail("forbidden_role", "Permissão insuficiente. Requer role admin.", 403, {
       requestId,

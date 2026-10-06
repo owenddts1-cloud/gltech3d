@@ -45,3 +45,59 @@ describe("invite-token", () => {
     expect(verifyInviteToken("notatoken")).toBeNull();
   });
 });
+
+/**
+ * Este token deixou de ser só convite de equipe: ele também é a credencial de
+ * ativação do comprador do Calc3D PRO, e `activateAccountAction` cria conta e
+ * grava `user_organizations` com o `role` que vem dentro dele. Os casos abaixo
+ * são os caminhos que essa segunda função de uso tornou relevantes.
+ */
+describe("invite-token — uso como credencial de ativação", () => {
+  it("rejeita escalonamento de role sem reassinar", () => {
+    const token = signInviteToken({ ...base(), role: "viewer" });
+    const parts = token.split(".");
+    const sig = parts[1]!;
+    const decoded = JSON.parse(Buffer.from(parts[0]!, "base64url").toString("utf8")) as {
+      role: string;
+    };
+    decoded.role = "admin";
+    const forged = Buffer.from(JSON.stringify(decoded), "utf8").toString("base64url");
+    expect(verifyInviteToken(`${forged}.${sig}`)).toBeNull();
+  });
+
+  it("rejeita troca de organization_id sem reassinar", () => {
+    const token = signInviteToken(base());
+    const parts = token.split(".");
+    const sig = parts[1]!;
+    const decoded = JSON.parse(Buffer.from(parts[0]!, "base64url").toString("utf8")) as {
+      organization_id: string;
+    };
+    decoded.organization_id = "33333333-3333-3333-3333-333333333333";
+    const forged = Buffer.from(JSON.stringify(decoded), "utf8").toString("base64url");
+    expect(verifyInviteToken(`${forged}.${sig}`)).toBeNull();
+  });
+
+  // Caminho distinto do "tampered signature": aqui a verificação sai pelo
+  // `sig.length !== expected.length`, antes do timingSafeEqual — que lançaria
+  // com buffers de tamanhos diferentes.
+  it("rejeita assinatura de comprimento diferente sem estourar", () => {
+    const token = signInviteToken(base());
+    const body = token.split(".")[0]!;
+    expect(verifyInviteToken(`${body}.curta`)).toBeNull();
+  });
+
+  it("rejeita corpo bem assinado que não tem o formato de convite", () => {
+    const sig = signInviteToken(base()).split(".")[1]!;
+    const body = Buffer.from(JSON.stringify({ foo: "bar" }), "utf8").toString("base64url");
+    expect(verifyInviteToken(`${body}.${sig}`)).toBeNull();
+  });
+
+  it.each([
+    ["pontos demais", "a.b.c"],
+    ["corpo vazio", ".abc"],
+    ["assinatura vazia", "abc."],
+    ["string vazia", ""],
+  ])("rejeita token malformado: %s", (_label, token) => {
+    expect(verifyInviteToken(token)).toBeNull();
+  });
+});

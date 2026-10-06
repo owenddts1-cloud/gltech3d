@@ -15,6 +15,7 @@
  */
 
 import { z } from "zod";
+import { assertProAccess } from "@/lib/plan/server";
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
@@ -32,6 +33,10 @@ async function requireCtx(): Promise<{ ok: true; ctx: Ctx } | { ok: false; error
   if (!authUser) return { ok: false, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false, error: "Nenhuma organização ativa" };
+  // Defesa em profundidade: o layout (pro) ja barra a navegacao, mas uma aba
+  // aberta antes de o trial vencer continuaria gravando sem esta linha.
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false, error: denied };
   return {
     ok: true,
     ctx: { orgId: activeOrg.orgId, userId: authUser.id, supabase: await createClient() },

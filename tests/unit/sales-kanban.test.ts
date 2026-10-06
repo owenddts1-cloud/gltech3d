@@ -4,7 +4,7 @@ import {
   computeDropPosition,
   sortColumnCards,
   staleCount,
-} from "@/app/app/sales/_lib/kanban";
+} from "@/app/app/(pro)/sales/_lib/kanban";
 
 const TODAY = "2026-07-17";
 

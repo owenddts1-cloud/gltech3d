@@ -12,6 +12,7 @@ import { z } from "zod";
 
 import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { requireProApi } from "@/lib/plan/api";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBudgetStatus } from "@/lib/ai/budget/check";
@@ -62,6 +63,8 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (!activeOrg) {
     return fail("forbidden", "Nenhuma organização ativa.", 403, { requestId });
   }
+  const planDenied = await requireProApi(activeOrg.orgId, requestId);
+  if (planDenied) return planDenied;
   if (ROLE_RANK[activeOrg.role] < ROLE_RANK.admin) {
     return fail("forbidden_role", "Permissão insuficiente. Requer role admin.", 403, {
       requestId,

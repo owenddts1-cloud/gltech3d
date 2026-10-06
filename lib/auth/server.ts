@@ -10,13 +10,19 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { AuthUser, Role, UserOrgMembership, ActiveOrg } from "./types";
+import { pickActiveOrg, pickSelectedMembership, toActiveOrg } from "./active-org";
 
 const ACTIVE_ORG_COOKIE = "active_org";
+
+interface RawOrgEmbed {
+  display_name: string;
+  status: string;
+}
 
 interface RawMembershipRow {
   organization_id: string;
   role: string;
-  organizations: { display_name: string } | { display_name: string }[] | null;
+  organizations: RawOrgEmbed | RawOrgEmbed[] | null;
 }
 
 /**
@@ -46,18 +52,21 @@ export async function loadAuthUser(): Promise<AuthUser | null> {
   // Org memberships (only active = not revoked, accepted)
   const { data: rawMemberships } = await supabase
     .from("user_organizations")
-    .select("organization_id, role, organizations(display_name)")
+    .select("organization_id, role, organizations(display_name, status)")
     .eq("user_id", user.id)
     .is("revoked_at", null);
 
   const rows = (rawMemberships ?? []) as RawMembershipRow[];
   const memberships: UserOrgMembership[] = rows.map((row) => {
-    const orgs = row.organizations;
-    const name = Array.isArray(orgs) ? (orgs[0]?.display_name ?? "—") : (orgs?.display_name ?? "—");
+    // The embed is null when RLS hides the org row: since migration 0084 a
+    // non-admin member cannot read a suspended org (orgs_select relies on
+    // fn_user_org_ids, which only returns active orgs).
+    const org = Array.isArray(row.organizations) ? (row.organizations[0] ?? null) : row.organizations;
     return {
       organization_id: row.organization_id,
-      organization_name: name,
+      organization_name: org?.display_name ?? "—",
       role: row.role as Role,
+      organization_status: org?.status ?? null,
     };
   });
 
@@ -75,23 +84,28 @@ export async function loadAuthUser(): Promise<AuthUser | null> {
 }
 
 /**
- * Resolves the active organization for the current request.
- * Priority: cookie `active_org` (if member of) → first membership.
- * Returns null if user has zero memberships.
+ * Resolves the active organization for the current request (API handlers and
+ * server actions). Priority: cookie `active_org` (if member of) → first
+ * membership. Returns null if the user has zero memberships OR the selected org
+ * is not `active` (suspended/redacted/archived) — unless platform admin. Same
+ * rule RLS applies since migration 0084; see lib/auth/active-org.ts.
  */
 export async function resolveActiveOrg(authUser: AuthUser): Promise<ActiveOrg | null> {
   if (authUser.organizations.length === 0) return null;
   const store = await cookies();
-  const cookieOrg = store.get(ACTIVE_ORG_COOKIE)?.value;
-  if (cookieOrg) {
-    const found = authUser.organizations.find((o) => o.organization_id === cookieOrg);
-    if (found) {
-      return { orgId: found.organization_id, name: found.organization_name, role: found.role };
-    }
-  }
-  const first = authUser.organizations[0];
-  if (!first) return null;
-  return { orgId: first.organization_id, name: first.organization_name, role: first.role };
+  return pickActiveOrg(authUser, store.get(ACTIVE_ORG_COOKIE)?.value);
+}
+
+/**
+ * The selected org IGNORING its status. Only for `loadAppShellContext()`, which
+ * must see a suspended org to redirect to /account-suspended. Anything that
+ * reads or writes tenant data uses `resolveActiveOrg()`.
+ */
+export async function resolveSelectedOrgForShell(authUser: AuthUser): Promise<ActiveOrg | null> {
+  if (authUser.organizations.length === 0) return null;
+  const store = await cookies();
+  const m = pickSelectedMembership(authUser, store.get(ACTIVE_ORG_COOKIE)?.value);
+  return m ? toActiveOrg(m) : null;
 }
 
 /**
@@ -114,10 +128,29 @@ export async function isMfaEnrolled(): Promise<boolean> {
   return !!data?.totp?.some((f) => f.status === "verified");
 }
 
+export interface MfaPolicyInput {
+  role: Role | undefined;
+  isPlatformAdmin: boolean;
+  /** `admin` de alguma org com plano pago vigente. Trial nao conta. */
+  hasPaidPlan: boolean;
+}
+
 /**
- * MFA enforcement policy: platform admins and tenant `admin` role MUST enroll.
- * `manager`/`agent`/`viewer` are optional in MVP.
+ * MFA enforcement policy.
+ *
+ * Platform admins sempre. Tenant `admin` SO quando ha plano pago — nao durante o
+ * trial de 7 dias.
+ *
+ * Por que o trial e excecao: a doutrina de TOTP obrigatorio existe para proteger
+ * PII de clientes reais. Um tenant em trial com tres pecas de teste nao tem esse
+ * risco, e forcar a instalacao de um authenticator ANTES de a pessoa ver uma
+ * unica tela do produto mataria a conversao. No dia em que o Pix e aprovado — e
+ * a org passa a guardar dados de verdade — o gate liga.
+ *
+ * Consequencia operacional, documentada no runbook: no primeiro login depois da
+ * aprovacao do pagamento o usuario e levado ao enrolamento de TOTP.
  */
-export function requiresMfa(role: Role | undefined, isPlatformAdmin: boolean): boolean {
-  return isPlatformAdmin || role === "admin";
+export function requiresMfa(input: MfaPolicyInput): boolean {
+  if (input.isPlatformAdmin) return true;
+  return input.role === "admin" && input.hasPaidPlan;
 }

@@ -1,28 +1,13 @@
 /**
- * Resend wrapper. Usado por: convites de team, magic links, notificações operacionais.
+ * TRANSPORTE Resend. Não chame daqui — use `lib/email/send.ts`, que escolhe
+ * entre este e o SMTP.
  *
- * Comportamento defensivo: quando RESEND_API_KEY não está configurada, faz log
- * do payload no console em DEV (nunca em prod) e retorna { ok: false, error: 'not_configured' }
- * — o caller decide se isso é fatal ou não. Convites NÃO devem falhar silenciosamente
- * em prod; em dev, o log permite que o flow continue sem credenciais reais.
+ * LIMITAÇÃO QUE DEFINE O USO: sem domínio verificado, o Resend entrega apenas
+ * no e-mail dono da conta. Serve para as notificações ao operador; não serve
+ * para falar com o cliente. É por isso que o SMTP existe e tem prioridade.
  */
 import { Resend } from "resend";
-
-interface SendArgs {
-  to: string | string[];
-  subject: string;
-  html: string;
-  text?: string;
-  replyTo?: string;
-  tags?: { name: string; value: string }[];
-}
-
-interface SendResult {
-  ok: boolean;
-  id?: string;
-  error?: "not_configured" | "send_failed" | "rate_limited";
-  details?: string;
-}
+import { recipientLabel, type BatchSendResult, type SendArgs, type SendResult } from "./types";
 
 let _client: Resend | null = null;
 
@@ -43,23 +28,10 @@ function fromAddress(): string {
   return process.env.RESEND_FROM_EMAIL || "GLTech3D <onboarding@resend.dev>";
 }
 
-export async function sendEmail(args: SendArgs): Promise<SendResult> {
+export async function sendViaResend(args: SendArgs): Promise<SendResult> {
   const client = getClient();
 
-  if (!client) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn(
-        "[email] RESEND_API_KEY não configurada — email não enviado. Payload:",
-        {
-          to: args.to,
-          subject: args.subject,
-          preview: args.text?.slice(0, 200) ?? args.html.slice(0, 200),
-        },
-      );
-      return { ok: false, error: "not_configured" };
-    }
-    return { ok: false, error: "not_configured" };
-  }
+  if (!client) return { ok: false, error: "not_configured" };
 
   try {
     const { data, error } = await client.emails.send({
@@ -90,30 +62,19 @@ export async function sendEmail(args: SendArgs): Promise<SendResult> {
   }
 }
 
-export function isEmailConfigured(): boolean {
+export function isResendConfigured(): boolean {
   return getClient() !== null;
 }
 
-interface BatchSendResult {
-  successCount: number;
-  results: { email: string; success: boolean; error?: string }[];
-}
-
-export async function sendBatchEmails(batch: SendArgs[]): Promise<BatchSendResult> {
+export async function batchViaResend(batch: SendArgs[]): Promise<BatchSendResult> {
   const client = getClient();
   const from = fromAddress();
 
   if (!client) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn(
-        "[email] RESEND_API_KEY não configurada — batch de e-mails não enviado. Qtd:",
-        batch.length,
-      );
-    }
     return {
       successCount: 0,
       results: batch.map((b) => ({
-        email: Array.isArray(b.to) ? b.to.join(",") : b.to,
+        email: recipientLabel(b.to),
         success: false,
         error: "not_configured",
       })),
@@ -147,7 +108,7 @@ export async function sendBatchEmails(batch: SendArgs[]): Promise<BatchSendResul
       if (error) {
         console.error("[email] Erro no envio em lote do Resend:", error);
         for (const item of chunk) {
-          const emailStr = Array.isArray(item.to) ? item.to.join(",") : item.to;
+          const emailStr = recipientLabel(item.to);
           results.push({
             email: emailStr,
             success: false,
@@ -158,7 +119,7 @@ export async function sendBatchEmails(batch: SendArgs[]): Promise<BatchSendResul
         data.data.forEach((res, index) => {
           const item = chunk[index];
           if (!item) return;
-          const emailStr = Array.isArray(item.to) ? item.to.join(",") : item.to;
+          const emailStr = recipientLabel(item.to);
           if (res.id) {
             successCount++;
             results.push({ email: emailStr, success: true });
@@ -169,7 +130,7 @@ export async function sendBatchEmails(batch: SendArgs[]): Promise<BatchSendResul
       } else {
         // Fallback se a estrutura de retorno for diferente mas sem erros explícitos
         for (const item of chunk) {
-          const emailStr = Array.isArray(item.to) ? item.to.join(",") : item.to;
+          const emailStr = recipientLabel(item.to);
           results.push({ email: emailStr, success: true });
         }
         successCount += chunk.length;
@@ -178,7 +139,7 @@ export async function sendBatchEmails(batch: SendArgs[]): Promise<BatchSendResul
       console.error("[email] Exceção ao enviar lote do Resend:", err);
       const errMsg = err instanceof Error ? err.message : String(err);
       for (const item of chunk) {
-        const emailStr = Array.isArray(item.to) ? item.to.join(",") : item.to;
+        const emailStr = recipientLabel(item.to);
         results.push({ email: emailStr, success: false, error: errMsg });
       }
     }

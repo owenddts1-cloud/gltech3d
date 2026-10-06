@@ -14,6 +14,8 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { requireProApi } from "@/lib/plan/api";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -57,6 +59,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!activeOrg) {
     return fail("forbidden", "Nenhuma organização ativa.", 403, { requestId });
   }
+  const planDenied = await requireProApi(activeOrg.orgId, requestId);
+  if (planDenied) return planDenied;
 
   // Role gate: manager or above
   if (ROLE_RANK[activeOrg.role] < ROLE_RANK["manager"]) {
@@ -230,6 +234,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (emitErr) {
     console.warn("[ai-policy-upload] emit_event failed (non-blocking):", emitErr.message);
   }
+
+  deferBroadcast(() =>
+    broadcastOrg(activeOrg.orgId, "kb-sources", "source.created", { source_id: ksId, agent_id: agentId }),
+  );
 
   return ok({ data: { id: ksId, blob_path: blobPath } }, { status: 201, requestId });
 }

@@ -21,7 +21,38 @@ export const projectCreateSchema = z.object({
   depreciationPerHour: z.coerce.number().nonnegative().max(100_000).optional().default(0),
 });
 
-export const PROJECT_NOTE_COLORS = ["yellow", "pink", "blue", "green"] as const;
+/**
+ * Patch of a project. Derived from the create schema with `.partial()`: in Zod 3
+ * an absent key short-circuits in ZodOptional before the inner `.default()`, so
+ * a partial patch never resets untouched columns to their create defaults.
+ */
+export const projectUpdateSchema = projectCreateSchema
+  .partial()
+  .refine((d) => Object.keys(d).length > 0, { message: "Nada para atualizar" });
+
+export type ProjectUpdate = z.infer<typeof projectUpdateSchema>;
+
+/** Maps a validated patch to `projects` columns (only keys that were sent). */
+export function projectPatchToRow(d: ProjectUpdate): Record<string, string | number | null> {
+  const row: Record<string, string | number | null> = {};
+  if (d.name !== undefined) row.name = d.name;
+  if (d.filamentType !== undefined) row.filament_type = d.filamentType || null;
+  if (d.weightGrams !== undefined) row.weight_grams = d.weightGrams;
+  if (d.printHours !== undefined) row.print_hours = d.printHours;
+  if (d.layerHeight !== undefined) row.layer_height = d.layerHeight;
+  if (d.infill !== undefined) row.infill = d.infill || null;
+  if (d.speed !== undefined) row.speed = d.speed;
+  if (d.nozzleTemp !== undefined) row.nozzle_temp = d.nozzleTemp;
+  if (d.bedTemp !== undefined) row.bed_temp = d.bedTemp;
+  if (d.description !== undefined) row.description = d.description || null;
+  if (d.filamentCostPerKg !== undefined) row.filament_cost_per_kg = d.filamentCostPerKg;
+  if (d.wattage !== undefined) row.wattage = d.wattage;
+  if (d.kwhPrice !== undefined) row.kwh_price = d.kwhPrice;
+  if (d.depreciationPerHour !== undefined) row.depreciation_per_hour = d.depreciationPerHour;
+  return row;
+}
+
+export const PROJECT_NOTE_COLORS =["yellow", "pink", "blue", "green"] as const;
 export const projectNoteColorSchema = z.enum(PROJECT_NOTE_COLORS);
 
 export const projectNoteCreateSchema = z.object({

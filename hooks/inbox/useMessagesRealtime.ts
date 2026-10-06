@@ -1,7 +1,13 @@
 "use client";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useRealtimeChannel } from "@/hooks/realtime/useRealtimeChannel";
+import {
+  realtimeRefetchInterval,
+  useRealtimeChannel,
+} from "@/hooks/realtime/useRealtimeChannel";
+import { useOptionalActiveOrg } from "@/hooks/auth/AuthProvider";
+import { useThrottledInvalidate } from "@/hooks/realtime/throttle";
+import { readBroadcastPayload, safeOrgChannel } from "@/lib/realtime/channels";
 import { apiClient } from "@/lib/api/client";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import type { Message } from "@/lib/types/messaging";
@@ -11,13 +17,37 @@ interface MessagesResponse {
   meta?: { cursor?: string | null; has_more?: boolean };
 }
 
+/**
+ * Thread messages. Realtime = server broadcast on `org:<orgId>:messages`
+ * (ids-only; filtered here by conversation_id) — `postgres_changes` cannot
+ * work because the browser client has no session (httpOnly cookie).
+ */
 export function useMessagesRealtime(conversationId: string | null) {
-  const qc = useQueryClient();
   const queryKey = ["messages", conversationId] as const;
+  const channel = safeOrgChannel(useOptionalActiveOrg()?.orgId, "messages");
+
+  const invalidate = useThrottledInvalidate();
+  const onChange = useCallback(
+    (message: unknown) => {
+      const payload = readBroadcastPayload(message);
+      if (!conversationId || !payload) return;
+      if (payload.conversation_id && payload.conversation_id !== conversationId) return;
+      invalidate(["messages", conversationId]);
+    },
+    [invalidate, conversationId],
+  );
+
+  const { status } = useRealtimeChannel({
+    name: channel ?? "messages-disabled",
+    broadcast: { event: "*" },
+    onChange,
+    enabled: !!channel && !!conversationId,
+  });
 
   const query = useInfiniteQuery({
     queryKey,
     enabled: !!conversationId,
+    refetchInterval: realtimeRefetchInterval(status),
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       if (!conversationId) {
@@ -37,25 +67,6 @@ export function useMessagesRealtime(conversationId: string | null) {
     },
     getNextPageParam: (last) =>
       last.meta?.has_more && last.meta.cursor ? last.meta.cursor : undefined,
-  });
-
-  const onChange = useCallback(() => {
-    if (conversationId) qc.invalidateQueries({ queryKey: ["messages", conversationId] });
-    qc.invalidateQueries({ queryKey: ["conversations"] });
-  }, [qc, conversationId]);
-
-  useRealtimeChannel({
-    name: conversationId ? `messages-${conversationId}` : "messages-disabled",
-    postgresChanges: conversationId
-      ? {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversationId}`,
-        }
-      : undefined,
-    onChange,
-    enabled: !!conversationId,
   });
 
   return query;

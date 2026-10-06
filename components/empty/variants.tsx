@@ -48,7 +48,7 @@ export function EmptyContacts({ primary, secondary }: VariantProps = {}) {
     <EmptyState
       icon={UsersThree}
       headline="Nenhum contato ainda"
-      subcopy="Contatos chegam automaticamente via WhatsApp ou Nuvemshop."
+      subcopy="Cadastre seus clientes para vincular vendas, ordens de serviço e conversas a eles. Quem falar com você pelo WhatsApp conectado também vira contato automaticamente."
       primary={primary}
       secondary={secondary}
     />

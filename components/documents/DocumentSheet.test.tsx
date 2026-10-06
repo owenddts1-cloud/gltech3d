@@ -5,7 +5,7 @@ import { emptyDocumentBranding } from "@/lib/schemas/settings";
 import {
   buildDraftSnapshot,
   type DocumentContext,
-} from "@/app/app/service-orders/_lib/document-draft";
+} from "@/app/app/(pro)/service-orders/_lib/document-draft";
 import type { DocType, RenderableDocument } from "@/lib/schemas/service-order-documents";
 
 import { DocumentSheet } from "./DocumentSheet";

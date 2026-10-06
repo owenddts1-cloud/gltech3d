@@ -3,6 +3,8 @@
  * landing lead / newsletter signup comes in. Plain inline-styled HTML (email
  * client compat), no external assets. Mirrors `lib/email/templates/invite.ts`.
  */
+import { escapeHtml } from "@/lib/email/escape";
+
 export interface LeadNotifyOptions {
   type: "lead" | "newsletter";
   name?: string | null;
@@ -57,13 +59,4 @@ export function buildLeadNotifyEmail(opts: LeadNotifyOptions): {
     .join("\n");
 
   return { subject, html, text };
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }

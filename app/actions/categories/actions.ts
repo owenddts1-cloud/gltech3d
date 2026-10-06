@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { assertProAccess } from "@/lib/plan/server";
 import { categoryCreateSchema, categoryPatchSchema } from "@/lib/schemas/categories";
 import { autoSlug } from "@/lib/slug";
 import { revalidatePath } from "next/cache";
@@ -54,6 +55,8 @@ export async function createCategory(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "Nenhuma organização ativa" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = categoryCreateSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
@@ -83,6 +86,8 @@ export async function updateCategory(id: string, raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "Nenhuma organização ativa" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = categoryPatchSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
@@ -113,6 +118,8 @@ export async function deleteCategory(id: string) {
   if (!authUser) return { ok: false as const, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "Nenhuma organização ativa" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const supabase = await createClient();
   const { error } = await supabase

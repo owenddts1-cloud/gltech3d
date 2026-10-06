@@ -7,7 +7,7 @@
 
 import { createHash } from "node:crypto";
 
-import { sendEmail } from "@/lib/email/resend";
+import { sendEmail } from "@/lib/email/send";
 
 export class EmailNotConfigured extends Error {
   constructor() {

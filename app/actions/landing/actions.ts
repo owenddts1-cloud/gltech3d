@@ -1,7 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { assertProAccess } from "@/lib/plan/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { deleteDeniedMessage } from "@/lib/auth/delete-policy";
 import { computeProductPricing, type ProductPricingResult } from "@/lib/pricing/engine";
 import { revalidateLanding } from "@/lib/landing/repository";
 import { revalidatePath } from "next/cache";
@@ -80,6 +82,10 @@ async function requireCtx(): Promise<{ ok: true; ctx: Ctx } | { ok: false; error
   if (!authUser) return { ok: false, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false, error: "Nenhuma organização ativa" };
+  // Defesa em profundidade: o layout (pro) ja barra a navegacao, mas uma aba
+  // aberta antes de o trial vencer continuaria gravando sem esta linha.
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false, error: denied };
   return {
     ok: true,
     ctx: { orgId: activeOrg.orgId, userId: authUser.id, supabase: await createClient() },
@@ -391,12 +397,17 @@ export async function deleteLandingProduct(id: string) {
   const c = await requireCtx();
   if (!c.ok) return { ok: false as const, error: c.error };
 
-  const { error } = await c.ctx.supabase
+  const { data, error } = await c.ctx.supabase
     .from("products")
     .delete()
     .eq("organization_id", c.ctx.orgId)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) return { ok: false as const, error: error.message };
+  // RLS (0084): DELETE requires manager+; a denied delete removes 0 rows silently.
+  if (!data || data.length === 0) {
+    return { ok: false as const, error: deleteDeniedMessage("products") };
+  }
 
   refresh();
   return { ok: true as const };

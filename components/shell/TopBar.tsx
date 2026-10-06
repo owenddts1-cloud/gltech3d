@@ -8,6 +8,7 @@ import { SearchTrigger } from "./SearchTrigger";
 import { NotificationMenu } from "./NotificationMenu";
 import { PlugsConnected } from "@/lib/ui/icons";
 import { CrossAppMeshModal } from "@/components/mesh/CrossAppMeshModal";
+import { GuideButton } from "@/components/guides/GuideButton";
 import { usePathname } from "next/navigation";
 import { resolveActiveAppId } from "@/lib/apps/registry";
 
@@ -33,6 +34,7 @@ export function TopBar() {
 
         {/* Right side actions */}
         <div className="flex items-center gap-2">
+          <GuideButton />
           <button
             onClick={() => setIsMeshOpen(true)}
             className="flex items-center gap-1.5 rounded-lg bg-accent/10 border border-accent/20 px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent/20 transition-colors"

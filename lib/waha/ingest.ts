@@ -12,6 +12,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { audit } from "@/lib/audit";
+import { broadcastMessageActivity, broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { ackToStatus } from "@/lib/types/messaging";
 
@@ -244,6 +245,13 @@ async function handleInbound(
   if (insertErr?.code === "23505") return;
 
   await markConversation(admin, conversationId, "inbound", previewFromMessage(p), now);
+  const inboundId = insertedMessage?.id ?? null;
+  deferBroadcast(() =>
+    broadcastMessageActivity(session.organization_id, "message.created", {
+      conversation_id: conversationId,
+      message_id: inboundId,
+    }),
+  );
 
   if (p.body && STOP_RX.test(p.body)) {
     await admin
@@ -314,7 +322,7 @@ async function handleOutboundFromUserPhone(
   if (!conversationId) return;
 
   const now = new Date().toISOString();
-  const { error: insertErr } = await admin.from("messages").insert({
+  const { data: outboundRow, error: insertErr } = await admin.from("messages").insert({
     organization_id: session.organization_id,
     conversation_id: conversationId,
     channel_session_id: session.id,
@@ -330,7 +338,9 @@ async function handleOutboundFromUserPhone(
     sent_via: "external_device",
     sent_at: p.timestamp ? new Date(p.timestamp * 1000).toISOString() : now,
     metadata: { raw_type: p.type, fromMe: true },
-  });
+  })
+    .select("id")
+    .maybeSingle();
   if (insertErr && insertErr.code !== "23505") {
     console.error("[waha.ingest] outbound insert failed", insertErr.message);
     return;
@@ -338,6 +348,13 @@ async function handleOutboundFromUserPhone(
   if (insertErr?.code === "23505") return;
 
   await markConversation(admin, conversationId, "outbound", previewFromMessage(p), now);
+  const outboundId = outboundRow?.id ?? null;
+  deferBroadcast(() =>
+    broadcastMessageActivity(session.organization_id, "message.created", {
+      conversation_id: conversationId,
+      message_id: outboundId,
+    }),
+  );
 
   await audit({
     action: "message.sent",
@@ -358,11 +375,22 @@ async function handleAck(admin: Admin, session: Session, p: WahaPayload): Promis
   if (ack >= 2) update.delivered_at = now;
   if (ack >= 3) update.read_at = now;
 
-  await admin
+  const { data: acked, error: ackErr } = await admin
     .from("messages")
     .update(update)
     .eq("organization_id", session.organization_id)
-    .eq("external_id", p.id);
+    .eq("external_id", p.id)
+    .select("id, conversation_id")
+    .maybeSingle();
+  if (ackErr) {
+    console.error("[waha.ingest] ack update failed", ackErr.message);
+    return;
+  }
+  // Ack ticks (sent → delivered → read) in an open thread.
+  if (acked?.conversation_id) {
+    const ids = { conversation_id: acked.conversation_id as string, message_id: acked.id as string };
+    deferBroadcast(() => broadcastOrg(session.organization_id, "messages", "message.updated", ids));
+  }
 }
 
 interface SessionStatusRow extends Session {

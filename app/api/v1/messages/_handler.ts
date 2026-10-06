@@ -12,6 +12,7 @@ import { ApiError } from "@/lib/api/types";
 import type { Actor, HandlerCtx } from "@/lib/api/handlers/types";
 import { audit } from "@/lib/audit";
 import type { ListMessagesQuery, SendMessageInput } from "@/lib/schemas";
+import { broadcastMessageActivity, deferBroadcast } from "@/lib/realtime/broadcast";
 import type { Message } from "@/lib/types/messaging";
 import { getWahaClient } from "@/lib/waha/client";
 import { resolveWahaChatId } from "@/lib/waha/send";
@@ -310,6 +311,16 @@ export async function sendMessageHandler(
     .then(({ error }) => {
       if (error) console.error("[messages.send] emit_event failed", error.message);
     });
+
+  // Realtime: ids-only signal so open threads / inbox lists refetch.
+  const orgId = c.organization_id;
+  const messageId = message.id;
+  deferBroadcast(() =>
+    broadcastMessageActivity(orgId, "message.created", {
+      conversation_id: c.id,
+      message_id: messageId,
+    }),
+  );
 
   return message;
 }

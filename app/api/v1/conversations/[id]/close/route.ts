@@ -8,6 +8,8 @@ import { type NextRequest } from "next/server";
 
 import { audit } from "@/lib/audit";
 import { ok, fail } from "@/lib/api/wrappers";
+import { requireProApiForSession } from "@/lib/plan/api";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { createClient } from "@/lib/supabase/server";
 import type { Conversation } from "@/lib/types/messaging";
 
@@ -37,6 +39,8 @@ export async function POST(_req: NextRequest, ctx: RouteCtx): Promise<Response> 
   if (authErr || !user) {
     return fail("unauthenticated", "Auth required.", 401, { requestId });
   }
+  const planDenied = await requireProApiForSession(requestId);
+  if (planDenied) return planDenied;
 
   const now = new Date().toISOString();
   const { data, error } = await supabase
@@ -63,6 +67,12 @@ export async function POST(_req: NextRequest, ctx: RouteCtx): Promise<Response> 
     resourceId: conv.id,
     requestId,
   });
+
+  deferBroadcast(() =>
+    broadcastOrg(conv.organization_id, "conversations", "conversation.updated", {
+      conversation_id: conv.id,
+    }),
+  );
 
   return ok(conv, { requestId });
 }

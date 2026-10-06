@@ -1,10 +1,20 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { calculateRealCost } from "@/lib/pricing/engine";
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import {
+  ApiTokenError,
+  PRINTER_WEBHOOK_SCOPE,
+  extractBearer,
+  looksLikeApiToken,
+  validateApiToken,
+} from "@/lib/auth/api-token";
+import { env } from "@/lib/env";
+import { logger } from "@/lib/logger";
+import { resolveGltechOrgId } from "@/lib/marketing/gltech-org";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,6 +48,13 @@ const bodySchema = z.object({
   service_order_id: z.string().uuid().optional().nullable(),
 });
 
+/** Constant-time comparison; length mismatch short-circuits (length is not secret). */
+function secretsMatch(provided: string, configured: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(configured);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 function json(status: number, payload: Record<string, unknown>): Response {
   return new Response(JSON.stringify(payload), {
     status,
@@ -45,40 +62,93 @@ function json(status: number, payload: Record<string, unknown>): Response {
   });
 }
 
+type AuthOutcome =
+  | { ok: true; orgId: string; via: "api_token" | "session" | "legacy_secret" }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Resolves WHICH org this call may write to. Three paths, in order:
+ *
+ * 1. Per-org API token (`dsk_...`, scope `printer:webhook`) in
+ *    `Authorization: Bearer` or `X-Webhook-Secret`. The org comes FROM THE
+ *    TOKEN ROW; a `?orgId=` that disagrees is rejected (never trusted).
+ * 2. Logged-in dashboard member (browser simulator): org = active org; a
+ *    `?orgId=` must match it.
+ * 3. DEPRECATED global `PRINTER_WEBHOOK_SECRET` in `X-Webhook-Secret`: one
+ *    secret shared by every tenant, so it is accepted ONLY for the site's own
+ *    org (lib/marketing/gltech-org.ts) and logs a deprecation warning.
+ *
+ * Credentials are header-only — never `?secret=` (leaks into access logs).
+ */
+async function authorize(req: NextRequest, queryOrgId: string | null): Promise<AuthOutcome> {
+  const headerSecret = req.headers.get("x-webhook-secret")?.trim() ?? "";
+  const bearer = extractBearer(req.headers.get("authorization"));
+  const presentedToken = looksLikeApiToken(bearer)
+    ? bearer
+    : looksLikeApiToken(headerSecret)
+      ? headerSecret
+      : null;
+
+  // 1) Per-org API token.
+  if (presentedToken) {
+    try {
+      const token = await validateApiToken(presentedToken, { requiredScope: PRINTER_WEBHOOK_SCOPE });
+      if (queryOrgId && queryOrgId !== token.organizationId.toLowerCase()) {
+        return { ok: false, status: 403, error: "org_mismatch" };
+      }
+      return { ok: true, orgId: token.organizationId, via: "api_token" };
+    } catch (err) {
+      if (err instanceof ApiTokenError) {
+        if (err.code === "token_lookup_failed") {
+          logger.error("[printer-webhook] token lookup failed", { error: err.message });
+        }
+        return { ok: false, status: err.httpStatus, error: err.code };
+      }
+      throw err;
+    }
+  }
+
+  // 2) Browser simulator: logged-in member of the active org.
+  const user = await loadAuthUser();
+  if (user) {
+    const activeOrg = await resolveActiveOrg(user);
+    if (activeOrg && (!queryOrgId || queryOrgId === activeOrg.orgId.toLowerCase())) {
+      return { ok: true, orgId: activeOrg.orgId, via: "session" };
+    }
+  }
+
+  // 3) Deprecated global secret — site org only.
+  const configured = env.PRINTER_WEBHOOK_SECRET;
+  if (configured && configured.length >= 8 && headerSecret && secretsMatch(headerSecret, configured)) {
+    const siteOrgId = await resolveGltechOrgId(createAdminClient());
+    if (!siteOrgId) {
+      return { ok: false, status: 503, error: "webhook_not_configured" };
+    }
+    if (queryOrgId && queryOrgId !== siteOrgId.toLowerCase()) {
+      return { ok: false, status: 403, error: "legacy_secret_site_org_only" };
+    }
+    logger.warn("[printer-webhook] global PRINTER_WEBHOOK_SECRET is deprecated; use a per-org token", {
+      org_id: siteOrgId,
+    });
+    return { ok: true, orgId: siteOrgId, via: "legacy_secret" };
+  }
+
+  return { ok: false, status: 401, error: "unauthorized" };
+}
+
 export async function POST(req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
   const url = new URL(req.url);
 
-  // Require an EXPLICIT orgId — never fall back to "the first organization".
-  const orgId = url.searchParams.get("orgId");
-  if (!orgId) {
-    return json(400, { ok: false, error: "missing_orgId", requestId });
-  }
+  // Optional: the org now comes from the credential. When present it must
+  // agree with it — it can never select a different tenant.
+  const queryOrgId = url.searchParams.get("orgId")?.trim().toLowerCase() || null;
 
-  // Auth: shared secret (production Klipper/OctoPrint) OR a logged-in dashboard
-  // user who is a MEMBER of orgId (browser simulator). The membership check is
-  // what stops a logged-in user of org A from mutating org B via ?orgId=B —
-  // the admin client below bypasses RLS, so org access must be verified here.
-  const configured = process.env.PRINTER_WEBHOOK_SECRET;
-  const provided = req.headers.get("x-webhook-secret") ?? url.searchParams.get("secret") ?? "";
-
-  let authorized = false;
-  if (configured && configured.length >= 8 && provided === configured) {
-    authorized = true;
-  } else {
-    const user = await loadAuthUser();
-    if (user) {
-      const activeOrg = await resolveActiveOrg(user);
-      if (activeOrg && activeOrg.orgId === orgId) authorized = true;
-    }
+  const auth = await authorize(req, queryOrgId);
+  if (!auth.ok) {
+    return json(auth.status, { ok: false, error: auth.error, requestId });
   }
-
-  if (!authorized) {
-    if (!configured || configured.length < 8) {
-      return json(503, { ok: false, error: "webhook_not_configured", requestId });
-    }
-    return json(401, { ok: false, error: "unauthorized", requestId });
-  }
+  const orgId = auth.orgId;
 
   // 3) Per-org rate limit.
   const rl = await checkRateLimit(`printer-webhook:${orgId}`, 60, 60);

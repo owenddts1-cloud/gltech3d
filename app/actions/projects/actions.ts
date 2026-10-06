@@ -2,11 +2,17 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { deleteDeniedMessage } from "@/lib/auth/delete-policy";
+import { assertProAccess } from "@/lib/plan/server";
 import {
   projectCreateSchema, projectNoteCreateSchema, projectNotePatchSchema,
+  projectUpdateSchema, projectPatchToRow,
   type ProjectNoteColor,
 } from "@/lib/schemas/projects";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const idSchema = z.string().uuid();
 
 export interface ProjectView {
   id: string;
@@ -107,6 +113,8 @@ export async function createProject(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = projectCreateSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
@@ -137,17 +145,52 @@ export async function createProject(raw: unknown) {
   return { ok: true as const };
 }
 
+/** Edits a project. Same gates as create; zero matched rows means not found in this org. */
+export async function updateProject(id: string, raw: unknown) {
+  const authUser = await loadAuthUser();
+  if (!authUser) return { ok: false as const, error: "Unauthenticated" };
+  const activeOrg = await resolveActiveOrg(authUser);
+  if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
+
+  const idParsed = idSchema.safeParse(id);
+  if (!idParsed.success) return { ok: false as const, error: "Projeto inválido" };
+  const parsed = projectUpdateSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("projects")
+    .update({ ...projectPatchToRow(parsed.data), updated_at: new Date().toISOString() })
+    .eq("organization_id", activeOrg.orgId)
+    .eq("id", idParsed.data)
+    .select("id");
+  if (error) return { ok: false as const, error: error.message };
+  if (!data || data.length === 0) return { ok: false as const, error: "Projeto não encontrado" };
+
+  revalidatePath("/app/projects");
+  return { ok: true as const };
+}
+
 export async function deleteProject(id: string) {
   const authUser = await loadAuthUser();
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("projects").delete()
-    .eq("organization_id", activeOrg.orgId).eq("id", id);
+    .eq("organization_id", activeOrg.orgId).eq("id", id)
+    .select("id");
   if (error) return { ok: false as const, error: error.message };
+  // RLS (0084): DELETE requires manager+; a denied delete removes 0 rows silently.
+  if (!data || data.length === 0) {
+    return { ok: false as const, error: deleteDeniedMessage("projects") };
+  }
 
   revalidatePath("/app/projects");
   return { ok: true as const };
@@ -158,6 +201,8 @@ export async function createProjectNote(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = projectNoteCreateSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
@@ -183,6 +228,8 @@ export async function updateProjectNote(id: string, raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = projectNotePatchSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
@@ -210,6 +257,8 @@ export async function deleteProjectNote(id: string) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const supabase = await createClient();
   const { error } = await supabase

@@ -5,6 +5,12 @@ export interface UserOrgMembership {
   organization_id: string;
   organization_name: string;
   role: Role;
+  /**
+   * `organizations.status` ('active' | 'suspended' | 'redacted' | 'archived').
+   * Null when the org row is not readable through RLS — since migration 0084 a
+   * non-admin member cannot read a non-active org, so null means "not active".
+   */
+  organization_status: string | null;
 }
 
 export interface AuthUser {

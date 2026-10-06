@@ -13,7 +13,7 @@ import {
   resolveRange,
   sparkSeries,
   type SalesFilters,
-} from "@/app/app/sales/_lib/view-model";
+} from "@/app/app/(pro)/sales/_lib/view-model";
 import { FULFILLMENT_LABEL, PAYMENT_LABEL } from "@/lib/sales/config";
 
 const TODAY = "2026-07-17";

@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { deleteDeniedMessage } from "@/lib/auth/delete-policy";
+import { assertProAccess } from "@/lib/plan/server";
 import { z } from "zod";
 import { productCreateSchema, productPatchSchema, type ProductVariationGroup } from "@/lib/schemas/products-catalog";
 import {
@@ -261,6 +263,8 @@ export async function createProduct(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = productCreateSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: firstIssue(parsed.error) };
@@ -302,6 +306,8 @@ export async function updateProduct(id: string, raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = productPatchSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: firstIssue(parsed.error) };
@@ -339,14 +345,21 @@ export async function deleteProduct(id: string) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("products")
     .delete()
     .eq("organization_id", activeOrg.orgId)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) return { ok: false as const, error: error.message };
+  // RLS (0084): DELETE requires manager+; a denied delete removes 0 rows silently.
+  if (!data || data.length === 0) {
+    return { ok: false as const, error: deleteDeniedMessage("products") };
+  }
 
   revalidateProductSurfaces();
   return { ok: true as const };

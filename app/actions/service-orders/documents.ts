@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { assertProAccess } from "@/lib/plan/server";
 import { readDocumentBranding } from "@/lib/schemas/settings";
 import {
   documentSnapshotSchema,
@@ -20,7 +21,7 @@ import {
   type DraftContact,
   type DraftItem,
   type DraftProduct,
-} from "@/app/app/service-orders/_lib/document-draft";
+} from "@/app/app/(pro)/service-orders/_lib/document-draft";
 
 /**
  * Emissão de documentos a partir de uma O.S. (migration 0068).
@@ -273,6 +274,8 @@ export async function fetchServiceOrderDocument(
 export async function emitServiceOrderDocument(raw: unknown) {
   const c = await ctx();
   if (!c) return { ok: false as const, error: "Não autenticado" };
+  const denied = await assertProAccess(c.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = emitDocumentSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Documento inválido" };
@@ -328,6 +331,8 @@ export async function emitServiceOrderDocument(raw: unknown) {
 export async function voidServiceOrderDocument(raw: unknown) {
   const c = await ctx();
   if (!c) return { ok: false as const, error: "Não autenticado" };
+  const denied = await assertProAccess(c.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = voidDocumentSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Motivo do cancelamento é obrigatório" };
@@ -348,6 +353,8 @@ export async function voidServiceOrderDocument(raw: unknown) {
 export async function updateContactAddress(contactId: string, raw: unknown) {
   const c = await ctx();
   if (!c) return { ok: false as const, error: "Não autenticado" };
+  const denied = await assertProAccess(c.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = contactAddressSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Endereço inválido" };

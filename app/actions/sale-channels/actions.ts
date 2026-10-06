@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { assertProAccess } from "@/lib/plan/server";
 import { saleChannelQuickCreateSchema } from "@/lib/schemas/sale-channels";
 import { autoSlug } from "@/lib/slug";
 import { revalidatePath } from "next/cache";
@@ -46,6 +47,8 @@ export async function quickCreateSaleChannel(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "Nenhuma organização ativa" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = saleChannelQuickCreateSchema.safeParse(raw);
   if (!parsed.success) {

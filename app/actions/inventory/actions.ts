@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { deleteDeniedMessage } from "@/lib/auth/delete-policy";
+import { assertProAccess } from "@/lib/plan/server";
 import {
   inventoryAssetCreateSchema,
   inventoryAssetPatchSchema,
@@ -104,6 +106,8 @@ export async function createInventoryAsset(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = inventoryAssetCreateSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
@@ -134,6 +138,8 @@ export async function updateInventoryAsset(id: string, raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = inventoryAssetPatchSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
@@ -167,14 +173,21 @@ export async function deleteInventoryAsset(id: string) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("inventory_assets")
     .delete()
     .eq("organization_id", activeOrg.orgId)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) return { ok: false as const, error: error.message };
+  // RLS (0084): DELETE requires manager+; a denied delete removes 0 rows silently.
+  if (!data || data.length === 0) {
+    return { ok: false as const, error: deleteDeniedMessage("inventory_assets") };
+  }
 
   revalidatePath("/app/inventory");
   return { ok: true as const };

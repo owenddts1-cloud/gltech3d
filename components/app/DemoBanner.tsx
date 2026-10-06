@@ -1,4 +1,5 @@
 import { Warning } from "@/lib/ui/icons";
+import { cn } from "@/lib/utils";
 
 /**
  * Faixa que marca uma tela como prévia não funcional.
@@ -9,15 +10,26 @@ import { Warning } from "@/lib/ui/icons";
  * backend não existir, a tela precisa dizer isso na cara, e não deixar o usuário
  * descobrir sozinho que o resultado era inventado.
  */
-export function DemoBanner({ children }: { children?: React.ReactNode }) {
+export function DemoBanner({
+  children,
+  title = "Prévia da interface.",
+  className,
+}: {
+  children?: React.ReactNode;
+  title?: string;
+  className?: string;
+}) {
   return (
     <div
       role="status"
-      className="flex items-start gap-2.5 rounded-xl border border-warning bg-warning-bg px-4 py-3 text-warning-fg"
+      className={cn(
+        "flex items-start gap-2.5 rounded-xl border border-warning bg-warning-bg px-4 py-3 text-warning-fg",
+        className,
+      )}
     >
       <Warning size={16} weight="bold" className="mt-0.5 shrink-0" />
       <div className="text-xs leading-relaxed">
-        <strong className="font-semibold">Prévia da interface.</strong>{" "}
+        <strong className="font-semibold">{title}</strong>{" "}
         {children ?? (
           <>
             Os dados nesta tela são de demonstração e as ações estão desativadas — este módulo

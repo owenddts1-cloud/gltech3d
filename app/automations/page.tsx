@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { getAppById } from "@/lib/apps/registry";
-import { Robot, Play, ArrowRight, Sparkle, PlugsConnected, DownloadSimple } from "@/lib/ui/icons";
+import { Robot, Play, ArrowRight, Sparkle, DownloadSimple } from "@/lib/ui/icons";
 import { Card } from "@/components/ui/card";
+import { DemoBanner } from "@/components/app/DemoBanner";
 
 export const metadata = { title: "Automações n8n — GLTech3D" };
 
@@ -27,6 +28,11 @@ export default function AutomationsLandingPage() {
   const app = getAppById("automations")!;
   return (
     <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 px-6 py-12 text-center">
+      <DemoBanner title="Modo demonstração —" className="w-full text-left">
+        a integração com o n8n ainda está em construção. A demonstração usa workflows e
+        execuções de exemplo; nada é disparado de verdade.
+      </DemoBanner>
+
       <div className="flex flex-col items-center gap-3">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
           <app.icon size={36} weight="duotone" aria-hidden />
@@ -37,11 +43,11 @@ export default function AutomationsLandingPage() {
         </p>
 
         <Link
-          href="/automations/workspace"
+          href="/app/automations"
           className="mt-4 flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 text-sm font-bold text-zinc-950 shadow-lg shadow-cyan-500/20 hover:opacity-90 transition-all hover:scale-105"
         >
           <Play size={18} weight="bold" />
-          <span>Abrir Workspace & Gestor n8n</span>
+          <span>Ver demonstração</span>
           <ArrowRight size={16} />
         </Link>
       </div>

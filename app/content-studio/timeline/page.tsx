@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useTransition, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   Play,
@@ -29,6 +29,7 @@ import {
   SquaresFour,
 } from '@/lib/ui/icons';
 import { Button } from '@/components/ui/button';
+import { DemoBanner } from '@/components/app/DemoBanner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -261,7 +262,6 @@ export default function MultichannelVideoEditorPage() {
   const [activeTabRight, setActiveTabRight] = useState<'properties' | 'publish' | 'layers'>('properties');
   const [showSafeZones, setShowSafeZones] = useState(true);
   const [canvasZoom, setCanvasZoom] = useState(0.85); // 85% compact fit
-  const [isPending, startTransition] = useTransition();
 
   // Carousel Slide State
   const [carouselSlides, setCarouselSlides] = useState<CarouselSlide[]>(DEFAULT_CAROUSEL_SLIDES);
@@ -611,16 +611,11 @@ export default function MultichannelVideoEditorPage() {
     toast.success(`Mídia '${file.name}' carregada!`);
   }
 
+  // Publishing is not implemented yet: no render pipeline and no social network
+  // integration exist. Say so instead of faking a successful upload.
   function handlePublishAll() {
-    startTransition(() => {
-      toast.promise(
-        new Promise((resolve) => setTimeout(resolve, 1800)),
-        {
-          loading: '🚀 Renderizando MP4 1080p60 e disparando para Instagram Reels, TikTok e YouTube Shorts...',
-          success: '🎉 Conteúdo publicado com sucesso em todas as redes selecionadas!',
-          error: 'Falha na publicação.',
-        }
-      );
+    toast.info('Demonstração: nenhuma publicação foi feita.', {
+      description: 'A publicação nas redes sociais ainda não está disponível neste módulo.',
     });
   }
 
@@ -637,6 +632,13 @@ export default function MultichannelVideoEditorPage() {
         onChange={handleFileUpload}
         className="hidden"
       />
+
+      <DemoBanner
+        title="Modo demonstração —"
+        className="shrink-0 rounded-none border-x-0 border-t-0 py-2"
+      >
+        nada é publicado nem exportado ainda.
+      </DemoBanner>
 
       {/* ── HEADER SUPERIOR COMPACTO (H-12) ────────────────────────────── */}
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-card px-4 shadow-xs z-10">
@@ -697,14 +699,9 @@ export default function MultichannelVideoEditorPage() {
             variant="outline"
             size="sm"
             onClick={() => {
-              toast.promise(
-                new Promise((resolve) => setTimeout(resolve, 1000)),
-                {
-                  loading: 'Exportando mídia...',
-                  success: '🎉 Mídia exportada e baixada!',
-                  error: 'Erro.',
-                }
-              );
+              toast.info('Demonstração: nenhum arquivo foi exportado.', {
+                description: 'A exportação de mídia ainda não está disponível neste módulo.',
+              });
             }}
             className="h-7 text-xs gap-1 font-semibold"
           >
@@ -714,7 +711,6 @@ export default function MultichannelVideoEditorPage() {
           <Button
             size="sm"
             onClick={handlePublishAll}
-            disabled={isPending}
             className="h-7 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-zinc-950 shadow-md gap-1"
           >
             <Sparkles size={13} weight="bold" />
@@ -859,7 +855,7 @@ export default function MultichannelVideoEditorPage() {
                 <p className="text-[10px] text-muted-foreground leading-tight">
                   Legendas animadas estilo CapCut por IA.
                 </p>
-                <Button size="sm" onClick={() => toast.success('Legendas sincronizadas!')} className="w-full h-6 text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-zinc-950">
+                <Button size="sm" onClick={() => toast.info('Demonstração: nenhuma legenda foi gerada.', { description: 'A sincronização automática de legendas ainda não está disponível neste módulo.' })} className="w-full h-6 text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-zinc-950">
                   Sincronizar Áudio
                 </Button>
               </div>
@@ -905,7 +901,7 @@ export default function MultichannelVideoEditorPage() {
                       <span className="text-[9px] text-muted-foreground">{track.tag} • {track.duration}</span>
                     </div>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => toast.success(`Trilha '${track.title}' adicionada!`)} className="h-5 px-1.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 border-amber-500/30">
+                  <Button size="sm" variant="outline" onClick={() => toast.info(`Demonstração: a trilha '${track.title}' não foi adicionada.`, { description: 'A biblioteca de trilhas ainda não está disponível neste módulo.' })} className="h-5 px-1.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 border-amber-500/30">
                     + Usar
                   </Button>
                 </div>
@@ -1446,7 +1442,6 @@ export default function MultichannelVideoEditorPage() {
 
               <Button
                 onClick={handlePublishAll}
-                disabled={isPending}
                 className="w-full h-9 font-extrabold bg-amber-500 hover:bg-amber-600 text-zinc-950 shadow-md text-xs mt-1"
               >
                 🚀 Publicar em Todas Simultaneamente

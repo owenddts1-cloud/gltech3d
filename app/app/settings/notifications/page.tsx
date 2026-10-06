@@ -31,8 +31,8 @@ export default async function NotificationsPage() {
       </header>
 
       <Card className="border-amber-500/40 bg-amber-50/40 p-4 text-sm dark:bg-amber-900/10">
-        Preferências de notificação em breve. Por enquanto, alertas críticos são enviados por
-        email.
+        Em breve. As preferências de notificação ainda não estão disponíveis — as opções abaixo
+        são uma prévia e não podem ser alteradas.
       </Card>
 
       <Card className="p-0">

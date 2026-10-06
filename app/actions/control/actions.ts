@@ -3,6 +3,8 @@
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { deleteDeniedMessage } from "@/lib/auth/delete-policy";
+import { assertProAccess } from "@/lib/plan/server";
 
 export interface FinancialRecord {
   id: string;
@@ -66,6 +68,8 @@ export async function saveFinancialRecords(
   if (!authUser) return { ok: false, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false, error: denied };
 
   const supabase = await createClient();
 
@@ -127,16 +131,23 @@ export async function deleteFinancialRecord(id: string): Promise<{ ok: boolean; 
   if (!authUser) return { ok: false, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false, error: denied };
 
   const supabase = await createClient();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("financial_records")
     .delete()
     .eq("organization_id", activeOrg.orgId)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) return { ok: false, error: error.message };
+  // RLS (0084): DELETE requires admin; a denied delete removes 0 rows silently.
+  if (!data || data.length === 0) {
+    return { ok: false, error: deleteDeniedMessage("financial_records") };
+  }
 
   // Sem revalidatePath: ver nota em saveFinancialRecords. O cliente já remove a linha
   // do estado local; revalidar clobbaria edições pendentes das demais linhas.

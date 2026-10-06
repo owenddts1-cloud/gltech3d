@@ -14,7 +14,7 @@ import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveGltechOrgId } from "@/lib/marketing/gltech-org";
-import { sendBatchEmails } from "@/lib/email/resend";
+import { sendBatchEmails } from "@/lib/email/send";
 import { buildInstagramPostEmail } from "@/lib/email/templates/instagram-post";
 
 export const dynamic = "force-dynamic";

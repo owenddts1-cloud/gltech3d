@@ -22,6 +22,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { assertProAccess } from "@/lib/plan/server";
 import { MODELS_BUCKET } from "@/lib/models/config";
 import { estimateFromMesh } from "@/lib/pricing/estimate-from-mesh";
 import { DEFAULT_SLICE_SETTINGS, type SliceSettings } from "@/lib/slicer/pipeline";
@@ -135,6 +136,8 @@ export async function estimateProductFromModel(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "Nenhuma organização ativa" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
@@ -206,6 +209,8 @@ export async function linkProductModel(raw: unknown) {
   if (!authUser) return { ok: false as const, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "Nenhuma organização ativa" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = z
     .object({ productId: z.string().uuid(), modelId: z.string().uuid().nullable() })

@@ -4,4 +4,4 @@ export type {
   BreakdownGroup,
   BreakdownKey,
   BreakdownDrillRow,
-} from "@/app/app/reports/_lib/breakdowns-compute";
+} from "@/app/app/(pro)/reports/_lib/breakdowns-compute";

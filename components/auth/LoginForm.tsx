@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -74,12 +75,7 @@ export function LoginForm({ next }: { next?: string }) {
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Senha</Label>
-          <a
-            href="mailto:suporte@gltech3d.com.br?subject=Recuperacao%20de%20Senha%20CRM"
-            className="text-xs text-muted-foreground hover:text-foreground hover:underline transition-colors"
-          >
-            Esqueci minha senha
-          </a>
+          <Link href="/esqueci-senha" className="text-xs text-muted-foreground underline hover:text-foreground">Esqueci minha senha</Link>
         </div>
         <Input
           id="password"

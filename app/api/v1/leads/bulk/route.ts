@@ -13,6 +13,8 @@ import { type NextRequest } from "next/server";
 import { audit } from "@/lib/audit";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
+import { requireProApiForSession } from "@/lib/plan/api";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { bulkLeadActionSchema, validateRequest } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,6 +33,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (authErr || !user) {
     return fail("unauthenticated", "Auth required.", 401, { requestId });
   }
+  const planDenied = await requireProApiForSession(requestId);
+  if (planDenied) return planDenied;
 
   let input;
   try {
@@ -174,6 +178,12 @@ export async function POST(req: NextRequest): Promise<Response> {
       params: "params" in input ? input.params : {},
     },
   });
+
+  // No pipeline_id: a bulk selection may span pipelines, so every open board refreshes.
+  const bulkEvent =
+    input.action === "delete" ? "lead.deleted" : input.action === "move" ? "lead.moved" : "lead.updated";
+  const bulkIds = { lead_ids: visibleIds };
+  deferBroadcast(() => broadcastOrg(organizationId, "leads", bulkEvent, bulkIds));
 
   return ok({ updated_count: updatedCount, lead_ids: visibleIds }, { requestId });
 }

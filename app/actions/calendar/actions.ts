@@ -1,9 +1,16 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { assertProAccess } from "@/lib/plan/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { deleteDeniedMessage } from "@/lib/auth/delete-policy";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import {
+  calendarEventCreateSchema, calendarEventUpdateSchema, calendarEventToRow,
+} from "@/lib/schemas/calendar";
+
+const idSchema = z.string().uuid();
 
 /**
  * CRUD dos eventos personalizados do calendário (migration 0044).
@@ -20,15 +27,6 @@ export interface CalendarEventRow {
   contactName: string | null;
 }
 
-const createSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  description: z.string().trim().max(2000).optional().default(""),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida (YYYY-MM-DD)."),
-  type: z.enum(["maintenance", "meeting", "delivery", "custom"]),
-  printerName: z.string().trim().max(120).optional().default(""),
-  contactName: z.string().trim().max(120).optional().default(""),
-});
-
 interface Ctx {
   orgId: string;
   userId: string;
@@ -40,6 +38,10 @@ async function requireCtx(): Promise<{ ok: true; ctx: Ctx } | { ok: false; error
   if (!authUser) return { ok: false, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false, error: "Nenhuma organização ativa" };
+  // Defesa em profundidade: o layout (pro) ja barra a navegacao, mas uma aba
+  // aberta antes de o trial vencer continuaria gravando sem esta linha.
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false, error: denied };
   return { ok: true, ctx: { orgId: activeOrg.orgId, userId: authUser.id, supabase: await createClient() } };
 }
 
@@ -114,7 +116,7 @@ export async function createCalendarEvent(raw: unknown) {
   const c = await requireCtx();
   if (!c.ok) return { ok: false as const, error: c.error };
 
-  const parsed = createSchema.safeParse(raw);
+  const parsed = calendarEventCreateSchema.safeParse(raw);
   if (!parsed.success) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
   }
@@ -124,12 +126,7 @@ export async function createCalendarEvent(raw: unknown) {
     .from("calendar_events")
     .insert({
       organization_id: c.ctx.orgId,
-      title: d.title,
-      description: d.description || null,
-      event_date: d.date,
-      type: d.type,
-      printer_name: d.type === "maintenance" ? d.printerName || null : null,
-      contact_name: d.type === "meeting" ? d.contactName || null : null,
+      ...calendarEventToRow(d),
       created_by: c.ctx.userId,
     })
     .select("id, title, description, event_date, type, printer_name, contact_name")
@@ -140,16 +137,47 @@ export async function createCalendarEvent(raw: unknown) {
   return { ok: true as const, event: toView(data as Row) };
 }
 
+/** Edits a custom event (full replace, see calendarEventUpdateSchema). Zero rows → not found in this org. */
+export async function updateCalendarEvent(id: string, raw: unknown) {
+  const c = await requireCtx();
+  if (!c.ok) return { ok: false as const, error: c.error };
+
+  const idParsed = idSchema.safeParse(id);
+  if (!idParsed.success) return { ok: false as const, error: "Evento inválido" };
+  const parsed = calendarEventUpdateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
+  }
+
+  const { data, error } = await c.ctx.supabase
+    .from("calendar_events")
+    .update({ ...calendarEventToRow(parsed.data), updated_at: new Date().toISOString() })
+    .eq("organization_id", c.ctx.orgId)
+    .eq("id", idParsed.data)
+    .select("id, title, description, event_date, type, printer_name, contact_name");
+  if (error) return { ok: false as const, error: error.message };
+  const row = (data as Row[] | null)?.[0];
+  if (!row) return { ok: false as const, error: "Evento não encontrado" };
+
+  revalidatePath("/app/calendar");
+  return { ok: true as const, event: toView(row) };
+}
+
 export async function deleteCalendarEvent(id: string) {
   const c = await requireCtx();
   if (!c.ok) return { ok: false as const, error: c.error };
 
-  const { error } = await c.ctx.supabase
+  const { data, error } = await c.ctx.supabase
     .from("calendar_events")
     .delete()
     .eq("organization_id", c.ctx.orgId)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) return { ok: false as const, error: error.message };
+  // RLS (0084): DELETE requires manager+; a denied delete removes 0 rows silently.
+  if (!data || data.length === 0) {
+    return { ok: false as const, error: deleteDeniedMessage("calendar_events") };
+  }
 
   revalidatePath("/app/calendar");
   return { ok: true as const };

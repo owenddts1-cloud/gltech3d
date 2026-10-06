@@ -16,6 +16,8 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { requireProApi } from "@/lib/plan/api";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -44,6 +46,8 @@ export async function POST(
   if (!activeOrg) {
     return fail("forbidden", "Nenhuma organização ativa.", 403, { requestId });
   }
+  const planDenied = await requireProApi(activeOrg.orgId, requestId);
+  if (planDenied) return planDenied;
   if (ROLE_RANK[activeOrg.role] < ROLE_RANK.manager) {
     return fail("forbidden_role", "Permissão insuficiente. Requer role >= manager.", 403, {
       requestId,
@@ -119,6 +123,10 @@ export async function POST(
   if (emitErr) {
     console.warn("[ai-knowledge-reindex] emit_event failed (non-blocking):", emitErr.message);
   }
+
+  deferBroadcast(() =>
+    broadcastOrg(activeOrg.orgId, "kb-sources", "source.updated", { source_id: id, agent_id: ksRow.agent_id }),
+  );
 
   return ok({ id, queued: true as const, agent_id: ksRow.agent_id }, { requestId });
 }

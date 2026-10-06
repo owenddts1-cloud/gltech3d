@@ -165,10 +165,18 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
 
       {!wahaConfigured && (
         <div className="rounded-md border border-warning bg-warning-bg p-4 text-sm text-warning-fg">
-          <p className="font-medium">O serviço do WhatsApp não está ativo.</p>
+          <p className="font-medium">WhatsApp ainda não ativado</p>
           <p className="mt-1">
-            Suba o container (<code>docker compose up -d waha</code>) para conectar e reconectar números.
+            A integração do WhatsApp ainda não está ativada nesta conta. Fale com o suporte da
+            GLTech3D para ativar.
           </p>
+          {/* Developer hint only: customers must never be told to run Docker. */}
+          {process.env.NODE_ENV === "development" && (
+            <p className="mt-2 text-xs opacity-80">
+              Dev: suba o container (<code>docker compose up -d waha</code>) e confira
+              WAHA_API_BASE_URL / WAHA_API_KEY.
+            </p>
+          )}
         </div>
       )}
 

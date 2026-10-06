@@ -23,6 +23,11 @@ vi.mock("@/hooks/auth/AuthProvider", () => ({
   useUser: () => ({ id: "u1", email: "dono@gltech3d.com", user_metadata: { name: "Dono" } }),
   useActiveOrg: () => ({ orgId: "org-1", displayName: "GLTech3D" }),
   useAuth: () => ({ signOut: vi.fn() }),
+  // `null` = plano nao resolvido. A Sidebar entao nao decora nada (fail-open
+  // COSMETICO), e por isso as asserçoes abaixo continuam valendo: os hrefs sao
+  // os reais, nao os de upgrade. O comportamento travado tem teste proprio em
+  // `Sidebar.pro-lock.test.tsx`.
+  usePlan: () => null,
 }));
 
 import { Sidebar } from "./Sidebar";

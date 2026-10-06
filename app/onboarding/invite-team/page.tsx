@@ -1,4 +1,4 @@
-import { isEmailConfigured } from "@/lib/email/resend";
+import { isEmailConfigured } from "@/lib/email/send";
 import { InviteTeamForm } from "./_form";
 
 export const dynamic = "force-dynamic";

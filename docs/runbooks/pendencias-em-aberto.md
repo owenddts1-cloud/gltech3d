@@ -1,175 +1,228 @@
-# Pendências em aberto — passo a passo
+# Pendências em aberto
 
-> Estado em 11/08/2026. Quatro coisas dependem de você: duas porque exigem senha
-> ou conta que eu não tenho, uma porque é decisão de negócio, e uma porque é
-> `git push`. Estão na ordem de **impacto**, não de esforço.
-
----
-
-## 1. Migrations 0075 e 0076 — 5 minutos, conserta coisa que está quebrada AGORA
-
-**Por que primeiro.** O código da 0075 **já está publicado** (subiu no push de 19
-commits). Ou seja: a tela de editar peça em `/app/models` está no ar e **falha ao
-salvar**, porque a tabela `model_versions` não existe no banco. Rodar a migration
-conserta na hora, sem precisar de deploy novo.
-
-A 0076 conserta outra coisa silenciosa: há **duas linhas `Pedidos` marcadas como
-pipeline padrão**. Código que resolve o padrão com `.single()` estoura, e com
-`.limit(1)` escolhe sem critério — o lead cai num funil hoje e no outro amanhã.
-
-### Antes de aplicar: conferir se o CLI está sincronizado
-
-**Este passo não é opcional.** Migrations anteriores podem ter sido aplicadas
-pelo painel do Supabase ou pelo MCP, e não pelo CLI. Se o CLI não souber disso,
-ele tenta reaplicar tudo desde o começo.
-
-```bash
-npx supabase migration list
-```
-
-Você vai ver duas colunas, `Local` e `Remote`. O que procurar:
-
-- **Só `0075` e `0076` aparecem em `Local` sem par em `Remote`** → está tudo
-  certo, siga para o `push`.
-- **Muitas migrations antigas sem par em `Remote`** → o CLI está desalinhado.
-  **NÃO rode o `push`**. Me chame com a saída do comando; o conserto é
-  `npx supabase migration repair --status applied <versão>` para cada uma que já
-  foi aplicada de outro jeito, e errar isso reaplica schema em cima de dado vivo.
-
-### Aplicar
-
-```bash
-npx supabase db push
-```
-
-O CLI pede a senha do banco (a do projeto Supabase, em Settings → Database). Ela
-é digitada no seu terminal e não passa por mim.
-
-### Conferir que funcionou
-
-```bash
-npx supabase migration list
-```
-
-`0075` e `0076` devem aparecer nas duas colunas. E na prática:
-
-1. Abra `/app/models`, escolha uma peça, expanda **Editar peça**, gire 90° e
-   salve. Deve aparecer "Versão 2 gravada" e o histórico com v1 e v2.
-2. Abra `/app/kanban`. Agora só **uma** linha deve ter o selo "Default".
-
-> As duas migrations são aditivas — criam tabela, coluna e índice. Nenhuma apaga
-> ou altera dado existente. A 0076 só desmarca o `is_default` do pipeline mais
-> novo; nenhum pipeline é removido.
+Lacunas conhecidas, com o motivo de ainda não terem sido fechadas. Registradas aqui
+para não virarem descoberta de produção.
 
 ---
 
-## 2. O domínio — decisão de negócio, e está custando venda
+## Fechadas em 2026-10-06
 
-**O problema, medido.** `gltech3d.com.br` **não existe no DNS**: sem registro A,
-sem NS, sem SOA. Domínio registrado, mesmo sem site, tem NS do registrador — a
-ausência dos três indica que **o domínio não está registrado**.
+- **Gate de plano em `/api/v1/**`.** `lib/plan/api.ts` (`requireProApi` /
+  `requireProApiForSession`) nas rotas de escrita de IA, WhatsApp, contatos, conversas,
+  leads, mensagens e equipe; responde `403 plan_required`. LGPD fica livre de propósito
+  (atender titular é obrigação legal, com ou sem plano).
+- **Server actions sem `assertProAccess`.** Aplicado em todas as que gravam;
+  `tests/unit/pro-write-gate-coverage.test.ts` quebra o CI se uma ação nova gravar sem o
+  gate (ou sem entrar na allowlist com motivo).
+- **Escritas em `organizations` que salvavam zero linhas.** `lib/tenants/update-own-org.ts`
+  (service role + org da sessão + zero linhas = erro + colunas de plano proibidas). Usado
+  por `updateTenant` e pela tarifa `k_energy`.
+- **Chave de serviço `sb_secret_` tratada como ausente.** `lib/supabase/service-role-key.ts`.
+  Consertou auditoria sem sessão, login por código de recuperação, e-mails da Equipe e a
+  checagem de convite.
+- **RPCs SECURITY DEFINER sem checagem de tenant e buckets listáveis.** Migration 0083.
+  **Aplicar em produção:** `npx supabase db push` (só a 0083 está pendente).
 
-E o feed que alimenta o catálogo do Instagram, do WhatsApp e do Facebook está
-publicando **29 links para ele**. Todo link de produto e de imagem do seu
-catálogo aponta para um endereço que não abre. Confira você mesmo:
+- **`settings.plan` legado.** `TenantOverview` lê a coluna `plan` (+ trial/vencimento via
+  `resolvePlanState`); `createTenant` e `grantProAccess` não escrevem mais o jsonb. Chaves
+  `settings.plan` antigas em bancos existentes ficam inertes (ninguém lê).
 
-```bash
-curl -s https://gltech3d.vercel.app/api/v1/public/feed/products.csv | head -3
-```
+- **(6) `perf.yml` não falhava.** `scripts/check-bundle-budget.mjs` mede o JS de primeira
+  carga (gzip) de `/`, `/calc3d-pro`, `/app/dashboard` e `/app/inbox` contra
+  `perf-budgets.json` e falha o CI; `bundle-isolation.test.ts` roda no mesmo job.
+  Baseline real é ~2x o alvo antigo de 250 KB do inbox (Sentry Replay ≈170 KB no chunk raiz).
+- **(7) Segredo global do webhook de impressoras.** Token por organização (`api_tokens`,
+  escopo `printer:webhook`), org resolvida do token, card "Token do webhook" na tela de
+  Impressoras. O segredo global só vale para a org do site, com aviso de depreciação.
+  Ver `docs/printer-telemetry.md`.
+- **(9) Realtime `postgres_changes` pelo browser.** Servidor emite broadcast ids-only por
+  org (`lib/realtime/broadcast.ts`) e as telas do tenant escutam + polling de segurança;
+  inbox do super-admin e alertas da plataforma ficam só no polling (sem canal
+  cross-tenant). Canais ainda são públicos — ver item 16. Ver
+  `docs/runbooks/sessao-do-browser.md`.
+- **(13) Sentry estourando cota.** `tracesSampler` compartilhado (`lib/sentry/sampling.ts`):
+  0.1 em produção, 1 em dev, e zero para `/monitoring` e health checks.
 
-### Caminho A — resolver hoje, em 2 minutos (recomendado começar por aqui)
+- **(8) Papel só no app.** Migration 0084: DELETE separado por papel em 18 tabelas
+  (manager+, admin em `contacts` e `financial_records`; membro em `filaments`, `printers`,
+  `service_order_items`, que salvam por substituição). Mapa em `lib/auth/delete-policy.ts`,
+  conferido contra a migration por `tests/unit/role-delete-policies-drift.test.ts`.
+- **(10) Bucket de orçamentos.** Migration 0085 (bucket privado `orcamentos`) + upload por
+  URL assinada (`/api/v1/public/orcamento/upload-slot` e `/confirm`, link de 7 dias).
+- **(11) Org suspensa.** Migration 0084: `fn_user_org_ids()`/`fn_user_role_in_org()` só
+  consideram org `active`; `resolveActiveOrg` devolve `null` para org não ativa.
+- **(12) Tarifa de energia.** Salva no `onBlur` via `saveEnergyTariff`.
+- **Lacunas de uso:** editar projeto, evento e fornecedor; excluir contato (bloqueado com
+  409 quando há histórico); abas personalizadas do Controle salvas em `control_sheets`
+  (migration 0086).
 
-No painel da Vercel → Settings → Environment Variables, troque:
+**Migrations 0083–0086 precisam ser aplicadas em produção** (`npx supabase db push`) antes
+do deploy do código que depende delas (Controle, orçamentos).
 
-```
-NEXT_PUBLIC_APP_URL = https://gltech3d.vercel.app
-```
-
-Depois **Redeploy** (a variável só entra num build novo). Todos os links do feed,
-do sitemap, do Open Graph e das mensagens de WhatsApp passam a apontar para um
-endereço que funciona, porque agora tudo lê de uma fonte só
-(`lib/marketing/site-url.ts`).
-
-### Caminho B — o endereço definitivo
-
-1. Registre `gltech3d.com.br` no [registro.br](https://registro.br) (é o
-   registrador oficial do `.com.br`; leva algumas horas para propagar).
-2. Na Vercel → Settings → Domains → **Add**, informe o domínio. A Vercel mostra
-   os registros a criar no painel do registro.br.
-3. Quando o domínio responder, volte a variável para
-   `NEXT_PUBLIC_APP_URL = https://gltech3d.com.br` e faça Redeploy.
-
-**Não faça B antes de A.** Enquanto o registro não propaga, o catálogo continua
-com links mortos.
-
-### Depois de trocar, conferir
-
-```bash
-curl -s https://<seu-dominio>/api/v1/public/feed/products.csv | grep -oE "https?://[a-z0-9.:-]+" | sort -u
-```
-
-Deve listar **só** o domínio que você escolheu.
-
----
-
-## 3. Publicar os dois commits que faltam
-
-Estão prontos e testados, mas não subi porque `git push` precisa do seu aval:
-
-| Commit | O que leva |
-|---|---|
-| `dca4ced` | fonte única do endereço do site, título sem `· GLTECH CRM`, keywords removidas, canonical |
-| `2f6c0a0` | liveness, migration 0076, KPI, manifest, moeda, precificação unificada, analytics, consentimento, contraste, formulário |
-
-É só me dizer **"pode dar push"** que eu faço — o branch é fast-forward em `main`
-e o deploy da Vercel dispara sozinho.
-
-**Antes de subir, decida o item 2.** O `dca4ced` faz tudo ler de
-`NEXT_PUBLIC_APP_URL`; se ela continuar apontando para o domínio inexistente, o
-comportamento não melhora — só passa a ter um lugar só para corrigir.
+Ver `docs/runbooks/estado-dos-modulos.md` para o estado de cada tela do CRM.
 
 ---
 
-## 4. GA4 e Meta Pixel — opcional, quando tiver as contas
+## 4. Gate de rota não re-executa em navegação entre rotas PRO
 
-O Vercel Analytics **já funciona sem nada configurado**: não usa cookie, não
-precisa de conta nova, e começa a medir no próximo deploy. Veja em
-Vercel → seu projeto → aba **Analytics**.
+Depois que `app/app/(pro)/layout.tsx` monta, navegar **entre** rotas PRO na mesma sessão
+não roda `requirePro()` de novo — o segmento compartilhado já está montado. A janela
+fecha em qualquer full load ou `router.refresh()`.
 
-Os outros dois só entram quando você criar as contas:
-
-1. **GA4** — em analytics.google.com, crie a propriedade e pegue o ID no formato
-   `G-XXXXXXXXXX`.
-2. **Meta Pixel** — em business.facebook.com → Gerenciador de Eventos, pegue o ID
-   numérico.
-3. Na Vercel, adicione:
-
-```
-NEXT_PUBLIC_GA_ID        = G-XXXXXXXXXX
-NEXT_PUBLIC_META_PIXEL_ID = 000000000000
-```
-
-4. Redeploy.
-
-**O que já está pronto para eles:** o banner de consentimento só carrega esses
-dois scripts **depois** do visitante aceitar, e o disparo de evento é o mesmo
-ponto (`lib/analytics/track.ts`) que já alimenta o Vercel. Você não precisa mexer
-em tela nenhuma — só nas variáveis.
-
-Sem os IDs, o banner ainda aparece e a escolha é gravada, mas nenhum script de
-terceiro é carregado.
+Mitigado por `assertProAccess()` nas server actions que escrevem: a aba velha mostra a
+tela, mas não grava.
 
 ---
 
-## O que continua fora do meu alcance
+## 5. Sem confirmação de e-mail no cadastro
 
-- **WAHA fora do ar.** `/api/v1/health` mostra `waha: down (fetch failed)`. É o
-  que mantém o Inbox vazio e o agente "GL IA" publicado sem canal para responder.
-  É infraestrutura: o servidor WAHA precisa voltar, ou a URL/API key precisa ser
-  corrigida.
-- **Os 18 produtos sem custo.** Todos com `filament_grams = 0` e
-  `print_time_seconds = 0`. Nenhuma fórmula inventa o peso de uma peça. Preciso
-  de uma das duas coisas: os números (peso em gramas e tempo de impressão por
-  peça), ou o **STL de cada produto** subido em `/app/models` — aí o fatiador
-  estima peso e tempo sozinho, que é o caminho mais rápido e o motivo de ele ter
-  sido construído.
+Decisão de produto para não matar o funil do trial. Riscos assumidos:
+
+- e-mail descartável cria organização grátis (mitigado por rate limit + honeypot);
+- quem digita o e-mail errado depende do reset de senha, que por sua vez depende do
+  Resend com domínio verificado.
+
+---
+
+## 6. `perf.yml` não falha nunca
+
+**Fechada em 2026-10-06** — ver "Fechadas" acima.
+
+---
+
+## 7. Webhook de impressoras: um segredo para todas as orgs
+
+**Fechada em 2026-10-06** — ver "Fechadas" acima.
+
+---
+
+## 8. Permissão por papel só no app, não no banco
+
+**Fechada em 2026-10-06** — ver "Fechadas" acima.
+
+---
+
+## 9. Realtime `postgres_changes` pelo cliente do navegador
+
+**Fechada em 2026-10-06** — ver "Fechadas" acima.
+
+---
+
+## 10. Bucket `orcamentos-public` não existe
+
+**Fechada em 2026-10-06** — ver "Fechadas" acima.
+
+---
+
+## 11. Organização suspensa mantém acesso aos dados
+
+**Fechada em 2026-10-06** — ver "Fechadas" acima.
+
+---
+
+## 12. Tarifa de energia sem botão próprio de salvar
+
+Em Impressoras, mudar só a "Tarifa Energia (R$/kWh)" não dispara gravação: ela vai junto da
+próxima alteração de impressora/carretel. **Como fechar:** salvar no `onBlur` do campo.
+
+**Fechada (2026-10-06):** o campo do dashboard grava no `onBlur` quando o valor muda, via
+`saveEnergyTariff` (`app/actions/printers/actions.ts`: gate PRO + Zod 0,01–10 +
+`mergeOwnOrgSettings`), com o toast "Tarifa de energia salva".
+
+---
+
+## 13. Sentry recusando eventos (429 em `/monitoring`)
+
+**Fechada em 2026-10-06** — ver "Fechadas" acima.
+
+
+---
+
+## 14. Hero da landing depende do vídeo carregar
+
+`components/marketing/HeroScrollVideo.tsx` fica em "CARREGANDO..." enquanto o vídeo não
+carrega; se o `.mp4` falhar (rede ruim, bloqueio), o título nunca aparece. Comportamento
+anterior a esta rodada, visto ao testar com o vídeo bloqueado. **Como fechar:** timeout curto
+que mostra o hero estático (imagem de capa) quando o vídeo não fica pronto.
+
+---
+
+## 15. Replay do Sentry pesa em todas as rotas
+
+O orçamento de bundle (`perf-budgets.json`) foi calibrado no tamanho real: a meta antiga de
+250 KB para o Inbox está ~2,3x abaixo da realidade. O maior peso comum é Sentry + Replay no
+chunk raiz (~130 KB gzip + ~37 KB). **Como reduzir:** carregar o Replay sob demanda
+(`lazyLoadIntegration`).
+
+---
+
+## 16. Canais de Realtime públicos (sem Realtime Authorization)
+
+Os canais `org:<orgId>:*` (`lib/realtime/channels.ts`) são de broadcast **público**: quem
+tem a anon key e sabe um id de org (aparece em URLs públicas de mídia da landing) pode
+**escutar** metadados de atividade daquela org (ids opacos + tipo + horário, sem conteúdo)
+e **injetar** sinais falsos. Mitigado hoje: payload só com ids (sanitizado no envio **e no
+recebimento**), nenhum texto do payload é renderizado, refetch com throttle de 2 s por query,
+e nenhum canal cross-tenant existe. **Como fechar:** canais privados — `private: true` no
+`channel()` do servidor e do browser + policies RLS em `realtime.messages` (SELECT/INSERT
+só quando `realtime.topic()` = `org:<org do JWT>:*`) + um JWT curto emitido pelo servidor
+(route handler autenticado que assina `{ sub, org_id, role: "authenticated", exp ≤ 10 min }`
+com o segredo JWT do projeto) e aplicado no browser com `supabase.realtime.setAuth(token)`,
+renovado antes de expirar. É schema (policies) + segredo novo no `env.ts`, por isso ficou
+fora desta rodada.
+
+---
+
+## 17. Rate limit das rotas públicas depende do Upstash
+
+`checkRateLimit` (`lib/ai/dispatcher/rate-limit.ts`) usa o Upstash Redis quando
+`UPSTASH_REDIS_REST_URL`/`_TOKEN` existem e, sem eles, cai para um **contador em memória
+por instância**. Na Vercel cada instância serverless tem o seu contador (e ele zera a cada
+cold start), então os limites por IP viram "N por instância", não "N no total". Afeta todas
+as rotas de `/api/v1/public/`, em especial as que emitem slot de upload anônimo:
+`/orcamento/upload-slot` (10/h) e `/orcamento/upload-slot/confirm` (20/h), e
+`/pro-signup/receipt-slot`. O que segura o upload de `/orcamento` mesmo sem Upstash: bucket
+privado só com MIME explícito (sem `application/octet-stream`, migration 0085), caminho
+gerado no servidor com carimbo de emissão, link de leitura só até 2 h depois do slot, e
+checagem do tipo gravado + assinatura dos primeiros bytes no `confirm` (o objeto que não
+bate é apagado). **Como fechar:** configurar o Upstash em produção (é o caminho previsto) e,
+opcionalmente, fazer `env.ts` exigir as duas variáveis quando `NODE_ENV=production`. Não
+entrou nesta rodada porque mudar `env.ts` quebraria o build de quem faz self-host sem Redis.
+
+Limite conhecido da checagem de conteúdo: 3MF é validado só pela assinatura de zip
+(`PK\x03\x04`); validar o pacote exigiria ler o diretório central no fim do arquivo. O link
+continua privado, com validade de 7 dias e servido como `model/3mf` (download, não render).
+
+---
+
+## 18. Pedido público com o e-mail de outra pessoa bloqueia o pedido dela
+
+`pro_signup_requests_one_pending_per_email` (índice único parcial, migration 0081) permite um
+pedido **pendente** por e-mail. Qualquer pessoa pode enviar o formulário público
+`/calc3d-pro` com o e-mail de um cliente; enquanto esse pedido estiver pendente, o pedido
+legítimo do cliente feito de dentro do CRM (`/api/v1/pro-signup/upgrade`) bate no índice e é
+tratado como duplicado (`duplicate: true`, sem aviso ao dono).
+
+**Severidade:** baixa — não concede acesso; só atrasa a liberação.
+**Contorno:** recusar o pedido público falso no painel (ou pelo botão Recusar do e-mail) e
+pedir ao cliente que reenvie.
+**Como fechar:** escopar a unicidade por origem (pedido com `organization_id` não colide com
+pedido anônimo) — exige migration nova.
+
+---
+
+## 19. Riscos residuais aceitos após a revisão de segurança (2026-10-07)
+
+- **Ativação por WhatsApp com e-mail alheio.** No caminho CRIAR, o link de ativação pode ir
+  pelo WhatsApp para o telefone informado no pedido. Quem pagar um Pix usando o e-mail de
+  outra pessoa (que ainda não tem conta) cria a conta com aquele e-mail já marcado como
+  verificado; convites futuros para esse e-mail cairiam nessa conta. Exige pagamento real e
+  conferido por você. **Como fechar:** só enviar o link de ativação por e-mail, ou ativar sem
+  `email_confirm` e exigir a confirmação do endereço no primeiro login.
+- **3MF só confere a assinatura de ZIP.** Qualquer `.zip` renomeado passa como `.3mf`.
+  **Como fechar:** ler o diretório central e exigir `[Content_Types].xml` e `3D/3dmodel.model`.
+- **Troca do arquivo depois da confirmação.** Não confirmado se o Storage aceita `x-upsert`
+  num upload por token assinado sem upsert; se aceitar, o arquivo pode ser trocado dentro da
+  janela de 2 h. **Como fechar:** após a checagem, copiar para `verified/` e assinar a cópia.
+- **Self-host com Caddy:** o `Caddyfile` agora sobrescreve `X-Real-IP` com o IP da conexão
+  (o app confia nesse cabeçalho para o rate limit). Quem usa outro proxy precisa fazer o mesmo.

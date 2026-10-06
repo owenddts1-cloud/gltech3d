@@ -19,12 +19,13 @@ const LINKS: SettingsLink[] = [
   {
     href: "/app/settings/security",
     title: "Segurança",
-    description: "MFA, códigos de recuperação, sessões.",
+    description: "MFA, códigos de recuperação, dispositivos confiáveis e sessões.",
   },
   {
     href: "/app/settings/notifications",
     title: "Notificações",
-    description: "Canais e categorias (em breve).",
+    // Stub page: the switches are disabled and nothing is saved yet.
+    description: "Em breve — as preferências por canal e categoria ainda não estão disponíveis.",
   },
   {
     href: "/app/settings/api-tokens",
@@ -35,7 +36,7 @@ const LINKS: SettingsLink[] = [
   {
     href: "/app/settings/tenant",
     title: "Organização",
-    description: "Dados da empresa, retenção, DPO.",
+    description: "Dados da empresa, identidade visual dos documentos, retenção e DPO.",
     adminOnly: true,
   },
   {
@@ -53,8 +54,8 @@ const LINKS: SettingsLink[] = [
   { href: "/app/audit", title: "Audit Log", description: "Histórico de ações.", managerOnly: true },
   {
     href: "/app/settings/billing",
-    title: "Billing",
-    description: "Planos e cobrança (em breve).",
+    title: "Plano e cobrança",
+    description: "Plano atual, dias de trial e pagamento por Pix.",
   },
 ];
 

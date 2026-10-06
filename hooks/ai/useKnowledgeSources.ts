@@ -34,7 +34,7 @@ export const sourcesQueryKey = (agentId: string) =>
 
 export function useKnowledgeSources(
   agentId: string,
-  opts?: { initialData?: SourceRow[] },
+  opts?: { initialData?: SourceRow[]; refetchInterval?: number | false },
 ) {
   return useQuery({
     queryKey: sourcesQueryKey(agentId),
@@ -49,6 +49,7 @@ export function useKnowledgeSources(
     },
     initialData: opts?.initialData,
     enabled: !!agentId,
+    refetchInterval: opts?.refetchInterval ?? false,
   });
 }
 

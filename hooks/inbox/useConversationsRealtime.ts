@@ -1,7 +1,12 @@
 "use client";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useRealtimeChannel } from "@/hooks/realtime/useRealtimeChannel";
+import {
+  realtimeRefetchInterval,
+  useRealtimeChannel,
+} from "@/hooks/realtime/useRealtimeChannel";
+import { readBroadcastPayload, safeOrgChannel } from "@/lib/realtime/channels";
+import { useThrottledInvalidate } from "@/hooks/realtime/throttle";
 import { apiClient } from "@/lib/api/client";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import type { Conversation } from "@/lib/types/messaging";
@@ -32,15 +37,38 @@ interface ListResponse {
   meta?: { cursor?: string | null; has_more?: boolean };
 }
 
+/**
+ * Conversation list. Realtime = server broadcast on `org:<orgId>:conversations`
+ * (ids-only) — `postgres_changes` cannot work because the browser client has
+ * no session (httpOnly cookie). Any signal invalidates the list; a fallback
+ * poll covers a channel that is not delivering.
+ */
 export function useConversationsRealtime(
   filters: ConversationsFilters,
   orgId: string | null,
 ) {
-  const qc = useQueryClient();
   const queryKey = ["conversations", filters] as const;
+  const channel = safeOrgChannel(orgId, "conversations");
+
+  const invalidate = useThrottledInvalidate();
+  const onChange = useCallback(
+    (message: unknown) => {
+      if (!readBroadcastPayload(message)) return;
+      invalidate(["conversations"]);
+    },
+    [invalidate],
+  );
+
+  const { status } = useRealtimeChannel({
+    name: channel ?? "inbox-disabled",
+    broadcast: { event: "*" },
+    onChange,
+    enabled: !!channel,
+  });
 
   const query = useInfiniteQuery({
     queryKey,
+    refetchInterval: realtimeRefetchInterval(status),
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const qs = new URLSearchParams();
@@ -59,24 +87,6 @@ export function useConversationsRealtime(
     },
     getNextPageParam: (last) =>
       last.meta?.has_more && last.meta.cursor ? last.meta.cursor : undefined,
-  });
-
-  const onChange = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["conversations"] });
-  }, [qc]);
-
-  useRealtimeChannel({
-    name: orgId ? `inbox-${orgId}` : "inbox-disabled",
-    postgresChanges: orgId
-      ? {
-          event: "*",
-          schema: "public",
-          table: "conversations",
-          filter: `organization_id=eq.${orgId}`,
-        }
-      : undefined,
-    onChange,
-    enabled: !!orgId,
   });
 
   return query;

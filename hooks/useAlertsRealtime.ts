@@ -1,42 +1,18 @@
 "use client";
-import { useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { createClient } from "@/lib/supabase/browser";
-import type { AlertKind } from "@/app/api/v1/admin/dashboard/kpis/route";
 
-const KIND_LABELS: Record<AlertKind, string> = {
-  waha_ban: "Alerta WAHA",
-  lgpd_at_risk: "Prazo LGPD",
-  ai_budget: "Budget IA",
-  tenant_pending_overflow: "Overflow de conversas",
-};
-
-interface AlertBroadcast {
-  kind?: AlertKind;
-  message?: string;
-}
-
-export function useAlertsRealtime() {
-  const qc = useQueryClient();
-
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel("alerts-platform")
-      .on("broadcast", { event: "*" }, (payload: { payload?: AlertBroadcast }) => {
-        const data = payload?.payload;
-        const kind = data?.kind;
-        const label = kind ? (KIND_LABELS[kind] ?? kind) : "alerta";
-        toast.warning(`Novo ${label}`, {
-          description: data?.message,
-        });
-        qc.invalidateQueries({ queryKey: ["admin", "dashboard", "kpis"] });
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [qc]);
+/**
+ * Platform alerts realtime: intentionally DISABLED.
+ *
+ * It listened on the public broadcast channel `alerts-platform`, which:
+ *  - no server code ever published to (a consumer without a producer), and
+ *  - anyone with the anon key could publish to, putting attacker-chosen text
+ *    (`payload.message`) into a super-admin toast.
+ *
+ * Supabase broadcast has no authorization yet (see
+ * docs/runbooks/pendencias-em-aberto.md), so no cross-tenant channel may exist.
+ * The dashboard KPIs (alerts included) already refresh by polling every 30s
+ * (`useAdminDashboardKPIs`). Kept as a no-op so the caller needs no change.
+ */
+export function useAlertsRealtime(): void {
+  // No subscription by design — see the comment above.
 }

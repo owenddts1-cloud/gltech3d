@@ -6,7 +6,11 @@ import path from "node:path";
  *  - LCP < 2.5s p75
  *  - CLS < 0.1 p75
  *  - INP < 200ms p75
- *  - Initial bundle /app/inbox < 250KB gzipped
+ *  - First-load JS per route: versioned in `perf-budgets.json` (repo root) and
+ *    enforced in CI by `scripts/check-bundle-budget.mjs` (.github/workflows/perf.yml).
+ *    The old "/app/inbox < 250KB gzipped" target is not met today (baseline
+ *    ~585KB, Sentry Replay alone is ~170KB in the root chunk) — budgets start
+ *    at baseline + 15% and should only go down.
  */
 const nextConfig: NextConfig = {
   // Self-host (HostGator): gera .next/standalone pro container Docker (node server.js).

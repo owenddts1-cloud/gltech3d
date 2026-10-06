@@ -22,6 +22,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 
 export type HandoffReason =
   | "requested_human"
@@ -174,6 +175,12 @@ export async function triggerHandoff(
         error: err instanceof Error ? err.message : String(err),
       });
     }
+
+    // Status flipped to pending: inbox lists refetch (ids-only signal).
+    const handoffIds = { conversation_id: input.conversationId };
+    deferBroadcast(() =>
+      broadcastOrg(input.organizationId, "conversations", "conversation.updated", handoffIds),
+    );
 
     // Step 5 — audit log (fire-and-forget; never blocks).
     const { error: auditErr } = await admin.from("api_audit_log").insert({

@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/types";
 import type { Actor, HandlerCtx } from "@/lib/api/handlers/types";
 import { audit } from "@/lib/audit";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import type {
   ListConversationsQuery,
   UpdateConversationStatusInput,
@@ -217,6 +218,12 @@ export async function updateConversationStatusHandler(
     requestId: ctx.requestId,
     metadata: { ...a.metadataActor, status: input.status },
   });
+
+  deferBroadcast(() =>
+    broadcastOrg(conv.organization_id, "conversations", "conversation.updated", {
+      conversation_id: conv.id,
+    }),
+  );
 
   return conv;
 }

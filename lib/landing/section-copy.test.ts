@@ -27,7 +27,7 @@ const WIRING: { key: string; component: string }[] = [
   { key: "footer", component: "components/marketing/Footer.tsx" },
 ];
 
-const editor = read("app/app/landing-edit/_components/LandingEditClient.tsx");
+const editor = read("app/app/(pro)/landing-edit/_components/LandingEditClient.tsx");
 const homeClient = read("app/(marketing)/_components/HomeClient.tsx");
 
 describe("contrato de textos entre Landing Edit e a landing", () => {

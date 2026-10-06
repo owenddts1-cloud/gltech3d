@@ -1,5 +1,5 @@
 import type { DocumentSnapshot } from "@/lib/schemas/service-order-documents";
-import { lineTotalCents } from "@/app/app/service-orders/_lib/document-draft";
+import { lineTotalCents } from "@/app/app/(pro)/service-orders/_lib/document-draft";
 import { brlNumberFromCents } from "@/lib/format/money";
 
 function formatQty(qty: number): string {

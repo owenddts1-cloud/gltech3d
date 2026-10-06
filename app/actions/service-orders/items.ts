@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { assertProAccess } from "@/lib/plan/server";
 import { saveItemsSchema } from "@/lib/schemas/service-order-documents";
-import type { DraftItem } from "@/app/app/service-orders/_lib/document-draft";
+import type { DraftItem } from "@/app/app/(pro)/service-orders/_lib/document-draft";
 
 /**
  * Itens de uma O.S. (migration 0068).
@@ -76,6 +77,8 @@ export async function fetchServiceOrderItems(serviceOrderId: string) {
 export async function saveServiceOrderItems(raw: unknown) {
   const c = await ctx();
   if (!c) return { ok: false as const, error: "Não autenticado" };
+  const denied = await assertProAccess(c.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const parsed = saveItemsSchema.safeParse(raw);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
@@ -163,6 +166,8 @@ export async function saveServiceOrderItems(raw: unknown) {
 export async function recalcServiceOrderTotalFromItems(serviceOrderId: string) {
   const c = await ctx();
   if (!c) return { ok: false as const, error: "Não autenticado" };
+  const denied = await assertProAccess(c.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const { data: items, error: itemsErr } = await c.supabase
     .from("service_order_items")

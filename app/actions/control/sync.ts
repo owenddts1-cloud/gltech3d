@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
-import { planControlSync, type SyncSourceRow } from "@/app/app/control/_lib/sync-map";
+import { assertProAccess } from "@/lib/plan/server";
+import { planControlSync, type SyncSourceRow } from "@/app/app/(pro)/control/_lib/sync-map";
 import { revalidatePath } from "next/cache";
 
 export interface SyncResult {
@@ -30,6 +31,8 @@ export async function syncControlToModules(): Promise<
   if (!authUser) return { ok: false, error: "Não autenticado" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false, error: "Nenhuma organização ativa" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false, error: denied };
   const org = activeOrg.orgId;
   const supabase = await createClient();
 
@@ -97,9 +100,10 @@ export async function syncControlToModules(): Promise<
     for (const s of plan.sales) {
       const order = orderByKey.get(s.key);
       if (!order) continue;
-      await supabase.from("marketplace_orders").update({
+      const { error: updErr } = await supabase.from("marketplace_orders").update({
         platform: s.platform, customer_name: s.customerName, total_cents: s.totalCents, sold_at: s.soldAt,
       }).eq("organization_id", org).eq("id", order.id);
+      if (updErr) return { ok: false, error: `vendas: ${updErr.message}` };
       order.customer_name = s.customerName;
       order.total_cents = s.totalCents;
       result.salesUpdated += 1;
@@ -129,15 +133,17 @@ export async function syncControlToModules(): Promise<
       if (!order) continue;
       const contactId = nameToContactId.get(lc(s.customerName)) ?? null;
       if (order.service_order_id) {
-        await supabase.from("service_orders").update({
+        const { error: osUpdErr } = await supabase.from("service_orders").update({
           title: s.osTitle, contact_id: contactId, contact_name: s.customerName, total_cents: s.totalCents,
           updated_at: new Date().toISOString(),
         }).eq("organization_id", org).eq("id", order.service_order_id);
+        if (osUpdErr) return { ok: false, error: `O.S.: ${osUpdErr.message}` };
         // Linha antiga (pré-trigger) já tinha MO ligada mas a FR de origem nunca
         // recebeu o vínculo de volta — grava agora pra entrar no radar dos triggers
         // de sync bidirecional (0065/0066) dali em diante.
-        await supabase.from("financial_records").update({ service_order_id: order.service_order_id })
+        const { error: frErr } = await supabase.from("financial_records").update({ service_order_id: order.service_order_id })
           .eq("organization_id", org).eq("id", s.key.replace(/^ctrl:/, ""));
+        if (frErr) return { ok: false, error: `lançamentos: ${frErr.message}` };
         result.osUpdated += 1;
         continue;
       }
@@ -153,13 +159,15 @@ export async function syncControlToModules(): Promise<
       if (osErr) return { ok: false, error: `O.S.: ${osErr.message}` };
       const osId = (os as { id: string } | null)?.id;
       if (osId) {
-        await supabase.from("marketplace_orders").update({ service_order_id: osId }).eq("organization_id", org).eq("id", order.id);
+        const { error: linkErr } = await supabase.from("marketplace_orders").update({ service_order_id: osId }).eq("organization_id", org).eq("id", order.id);
+        if (linkErr) return { ok: false, error: `vendas: ${linkErr.message}` };
         order.service_order_id = osId;
         result.osCreated += 1;
         // Entra no radar dos triggers de sync bidirecional (0065/0066) a partir de
         // agora — a própria linha de origem recebe o vínculo.
-        await supabase.from("financial_records").update({ service_order_id: osId })
+        const { error: frLinkErr } = await supabase.from("financial_records").update({ service_order_id: osId })
           .eq("organization_id", org).eq("id", s.key.replace(/^ctrl:/, ""));
+        if (frLinkErr) return { ok: false, error: `lançamentos: ${frLinkErr.message}` };
       }
     }
   }

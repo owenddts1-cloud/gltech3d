@@ -13,6 +13,8 @@ import { type NextRequest } from "next/server";
 import { audit } from "@/lib/audit";
 import { ApiError } from "@/lib/api/types";
 import { ok, fail } from "@/lib/api/wrappers";
+import { requireProApiForSession } from "@/lib/plan/api";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import { moveLeadSchema, validateRequest } from "@/lib/schemas";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,6 +35,8 @@ export async function POST(
   if (authErr || !user) {
     return fail("unauthenticated", "Auth required.", 401, { requestId });
   }
+  const planDenied = await requireProApiForSession(requestId);
+  if (planDenied) return planDenied;
 
   let input;
   try {
@@ -159,6 +163,10 @@ export async function POST(
       position_in_stage: input.position_in_stage,
     },
   });
+
+  const leadIds = { lead_id: leadId, pipeline_id: lead.pipeline_id as string };
+  const leadOrgId = lead.organization_id as string;
+  deferBroadcast(() => broadcastOrg(leadOrgId, "leads", "lead.moved", leadIds));
 
   return ok(finalLead, { requestId });
 }

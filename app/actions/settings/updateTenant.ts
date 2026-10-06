@@ -8,6 +8,7 @@ import { audit } from "@/lib/audit";
 import { tenantSchema, type TenantInput } from "@/lib/schemas/settings";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { ROLE_RANK } from "@/lib/auth/types";
+import { updateOwnOrganization } from "@/lib/tenants/update-own-org";
 
 export type UpdateTenantResult =
   | { ok: true }
@@ -49,21 +50,21 @@ export async function updateTenant(input: TenantInput): Promise<UpdateTenantResu
     documents: parsed.data.documents,
   };
 
-  const { error } = await supabase
-    .from("organizations")
-    .update({
-      display_name: parsed.data.display_name,
-      legal_name: parsed.data.legal_name,
-      cnpj: parsed.data.cnpj ?? null,
-      timezone: parsed.data.timezone,
-      locale: parsed.data.locale,
-      media_retention_days: parsed.data.media_retention_days,
-      dpo_email: parsed.data.dpo_email ?? null,
-      privacy_policy_url: parsed.data.privacy_policy_url ?? null,
-      settings: nextSettings,
-    })
-    .eq("id", activeOrg.orgId);
-  if (error) return { ok: false, error: error.message };
+  // Service-role write scoped to the session org: RLS reserves `organizations`
+  // writes to platform admins, so the user client would match zero rows and
+  // this form would report success while saving nothing. Role checked above.
+  const written = await updateOwnOrganization(activeOrg.orgId, {
+    display_name: parsed.data.display_name,
+    legal_name: parsed.data.legal_name,
+    cnpj: parsed.data.cnpj ?? null,
+    timezone: parsed.data.timezone,
+    locale: parsed.data.locale,
+    media_retention_days: parsed.data.media_retention_days,
+    dpo_email: parsed.data.dpo_email ?? null,
+    privacy_policy_url: parsed.data.privacy_policy_url ?? null,
+    settings: nextSettings,
+  });
+  if (!written.ok) return { ok: false, error: written.error };
 
   await audit({
     action: "org.updated",

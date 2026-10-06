@@ -1,7 +1,13 @@
 "use client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useRealtimeChannel } from "@/hooks/realtime/useRealtimeChannel";
+import {
+  realtimeRefetchInterval,
+  useRealtimeChannel,
+} from "@/hooks/realtime/useRealtimeChannel";
+import { useOptionalActiveOrg } from "@/hooks/auth/AuthProvider";
+import { useThrottledInvalidate } from "@/hooks/realtime/throttle";
+import { readBroadcastPayload, safeOrgChannel } from "@/lib/realtime/channels";
 import { apiClient } from "@/lib/api/client";
 import type { BoardData } from "@/lib/kanban/types";
 
@@ -25,35 +31,40 @@ async function fetchBoard(pipelineId: string): Promise<BoardData> {
   return res as unknown as BoardData;
 }
 
+/**
+ * Realtime = server broadcast on `org:<orgId>:leads` (ids-only, carries
+ * pipeline_id) — `postgres_changes` cannot work because the browser client has
+ * no session (httpOnly cookie). Signals for other pipelines are ignored.
+ */
 export function useBoard(pipelineId: string | null) {
-  const qc = useQueryClient();
-  const queryKey = ["board", pipelineId] as const;
+  const channel = safeOrgChannel(useOptionalActiveOrg()?.orgId, "leads");
 
-  const query = useQuery({
-    queryKey,
-    queryFn: () => fetchBoard(pipelineId as string),
-    enabled: !!pipelineId,
+  const invalidate = useThrottledInvalidate();
+  const onChange = useCallback(
+    (message: unknown) => {
+      const payload = readBroadcastPayload(message);
+      if (!pipelineId || !payload) return;
+      // A signal without pipeline_id (e.g. bulk across pipelines) still refreshes.
+      if (payload.pipeline_id && payload.pipeline_id !== pipelineId) return;
+      // Optimistic patches arrive faster via useMoveCard's onMutate; this just
+      // reconciles cross-user changes.
+      invalidate(["board", pipelineId]);
+    },
+    [invalidate, pipelineId],
+  );
+
+  const { status } = useRealtimeChannel({
+    name: channel ?? "kanban-disabled",
+    broadcast: { event: "*" },
+    onChange,
+    enabled: !!channel && !!pipelineId,
   });
 
-  const onChange = useCallback(() => {
-    // Conservative: invalidate the board on any change. Optimistic patches
-    // arrive faster via useMoveCard's onMutate; this just reconciles
-    // cross-user changes within ~250ms.
-    qc.invalidateQueries({ queryKey });
-  }, [qc, queryKey]);
-
-  useRealtimeChannel({
-    name: pipelineId ? `kanban-${pipelineId}` : "kanban-disabled",
-    postgresChanges: pipelineId
-      ? {
-          event: "*",
-          schema: "public",
-          table: "crm_leads",
-          filter: `pipeline_id=eq.${pipelineId}`,
-        }
-      : undefined,
-    onChange,
+  const query = useQuery({
+    queryKey: ["board", pipelineId] as const,
+    queryFn: () => fetchBoard(pipelineId as string),
     enabled: !!pipelineId,
+    refetchInterval: realtimeRefetchInterval(status),
   });
 
   return query;

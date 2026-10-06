@@ -31,6 +31,8 @@ export type AuditAction =
   | "contact.anonymized"
   | "contact.merge_pending"
   | "contact.merged"
+  /** Hard delete of a contact WITHOUT history (app/api/v1/contacts/[id] DELETE). */
+  | "contact.deleted"
   | "lgpd.anonymize_executed"
   | "member.invited"
   | "member.accepted"
@@ -124,4 +126,22 @@ export type AuditAction =
   | "lead.captured"
   | "marketing.lead_recovery_triggered"
   | "instagram.broadcast"
-  | "profile.email_change_requested";
+  | "profile.email_change_requested"
+  // Calc3D PRO — venda por Pix manual. `requested` nasce numa rota pública com
+  // service role (sem ator), os outros três são ações de platform admin.
+  | "pro_signup.requested"
+  | "pro_signup.approved"
+  | "pro_signup.rejected"
+  | "pro_signup.activated"
+  // Painel de Assinantes (/admin/assinantes) — só platform admin. Mutações levam
+  // metadata { before, after, reason }.
+  | "platform_admin.subscribers_listed"
+  | "platform_admin.subscriber_viewed"
+  | "tenant.plan_changed"
+  | "tenant.plan_extended"
+  | "tenant.plan_revoked"
+  | "member.role_changed_by_platform_admin"
+  // Auto-cadastro com trial de 7 dias.
+  | "signup.trial_started"
+  | "auth.password_reset_requested"
+  | "auth.password_reset_completed";

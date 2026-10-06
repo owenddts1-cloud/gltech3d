@@ -26,6 +26,7 @@ import { generateText, stepCountIs, type LanguageModel, type StopCondition, type
 import { CredentialUnavailableError, loadCredential } from "@/lib/ai/credentials";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { audit } from "@/lib/audit";
+import { broadcastOrg, deferBroadcast } from "@/lib/realtime/broadcast";
 import type { McpAuthResult } from "@/lib/mcp/auth";
 import type { McpContext } from "@/lib/mcp/types";
 import { computeCostCents } from "./cost";
@@ -186,6 +187,16 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     }
     return failFast(run, "internal_error", `promote_failed: ${promoteErr.message}`, startedAt);
   }
+
+  const startedIds = {
+    run_id: run.id,
+    agent_id: run.agent_id,
+    status: "running",
+    is_dry_run: run.is_dry_run,
+  };
+  deferBroadcast(() =>
+    broadcastOrg(run.organization_id, "agent-runs", "run.started", startedIds),
+  );
 
   void audit({
     action: "ai_agent.run_started",

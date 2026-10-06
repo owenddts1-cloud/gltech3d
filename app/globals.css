@@ -471,6 +471,20 @@
   width: max-content;
   animation: gltech-marquee 32s linear infinite;
 }
+/* Giro lento para bordas em gradiente conico (CTA do Calc3D PRO).
+   `animate-spin-slow` era usada em components/shell/Sidebar.tsx sem nunca ter
+   sido definida — classe morta, sem efeito nenhum. Agora existe; a borda do
+   avatar da sidebar passa a girar tambem, que era a intencao original. */
+@keyframes gltech-spin-slow {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: gltech-spin-slow 6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin-slow { animation: none; }
+}
+
 .marketing-root .marquee:hover {
   animation-play-state: paused;
 }
