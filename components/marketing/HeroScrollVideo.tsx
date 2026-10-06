@@ -44,6 +44,13 @@ const C = {
   border: '#e2e2e2',
 };
 
+/**
+ * White panel behind the hero/caption copy so the phrases read clearly over the
+ * video. It carries the fade (opacity) itself, so panel and text dim together.
+ */
+const TEXT_PANEL =
+  'rounded-3xl border border-[#E8E2D9] bg-white/90 shadow-xl backdrop-blur-md p-5 sm:p-6 md:p-8';
+
 // ---------------------------------------------------------------------------
 // Partículas (poeira de estúdio) — canvas leve, ~40 partículas, 60fps ok
 // ---------------------------------------------------------------------------
@@ -353,43 +360,52 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
         {/* ------ Camada de texto sincronizada ------ */}
 
         {/* 0%: título hero (idêntico ao layout atual) */}
+        {/* The padding of this column is the margin from the screen edge; the white
+            panel inside it carries the text. Opacity lives on the panel itself (not on
+            an ancestor) so its backdrop blur keeps working while it fades: an ancestor
+            with opacity < 1 becomes the backdrop root and the blur would switch off. */}
         <div
           className="absolute inset-0 z-10 flex items-center"
-          style={{ opacity: introOpacity, pointerEvents: introOpacity > 0.5 ? 'auto' : 'none', transition: 'opacity 120ms linear' }}
+          style={{ pointerEvents: introOpacity > 0.5 ? 'auto' : 'none' }}
         >
-          <div className="max-w-xl px-6 md:px-16">
-            <span
-              className="mb-6 inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-widest"
-              style={{ borderColor: C.border, background: '#E8E2D9', color: C.brownDark }}
+          <div className="w-full max-w-xl px-4 sm:px-6 md:max-w-[40rem] md:px-16">
+            <div
+              className={TEXT_PANEL}
+              style={{ opacity: introOpacity, transition: 'opacity 120ms linear' }}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-              {copy?.eyebrow ?? 'Impressão 3D • Feito no Brasil'}
-            </span>
-            <h1 className="font-sora text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1]" style={{ color: C.ink }}>
-              {copy?.title ?? 'Do arquivo 3D'} <br />
-              <em className="font-serif font-normal italic" style={{ color: C.brownDark }}>
-                {copy?.subtitle ?? 'à realidade'}
-              </em>
-            </h1>
-            <p className="mt-6 max-w-lg text-base sm:text-lg md:text-xl font-medium leading-relaxed" style={{ color: '#4E443C' }}>
-              Da peça decorativa ao nosso GL ROCKET: engenharia e impressão 3D de alta performance.
-              Role e veja a vista explodida.
-            </p>
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-              <button
-                onClick={scrollToProducts}
-                className="rounded-2xl px-8 py-4 font-bold text-white shadow-lg transition-transform hover:-translate-y-0.5"
-                style={{ background: C.brown, boxShadow: `0 10px 30px -10px ${C.brown}66` }}
+              <span
+                className="mb-6 inline-flex items-center gap-2 rounded-full border px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-widest"
+                style={{ borderColor: C.border, background: '#E8E2D9', color: '#7A5C3E' }}
               >
-                Ver Coleção
-              </button>
-              <a
-                href="#contato"
-                className="rounded-2xl border-2 px-8 py-4 text-center font-bold transition-colors hover:bg-white/50"
-                style={{ borderColor: C.border, color: C.muted }}
-              >
-                Fale com a gente
-              </a>
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                {copy?.eyebrow ?? 'Impressão 3D • Feito no Brasil'}
+              </span>
+              <h1 className="font-sora text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1]" style={{ color: C.ink }}>
+                {copy?.title ?? 'Do arquivo 3D'} <br />
+                <em className="font-serif font-normal italic" style={{ color: C.brownDark }}>
+                  {copy?.subtitle ?? 'à realidade'}
+                </em>
+              </h1>
+              <p className="mt-6 max-w-lg text-base sm:text-lg md:text-xl font-medium leading-relaxed" style={{ color: '#4E443C' }}>
+                Da peça decorativa ao nosso GL ROCKET: engenharia e impressão 3D de alta performance.
+                Role e veja a vista explodida.
+              </p>
+              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+                <button
+                  onClick={scrollToProducts}
+                  className="rounded-2xl px-8 py-4 font-bold text-white shadow-lg transition-transform hover:-translate-y-0.5"
+                  style={{ background: C.brown, boxShadow: `0 10px 30px -10px ${C.brown}66` }}
+                >
+                  Ver Coleção
+                </button>
+                <a
+                  href="#contato"
+                  className="rounded-2xl border-2 px-8 py-4 text-center font-bold transition-colors hover:bg-[#F4F1EC]"
+                  style={{ borderColor: '#E8E2D9', color: C.muted }}
+                >
+                  Fale com a gente
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -467,25 +483,33 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
 function Caption({
   side, opacity, eyebrow, title, text,
 }: { side: 'left' | 'right'; opacity: number; eyebrow: string; title: string; text: string }) {
+  // Outer box: vertical centering + margin from the screen edge (md:px-16 keeps
+  // right captions clear of the progress bar at right-6). Max widths grew by the
+  // panel padding so the text column keeps its previous measure.
+  // Panel: fade + slide live here (see the note on the intro block about blur).
   return (
     <div
-      className={`absolute top-1/2 z-10 max-w-sm sm:max-w-md -translate-y-1/2 px-6 md:px-16 ${side === 'left' ? 'left-0' : 'right-0 text-right'}`}
-      style={{
-        opacity,
-        transform: `translateY(calc(-50% + ${(1 - opacity) * 24}px))`,
-        transition: 'opacity 150ms linear, transform 150ms linear',
-        pointerEvents: 'none',
-      }}
+      className={`absolute top-1/2 z-10 w-full max-w-md -translate-y-1/2 px-4 sm:max-w-lg sm:px-6 md:max-w-[36rem] md:px-16 ${side === 'left' ? 'left-0' : 'right-0 text-right'}`}
+      style={{ pointerEvents: 'none' }}
     >
-      <div className="text-[11px] sm:text-xs font-extrabold uppercase tracking-[0.3em]" style={{ color: '#8E6D4D' }}>
-        {eyebrow}
+      <div
+        className={TEXT_PANEL}
+        style={{
+          opacity,
+          transform: `translateY(${(1 - opacity) * 24}px)`,
+          transition: 'opacity 150ms linear, transform 150ms linear',
+        }}
+      >
+        <div className="text-[11px] sm:text-xs font-extrabold uppercase tracking-[0.3em]" style={{ color: '#7A5C3E' }}>
+          {eyebrow}
+        </div>
+        <h2 className="font-sora mt-2.5 text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight" style={{ color: '#2B2622' }}>
+          {title}
+        </h2>
+        <p className="mt-4 text-base sm:text-lg font-medium leading-relaxed" style={{ color: '#4E443C' }}>
+          {text}
+        </p>
       </div>
-      <h2 className="font-sora mt-2.5 text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight" style={{ color: '#2B2622' }}>
-        {title}
-      </h2>
-      <p className="mt-4 text-base sm:text-lg font-medium leading-relaxed" style={{ color: '#4E443C' }}>
-        {text}
-      </p>
     </div>
   );
 }
