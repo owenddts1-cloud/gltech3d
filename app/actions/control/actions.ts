@@ -18,6 +18,10 @@ export interface FinancialRecord {
   category: string;
   revenue: number;      // raw value in R$, e.g. 100.00
   expense: number;      // raw value in R$, e.g. 3808.30
+  platform_fee?: number; // taxa cobrada pela plataforma em R$, ex: 14.00
+  net_amount?: number;   // valor líquido em R$
+  status?: 'pending' | 'reconciled' | 'cancelled'; // status de conciliação
+  reconciled_at?: string;
   installments: string; // e.g. '12'
   platform?: string;    // e.g. B2B, Shopee, Facebook, Mercado Livre, TikTok Shop, Olx
   // User-defined columns. The grid only ever writes strings into these, but the jsonb column
@@ -54,6 +58,10 @@ export async function fetchFinancialRecords(): Promise<{ ok: false; error?: stri
       category: r.category,
       revenue: r.revenue_cents / 100,
       expense: r.expense_cents / 100,
+      platform_fee: (r.platform_fee_cents ?? 0) / 100,
+      net_amount: (r.net_cents ?? (r.revenue_cents - r.expense_cents)) / 100,
+      status: r.status || "reconciled",
+      reconciled_at: r.reconciled_at || undefined,
       installments: r.installments || "",
       platform: r.platform || "",
       custom_fields: r.custom_fields || {}
@@ -73,16 +81,15 @@ export async function saveFinancialRecords(
 
   const supabase = await createClient();
 
-  // Rows still carrying a client-side 'temp-' id have never been persisted. Mint their uuid here
-  // instead of letting the default fill it in, so the caller can swap the temp id for the real one.
-  // Without that swap the next save re-inserts the same row under yet another uuid.
   const idMap: Record<string, string> = {};
 
   const upsertPayload = records.map(r => {
-    // Determine type automatically from values or vice-versa
     const type = r.type || (r.revenue && r.revenue > 0 ? 'Receita' : 'Despesa');
     const revenueCents = r.revenue !== undefined ? Math.round(Number(r.revenue) * 100) : 0;
     const expenseCents = r.expense !== undefined ? Math.round(Number(r.expense) * 100) : 0;
+    const platformFeeCents = r.platform_fee !== undefined ? Math.round(Number(r.platform_fee) * 100) : 0;
+    const netCents = r.net_amount !== undefined ? Math.round(Number(r.net_amount) * 100) : Math.max(0, revenueCents - expenseCents - platformFeeCents);
+    const status = r.status || "reconciled";
 
     let id = r.id;
     if (!id || id.startsWith("temp-")) {
@@ -102,6 +109,10 @@ export async function saveFinancialRecords(
       category: r.category || "Outros",
       revenue_cents: revenueCents,
       expense_cents: expenseCents,
+      platform_fee_cents: platformFeeCents,
+      net_cents: netCents,
+      status,
+      reconciled_at: status === "reconciled" ? (r.reconciled_at || new Date().toISOString()) : null,
       installments: r.installments || "",
       platform: r.platform || "",
       custom_fields: r.custom_fields || {},
@@ -119,11 +130,38 @@ export async function saveFinancialRecords(
     return { ok: false, error: error.message };
   }
 
-  // Sem revalidatePath: o grid é gerido no cliente (mantém `records`/`dbRecords` em
-  // sincronia e faz o swap dos ids temporários). Revalidar aqui re-alimentaria
-  // `initialRecords`, o que reinicia o estado local e descartaria edições ainda não
-  // salvas de outras linhas — origem do bug de "sumir colunas" ao excluir/salvar.
   return { ok: true, idMap };
+}
+
+export async function reconcileFinancialRecords(
+  ids: string[]
+): Promise<{ ok: boolean; count?: number; error?: string }> {
+  const authUser = await loadAuthUser();
+  if (!authUser) return { ok: false, error: "Unauthenticated" };
+  const activeOrg = await resolveActiveOrg(authUser);
+  if (!activeOrg) return { ok: false, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false, error: denied };
+
+  if (!ids || ids.length === 0) {
+    return { ok: true, count: 0 };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("financial_records")
+    .update({
+      status: "reconciled",
+      reconciled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("organization_id", activeOrg.orgId)
+    .in("id", ids)
+    .select("id");
+
+  if (error) return { ok: false, error: error.message };
+
+  return { ok: true, count: data?.length ?? 0 };
 }
 
 export async function deleteFinancialRecord(id: string): Promise<{ ok: boolean; error?: string }> {
@@ -144,12 +182,9 @@ export async function deleteFinancialRecord(id: string): Promise<{ ok: boolean; 
     .select("id");
 
   if (error) return { ok: false, error: error.message };
-  // RLS (0084): DELETE requires admin; a denied delete removes 0 rows silently.
   if (!data || data.length === 0) {
     return { ok: false, error: deleteDeniedMessage("financial_records") };
   }
 
-  // Sem revalidatePath: ver nota em saveFinancialRecords. O cliente já remove a linha
-  // do estado local; revalidar clobbaria edições pendentes das demais linhas.
   return { ok: true };
 }
