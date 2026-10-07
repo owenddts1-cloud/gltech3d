@@ -77,6 +77,8 @@ interface Ctx {
   supabase: Awaited<ReturnType<typeof createClient>>;
 }
 
+import { isLandingAdmin } from "@/lib/auth/landing-admin";
+
 async function requireCtx(): Promise<{ ok: true; ctx: Ctx } | { ok: false; error: string }> {
   const authUser = await loadAuthUser();
   if (!authUser) return { ok: false, error: "Não autenticado" };
@@ -86,9 +88,18 @@ async function requireCtx(): Promise<{ ok: true; ctx: Ctx } | { ok: false; error
   // aberta antes de o trial vencer continuaria gravando sem esta linha.
   const denied = await assertProAccess(activeOrg.orgId);
   if (denied) return { ok: false, error: denied };
+
+  const supabase = await createClient();
+  const { data: orgRow } = await supabase.from("organizations").select("slug").eq("id", activeOrg.orgId).maybeSingle();
+  const orgSlug = orgRow?.slug ?? null;
+
+  if (!isLandingAdmin({ user: authUser, activeOrg, activeOrgSlug: orgSlug })) {
+    return { ok: false, error: "403 Forbidden: Apenas a diretoria da GLTech3D pode alterar a vitrine pública." };
+  }
+
   return {
     ok: true,
-    ctx: { orgId: activeOrg.orgId, userId: authUser.id, supabase: await createClient() },
+    ctx: { orgId: activeOrg.orgId, userId: authUser.id, supabase },
   };
 }
 
