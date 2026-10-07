@@ -1,76 +1,19 @@
 import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
-import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
-import { ROLE_RANK } from "@/lib/auth/types";
+import { requireAuth } from "@/lib/auth/server";
+import { isDirectorateEmail } from "@/lib/auth/landing-admin";
+import { SETTINGS_LINKS, filterSettingsLinks } from "@/lib/auth/settings-filter";
 
 export const dynamic = "force-dynamic";
 
-interface SettingsLink {
-  href: string;
-  title: string;
-  description: string;
-  adminOnly?: boolean;
-  managerOnly?: boolean;
-}
-
-const LINKS: SettingsLink[] = [
-  { href: "/app/settings/profile", title: "Perfil", description: "Nome, idioma, fuso, avatar." },
-  {
-    href: "/app/settings/security",
-    title: "Segurança",
-    description: "MFA, códigos de recuperação, dispositivos confiáveis e sessões.",
-  },
-  {
-    href: "/app/settings/notifications",
-    title: "Notificações",
-    // Stub page: the switches are disabled and nothing is saved yet.
-    description: "Em breve — as preferências por canal e categoria ainda não estão disponíveis.",
-  },
-  {
-    href: "/app/settings/api-tokens",
-    title: "API Tokens",
-    description: "Tokens server-to-server.",
-    adminOnly: true,
-  },
-  {
-    href: "/app/settings/tenant",
-    title: "Organização",
-    description: "Dados da empresa, identidade visual dos documentos, retenção e DPO.",
-    adminOnly: true,
-  },
-  {
-    href: "/app/settings/tenant/pipelines",
-    title: "Pipelines",
-    description: "Vocabulário, custom fields, motivos de perda.",
-    adminOnly: true,
-  },
-  {
-    href: "/app/connections",
-    title: "Conexões WhatsApp",
-    description: "Saúde, reconexão e novos números.",
-    adminOnly: true,
-  },
-  { href: "/app/audit", title: "Audit Log", description: "Histórico de ações.", managerOnly: true },
-  {
-    href: "/app/settings/billing",
-    title: "Plano e cobrança",
-    description: "Plano atual, dias de trial e pagamento por Pix.",
-  },
-];
-
 export default async function SettingsHubPage() {
   const user = await requireAuth();
-  const activeOrg = await resolveActiveOrg(user);
-  const role = activeOrg?.role;
-  const isAdmin = user.is_platform_admin || (role && ROLE_RANK[role] >= ROLE_RANK.admin);
-  const isManager = user.is_platform_admin || (role && ROLE_RANK[role] >= ROLE_RANK.manager);
+  const isDirectorOrPlatformAdmin = Boolean(
+    user.is_platform_admin || isDirectorateEmail(user.email),
+  );
 
-  const visible = LINKS.filter((l) => {
-    if (l.adminOnly && !isAdmin) return false;
-    if (l.managerOnly && !isManager) return false;
-    return true;
-  });
+  const visible = filterSettingsLinks(SETTINGS_LINKS, { isDirectorOrPlatformAdmin });
 
   return (
     <div className="flex h-full flex-col gap-6 p-6">
