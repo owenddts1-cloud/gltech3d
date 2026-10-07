@@ -158,6 +158,54 @@ export async function createServiceOrder(raw: unknown) {
   return { ok: true as const, order: mapRow(data as SoRow) };
 }
 
+async function handleFilamentStockDeduction(
+  supabase: any,
+  orgId: string,
+  orderId: string
+) {
+  try {
+    const { data: order } = await supabase
+      .from("service_orders")
+      .select("material, qty, slicer_notes, status")
+      .eq("organization_id", orgId)
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (!order || order.status === "concluido") return;
+
+    if (order.material) {
+      const { data: filaments } = await supabase
+        .from("filaments")
+        .select("id, weight_grams")
+        .eq("organization_id", orgId);
+
+      if (filaments && filaments.length > 0) {
+        const matchingFilaments = filaments.filter((f: any) =>
+          f.material?.toLowerCase().includes(order.material.toLowerCase()) ||
+          f.name?.toLowerCase().includes(order.material.toLowerCase())
+        );
+        const targetFilaments = matchingFilaments.length > 0 ? matchingFilaments : filaments.slice(0, 1);
+        const qty = Number(order.qty ?? 1);
+        const slicerNotes = (order.slicer_notes as Record<string, unknown>) || {};
+        const weightPerUnit = Number(slicerNotes.weightGrams ?? 100);
+        const totalConsumed = Math.max(0, weightPerUnit * qty);
+
+        for (const fil of targetFilaments) {
+          const currentWeight = Number(fil.weight_grams ?? 0);
+          const newWeight = Math.max(0, currentWeight - totalConsumed);
+          await supabase
+            .from("filaments")
+            .update({ weight_grams: newWeight, updated_at: new Date().toISOString() })
+            .eq("organization_id", orgId)
+            .eq("id", fil.id);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Filament stock deduction error:", err);
+  }
+}
+
 export async function updateServiceOrderStatus(raw: unknown) {
   const authUser = await loadAuthUser();
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
@@ -170,6 +218,11 @@ export async function updateServiceOrderStatus(raw: unknown) {
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos" };
 
   const supabase = await createClient();
+
+  if (parsed.data.status === "concluido") {
+    await handleFilamentStockDeduction(supabase, activeOrg.orgId, parsed.data.id);
+  }
+
   const { error } = await supabase
     .from("service_orders")
     .update({ status: parsed.data.status, position: parsed.data.position, updated_at: new Date().toISOString() })
@@ -228,6 +281,10 @@ export async function updateServiceOrder(id: string, raw: unknown) {
       ...currentNotes,
       ...buildSlicerNotes(d),
     };
+  }
+
+  if (d.status === "concluido") {
+    await handleFilamentStockDeduction(supabase, activeOrg.orgId, id);
   }
 
   const { error } = await supabase
