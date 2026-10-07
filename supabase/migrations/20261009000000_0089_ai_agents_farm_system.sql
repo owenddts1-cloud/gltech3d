@@ -30,8 +30,12 @@ ALTER TABLE public.machines ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_machines_all ON public.machines;
 CREATE POLICY tenant_isolation_machines_all ON public.machines
   FOR ALL USING (
-    organization_id IN (SELECT * FROM public.fn_user_org_ids()) OR public.fn_role_at_least('manager')
+    organization_id IN (SELECT * FROM public.fn_user_org_ids())
+  ) WITH CHECK (
+    organization_id IN (SELECT * FROM public.fn_user_org_ids())
   );
+REVOKE ALL ON public.machines FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.machines TO authenticated;
 
 -- 3. SPOOLS INVENTORY (MASSA EM GRAMAS)
 CREATE TABLE IF NOT EXISTS public.spools_inventory (
@@ -56,8 +60,12 @@ ALTER TABLE public.spools_inventory ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_spools_all ON public.spools_inventory;
 CREATE POLICY tenant_isolation_spools_all ON public.spools_inventory
   FOR ALL USING (
-    organization_id IN (SELECT * FROM public.fn_user_org_ids()) OR public.fn_role_at_least('manager')
+    organization_id IN (SELECT * FROM public.fn_user_org_ids())
+  ) WITH CHECK (
+    organization_id IN (SELECT * FROM public.fn_user_org_ids())
   );
+REVOKE ALL ON public.spools_inventory FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.spools_inventory TO authenticated;
 
 -- 4. ORDERS & ORDER ITEMS
 CREATE TABLE IF NOT EXISTS public.ai_orders (
@@ -75,8 +83,12 @@ ALTER TABLE public.ai_orders ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_ai_orders_all ON public.ai_orders;
 CREATE POLICY tenant_isolation_ai_orders_all ON public.ai_orders
   FOR ALL USING (
-    organization_id IN (SELECT * FROM public.fn_user_org_ids()) OR public.fn_role_at_least('manager')
+    organization_id IN (SELECT * FROM public.fn_user_org_ids())
+  ) WITH CHECK (
+    organization_id IN (SELECT * FROM public.fn_user_org_ids())
   );
+REVOKE ALL ON public.ai_orders FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_orders TO authenticated;
 
 CREATE TABLE IF NOT EXISTS public.ai_order_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -101,8 +113,12 @@ ALTER TABLE public.ai_order_items ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_ai_order_items_all ON public.ai_order_items;
 CREATE POLICY tenant_isolation_ai_order_items_all ON public.ai_order_items
   FOR ALL USING (
-    organization_id IN (SELECT * FROM public.fn_user_org_ids()) OR public.fn_role_at_least('manager')
+    organization_id IN (SELECT * FROM public.fn_user_org_ids())
+  ) WITH CHECK (
+    organization_id IN (SELECT * FROM public.fn_user_org_ids())
   );
+REVOKE ALL ON public.ai_order_items FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_order_items TO authenticated;
 
 -- 5. PRODUCTION JOBS
 CREATE TABLE IF NOT EXISTS public.ai_production_jobs (
@@ -127,5 +143,9 @@ ALTER TABLE public.ai_production_jobs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_ai_jobs_all ON public.ai_production_jobs;
 CREATE POLICY tenant_isolation_ai_jobs_all ON public.ai_production_jobs
   FOR ALL USING (
-    organization_id IN (SELECT * FROM public.fn_user_org_ids()) OR public.fn_role_at_least('manager')
+    organization_id IN (SELECT * FROM public.fn_user_org_ids())
+  ) WITH CHECK (
+    organization_id IN (SELECT * FROM public.fn_user_org_ids())
   );
+REVOKE ALL ON public.ai_production_jobs FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_production_jobs TO authenticated;
