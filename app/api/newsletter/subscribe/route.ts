@@ -107,7 +107,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   await audit({
-    action: "newsletter.subscribed",
+    action: "contact.created",
     organizationId: orgId,
     resourceType: "contact",
     resourceId: contactId ?? email,

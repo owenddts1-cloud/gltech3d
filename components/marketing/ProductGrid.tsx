@@ -305,7 +305,7 @@ export default function ProductGrid({
     return resolveBestsellers(products, bestsellers);
   }, [products, bestsellers]);
 
-  const [champion, ...runnersUp] = resolvedBestsellers;
+  const { champion, runnersUp } = resolvedBestsellers;
 
   // O pódio dos Mais Vendidos permanece sempre visível na vitrine conforme alinhamento com o usuário
   const showPodium = Boolean(champion);
@@ -321,7 +321,7 @@ export default function ProductGrid({
       className="py-24 px-6 bg-gradient-to-b from-[#F4F1EA] to-[#FAF9F6] rounded-t-[4rem] relative z-10 border-t border-brand-sand/60"
     >
       <div className="max-w-6xl mx-auto">
-        {showPodium && (
+        {showPodium && champion && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
