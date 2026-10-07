@@ -78,6 +78,7 @@ export {
   Wallet,
   Tag,
   Question,
+  Question as QuestionMark,
   Lightbulb,
   Keyboard,
   // super app 3D — novas abas

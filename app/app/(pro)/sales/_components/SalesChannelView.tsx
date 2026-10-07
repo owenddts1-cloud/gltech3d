@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plug, Zap, CheckCircle2, Copy, RefreshCw, KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import type { Sale, ProductOption, ContactOption, ChannelOption } from "@/app/actions/sales/actions";
+import type { ContactOption } from "@/app/actions/contacts/actions";
+import type { SaleChannelOption as ChannelOption } from "@/app/actions/sale-channels/actions";
+import type { SaleProductOption as ProductOption, SaleRow as Sale } from "@/lib/sales/config";
 
 interface SalesChannelViewProps {
   platform: 'Shopee' | 'Mercado Livre' | 'Facebook';

@@ -31,7 +31,7 @@ export function calculateMaterialConsumption(params: MaterialConsumptionParams) 
 }
 
 export interface MachineOperatingParams {
-  machine_id: string;
+  machine_id?: string;
   print_time_hours: number;
   average_power_watts: number;
   kwh_rate_brl: number;

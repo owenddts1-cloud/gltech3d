@@ -54,7 +54,7 @@ export function matchOptimalMachine(farm: MachineSpec[], criteria: MatchCriteria
     return 0;
   });
 
-  return eligible[0];
+  return eligible[0] ?? null;
 }
 
 export interface DispatchJobParams {

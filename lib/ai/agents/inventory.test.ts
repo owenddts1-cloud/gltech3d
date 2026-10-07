@@ -18,7 +18,7 @@ describe("InventorySentinelAgent Tool Calling Module", () => {
   it("reserves mass atomically when phase is reserve", () => {
     const result = reserveAndDeductSpoolMass(mockSpool, 150, "reserve");
     expect(result.ok).toBe(true);
-    expect(result.updated_spool.reserved_weight_g).toBe(150);
+    expect(result.updated_spool?.reserved_weight_g).toBe(150);
   });
 
   it("fails reservation if mass needed exceeds remaining weight", () => {
@@ -35,8 +35,8 @@ describe("InventorySentinelAgent Tool Calling Module", () => {
     };
     const result = reserveAndDeductSpoolMass(reservedSpool, 150, "commit_final");
     expect(result.ok).toBe(true);
-    expect(result.updated_spool.remaining_weight_g).toBe(850);
-    expect(result.updated_spool.reserved_weight_g).toBe(0);
+    expect(result.updated_spool?.remaining_weight_g).toBe(850);
+    expect(result.updated_spool?.reserved_weight_g).toBe(0);
   });
 
   it("evaluates runout risk when remaining weight drops below min_stock_alert_g (<50g critical)", () => {

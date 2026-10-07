@@ -60,7 +60,7 @@ describe("trusted device TTL and expiration policy", () => {
     const after = Date.now();
 
     expect(insertedRows.length).toBe(1);
-    const row = insertedRows[0];
+    const row = insertedRows[0]!;
     const expiryMs = new Date(row.expires_at).getTime();
 
     const expectedMin = before + 30 * 24 * 60 * 60 * 1000;
@@ -69,7 +69,7 @@ describe("trusted device TTL and expiration policy", () => {
     expect(expiryMs).toBeLessThanOrEqual(expectedMax);
 
     expect(setCookieCalls.length).toBe(1);
-    expect(setCookieCalls[0].options.maxAge).toBe(30 * 24 * 60 * 60);
+    expect(setCookieCalls[0]!.options.maxAge).toBe(30 * 24 * 60 * 60);
   });
 
   it("uses 365 days TTL when extendedTtl: true is specified for directorate", async () => {
@@ -80,7 +80,7 @@ describe("trusted device TTL and expiration policy", () => {
     const after = Date.now();
 
     expect(insertedRows.length).toBe(1);
-    const row = insertedRows[0];
+    const row = insertedRows[0]!;
     const expiryMs = new Date(row.expires_at).getTime();
 
     const expectedMin = before + 365 * 24 * 60 * 60 * 1000;
@@ -89,6 +89,6 @@ describe("trusted device TTL and expiration policy", () => {
     expect(expiryMs).toBeLessThanOrEqual(expectedMax);
 
     expect(setCookieCalls.length).toBe(1);
-    expect(setCookieCalls[0].options.maxAge).toBe(365 * 24 * 60 * 60);
+    expect(setCookieCalls[0]!.options.maxAge).toBe(365 * 24 * 60 * 60);
   });
 });
