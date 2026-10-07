@@ -10,6 +10,7 @@ const LINKS = [
   { id: 'home', label: 'Início' },
   { id: 'categorias', label: 'Categorias' },
   { id: 'produtos', label: 'Produtos' },
+  { id: 'filamentos', label: 'Filamentos' },
   { id: 'contato', label: 'Contato' },
 ];
 
@@ -119,24 +120,30 @@ export default function Navbar() {
       return window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     if (pathname !== '/') return void router.push(`/#${id}`);
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    const target = document.getElementById(id);
+    // The filament section is hidden when nothing is published: send to the catalog page.
+    if (!target && id === 'filamentos') return void router.push('/filamentos');
+    target?.scrollIntoView({ behavior: 'smooth' });
   };
 
   // "Início" acende quando estamos na home e nenhuma seção reivindicou a vista.
+  // On /filamentos and its pages the "Filamentos" chip is the active one.
+  const onFilamentPages = pathname?.startsWith('/filamentos') ?? false;
   const isAnchorActive = (id: string) =>
-    isHome && (id === 'home' ? activeSection === null : activeSection === id);
+    (id === 'filamentos' && onFilamentPages) ||
+    (isHome && (id === 'home' ? activeSection === null : activeSection === id));
   const isRouteActive = (href: string) => pathname === href;
 
   return (
     <nav
       className={`fixed z-50 transition-all duration-500 ease-in-out ${
         scrolled || isOpen
-          ? 'top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-6xl rounded-[2rem] border border-[#E8E2D9] bg-[#F9F7F2]/90 backdrop-blur-xl shadow-[0_12px_40px_-10px_rgba(43,38,34,0.15)] py-3 px-6'
+          ? 'top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-6xl border border-[#E8E2D9] bg-[#F9F7F2]/90 backdrop-blur-xl shadow-[0_12px_40px_-10px_rgba(43,38,34,0.15)] py-2 sm:py-2.5 pl-4 sm:pl-6 pr-3 sm:pr-5'
           : 'top-0 left-0 w-full bg-transparent py-5 px-6 md:px-12 border-b border-transparent'
-      }`}
+      } ${isOpen ? 'rounded-[2rem]' : 'rounded-full'}`}
     >
-      <div className="w-full flex items-center justify-between gap-4">
-        <button onClick={() => go('home')} className="group flex items-center gap-2.5 shrink-0" aria-label="Início">
+      <div className="w-full flex items-center justify-between gap-3 sm:gap-4">
+        <button onClick={() => go('home')} className="group flex items-center gap-2.5 shrink-0 pl-0.5 sm:pl-1" aria-label="Início">
           <span className="w-8 h-8 bg-[#8E6D4D] rounded-lg flex items-center justify-center text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-[#A6815C]/35">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
@@ -225,7 +232,7 @@ export default function Navbar() {
           })}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-auto pr-1 sm:pr-2">
           {/*
             Calc3D PRO vem antes de "Entrar" e sólido; "Entrar" foi rebaixado a
             ghost. Hierarquia aqui é contraste relativo — é o que dá primazia ao
@@ -233,23 +240,23 @@ export default function Navbar() {
           */}
           <Link
             href="/calc3d-pro"
-            className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-[#8E6D4D] to-[#A6815C] shadow-lg shadow-[#A6815C]/35 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#A6815C]/45"
+            className="hidden sm:inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#8E6D4D] to-[#A6815C] shadow-md shadow-[#A6815C]/25 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#A6815C]/35 shrink-0"
           >
-            <Calculator className="h-4 w-4" />
-            Calc3D
-            <span className="rounded bg-white/20 px-1.5 text-[10px] font-black tracking-[0.15em]">PRO</span>
+            <Calculator className="h-4 w-4 shrink-0" />
+            <span>Calc3D</span>
+            <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-black tracking-[0.15em] uppercase">PRO</span>
           </Link>
 
           <Link
             href="/login"
-            className="hidden md:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-[#2D241E] border border-[#E8E2D9] bg-transparent transition-colors duration-300 hover:bg-[#E8E2D9]/60"
+            className="hidden md:inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold text-[#2D241E] border border-[#E8E2D9] bg-white/70 shadow-sm transition-all duration-300 hover:bg-white hover:border-[#D5CDC0] hover:shadow hover:scale-[1.02] shrink-0"
           >
-            <LogIn className="h-4 w-4" />
-            Entrar
+            <LogIn className="h-4 w-4 shrink-0" />
+            <span>Entrar</span>
           </Link>
 
           <button
-            className="p-2 xl:hidden text-[#2D241E] hover:bg-[#E8E2D9]/60 rounded-xl transition-colors"
+            className="p-2 xl:hidden text-[#2D241E] hover:bg-[#E8E2D9]/60 rounded-full transition-colors shrink-0"
             onClick={() => setIsOpen(!isOpen)}
             aria-label="Abrir menu"
             aria-expanded={isOpen}
