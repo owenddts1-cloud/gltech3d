@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { deleteDeniedMessage } from "@/lib/auth/delete-policy";
@@ -122,7 +123,6 @@ export async function createSupplier(raw: unknown) {
   return { ok: true as const };
 }
 
-/** Edits a supplier. Same gates as create; zero matched rows means not found in this org. */
 export async function updateSupplier(id: string, raw: unknown) {
   const authUser = await loadAuthUser();
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
@@ -164,7 +164,6 @@ export async function deleteSupplier(id: string) {
     .eq("organization_id", activeOrg.orgId).eq("id", id)
     .select("id");
   if (error) return { ok: false as const, error: error.message };
-  // RLS (0084): DELETE requires manager+; a denied delete removes 0 rows silently.
   if (!data || data.length === 0) {
     return { ok: false as const, error: deleteDeniedMessage("suppliers") };
   }
@@ -187,9 +186,6 @@ export async function createPurchase(raw: unknown) {
 
   const supabase = await createClient();
 
-  // Se veio supplierId, confirme que pertence a ESTA org antes de vincular
-  // (evita ligar a compra a um fornecedor de outro tenant). RLS já esconde a
-  // linha; aqui reforçamos a integridade do vínculo.
   let linkedSupplierId: string | null = null;
   if (d.supplierId) {
     const { data: sup } = await supabase
@@ -202,17 +198,52 @@ export async function createPurchase(raw: unknown) {
     linkedSupplierId = d.supplierId;
   }
 
+  const unitPriceCents = Math.round((d.unitPrice ?? 0) * 100);
+  const totalExpenseCents = unitPriceCents * (d.qty || 1);
+
+  // 1. Create corresponding Financial Record expense
+  const finId = randomUUID();
+  const today = new Date().toISOString().split("T")[0]!;
+  const monthNames = ["JAN.", "FEV.", "MAR.", "ABR.", "MAI.", "JUN.", "JUL.", "AGO.", "SET.", "OUT.", "NOV.", "DEZ."];
+  const curMonth = monthNames[new Date().getMonth()]!;
+
+  const category = (d.itemName || "").toLowerCase().includes("ferramenta") || (d.itemName || "").toLowerCase().includes("bico") || (d.itemName || "").toLowerCase().includes("peça")
+    ? "Ferramentas"
+    : "Insumo";
+
+  await supabase.from("financial_records").insert({
+    id: finId,
+    organization_id: activeOrg.orgId,
+    date: today,
+    month: curMonth,
+    quantity: d.qty,
+    description: `[Compra Fornecedor] ${d.itemName} (${d.supplierName})`,
+    type: "Despesa",
+    category,
+    revenue_cents: 0,
+    expense_cents: totalExpenseCents,
+    platform_fee_cents: 0,
+    net_cents: totalExpenseCents,
+    status: "reconciled",
+    reconciled_at: new Date().toISOString(),
+    created_by: authUser.id,
+  });
+
+  // 2. Insert purchase record linked to financial record
   const { error } = await supabase.from("supplier_purchases").insert({
     organization_id: activeOrg.orgId,
     supplier_id: linkedSupplierId,
+    financial_record_id: finId,
     supplier_name: d.supplierName,
     item_name: d.itemName,
     qty: d.qty,
-    unit_price_cents: Math.round((d.unitPrice ?? 0) * 100),
+    unit_price_cents: unitPriceCents,
     created_by: authUser.id,
   });
+
   if (error) return { ok: false as const, error: error.message };
 
   revalidatePath("/app/suppliers");
+  revalidatePath("/app/control");
   return { ok: true as const };
 }
