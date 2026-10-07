@@ -101,8 +101,11 @@ export async function simulateTestSale(
   if (!authUser) return { ok: false, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false, error: denied };
 
   const supabase = await createClient();
+
 
   const today = new Date().toISOString().split("T")[0]!;
   const monthNames = ["JAN.", "FEV.", "MAR.", "ABR.", "MAI.", "JUN.", "JUL.", "AGO.", "SET.", "OUT.", "NOV.", "DEZ."];
