@@ -113,6 +113,22 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
         <Kpi label="Em manutenção" value={String(kpis.maintenance)} sub="fora de operação" icon={Warning} iconCls={kpis.maintenance > 0 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-muted text-muted-foreground"} />
       </div>
 
+      {/* Maintenance Ledger Alert */}
+      {kpis.maintenance > 0 && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-amber-500">
+            <Warning size={20} weight="bold" />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide">Livro de Manutenção Ativo ({kpis.maintenance})</p>
+              <p className="text-xs text-amber-500/80">
+                {assets.filter((a) => a.status === "manutencao").map((a) => a.name).join(", ")}
+              </p>
+            </div>
+          </div>
+          <Badge variant="warning" className="text-xs">Atenção requerida</Badge>
+        </div>
+      )}
+
       {/* Table */}
       <Card className="overflow-hidden rounded-xl border border-border bg-surface p-0">
         {assets.length === 0 ? (
@@ -134,6 +150,7 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
                   <th className="px-4 py-3 text-right">Qtd</th>
                   <th className="px-4 py-3 text-right">Valor compra</th>
                   <th className="px-4 py-3 text-right">Valor atual</th>
+                  <th className="px-4 py-3 text-center">Depreciação</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right"></th>
                 </tr>
@@ -141,6 +158,8 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
               <tbody>
                 {assets.map((a) => {
                   const s = STATUS_META[a.status];
+                  const depreciatedCents = Math.max(0, a.totalValueCents - a.currentValueCents);
+                  const depPct = a.totalValueCents > 0 ? Math.min(100, Math.round((depreciatedCents / a.totalValueCents) * 100)) : 0;
                   return (
                     <tr
                       key={a.id}
@@ -158,6 +177,17 @@ export function InventoryClient({ data, consumables }: { data: InventoryData; co
                       <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{a.quantity}</td>
                       <td className="px-4 py-3 text-right tabular-nums text-foreground">{brlFromCents(a.totalValueCents)}</td>
                       <td className="px-4 py-3 text-right tabular-nums font-semibold text-foreground">{brlFromCents(a.currentValueCents)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="w-24 mx-auto">
+                          <div className="flex justify-between text-[10px] text-muted-foreground mb-1 font-mono">
+                            <span>-{depPct}%</span>
+                            <span>{brlFromCents(depreciatedCents)}</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-accent transition-all duration-300" style={{ width: `${depPct}%` }} />
+                          </div>
+                        </div>
+                      </td>
                       <td className="px-4 py-3"><Badge variant={s.variant}>{s.label}</Badge></td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
