@@ -7,6 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Star, ArrowUpRight, Flame, Check, HelpCircle, Camera, Trophy } from 'lucide-react';
 import type { LandingProduct, LandingSettings } from '@/lib/landing/types';
+import { resolveBestsellers } from '@/lib/landing/bestsellers-config';
 import { motion } from 'motion/react';
 import { TiltCard } from '@/components/marketing/TiltCard';
 
@@ -228,12 +229,18 @@ function ProductCard({ product, index }: { product: LandingProduct; index: numbe
                 {product.category}
               </div>
 
-              {product.isTop && (
+              {/* Real data only: the podium rank set in the Landing Edit, else the "Destaque" flag. */}
+              {product.bestsellerRank ? (
+                <span className="absolute top-4 right-4 px-3 py-1.5 rounded-full bg-brand-espresso text-[#E0C4A0] text-[9px] font-extrabold flex items-center gap-1 shadow-md uppercase tracking-wider">
+                  <Trophy className="h-2.5 w-2.5" />
+                  Mais vendido
+                </span>
+              ) : product.isTop ? (
                 <span className="absolute top-4 right-4 px-3 py-1.5 rounded-full bg-brand-bronze text-white text-[9px] font-extrabold flex items-center gap-1 shadow-md uppercase tracking-wider">
                   <Star className="h-2.5 w-2.5 fill-current" />
                   Destaque
                 </span>
-              )}
+              ) : null}
             </div>
 
             <div className="px-2">
@@ -294,10 +301,19 @@ export default function ProductGrid({
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [products, selectedCategory, searchQuery]);
 
-  const [champion, ...runnersUp] = bestsellers;
+  const resolvedBestsellers = useMemo(() => {
+    return resolveBestsellers(products, bestsellers);
+  }, [products, bestsellers]);
 
-  // O pódio some quando há filtro ativo — ali o usuário quer o resultado, não a vitrine.
-  const showPodium = selectedCategory === '' && searchQuery.trim() === '' && champion;
+  const [champion, ...runnersUp] = resolvedBestsellers;
+
+  // O pódio dos Mais Vendidos permanece sempre visível na vitrine conforme alinhamento com o usuário
+  const showPodium = Boolean(champion);
+
+  // Na Home, a galeria exibe até 8 produtos; a partir da metade da 2ª fileira ocorre o fade-out com o CTA para /produtos
+  const displayProducts = useMemo(() => {
+    return filteredProducts.slice(0, 8);
+  }, [filteredProducts]);
 
   return (
     <section
@@ -347,10 +363,24 @@ export default function ProductGrid({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {filteredProducts.map((product, index) => (
-            <ProductCard key={product.id} product={product} index={index} />
-          ))}
+        <div className="relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {displayProducts.map((product, index) => (
+              <ProductCard key={product.id} product={product} index={index} />
+            ))}
+          </div>
+
+          {displayProducts.length > 4 && (
+            <div className="absolute inset-x-0 bottom-0 h-72 sm:h-80 bg-gradient-to-t from-[#FAF9F6] via-[#FAF9F6]/90 to-transparent pointer-events-none flex items-end justify-center pb-6 sm:pb-8">
+              <Link
+                href="/produtos"
+                className="pointer-events-auto inline-flex items-center gap-3 px-8 py-4 rounded-full bg-brand-espresso text-white font-sora font-extrabold text-sm shadow-xl shadow-brand-espresso/20 hover:bg-brand-taupe hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 border border-white/10 group"
+              >
+                <span>Ver mais produtos</span>
+                <ArrowUpRight className="w-4 h-4 text-brand-bronze transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </Link>
+            </div>
+          )}
         </div>
 
         {filteredProducts.length === 0 && (
