@@ -39,31 +39,29 @@ DROP POLICY IF EXISTS sales_channel_integrations_insert ON public.sales_channel_
 DROP POLICY IF EXISTS sales_channel_integrations_update ON public.sales_channel_integrations;
 DROP POLICY IF EXISTS sales_channel_integrations_delete ON public.sales_channel_integrations;
 
--- Tenant Isolation Policies
+-- Tenant Isolation Policies using project standard helper functions
 CREATE POLICY sales_channel_integrations_select ON public.sales_channel_integrations
   FOR SELECT USING (
-    organization_id IN (
-      SELECT organization_id FROM public.organization_memberships WHERE user_id = auth.uid()
-    )
+    organization_id IN (SELECT public.fn_user_org_ids())
   );
 
 CREATE POLICY sales_channel_integrations_insert ON public.sales_channel_integrations
   FOR INSERT WITH CHECK (
-    organization_id IN (
-      SELECT organization_id FROM public.organization_memberships WHERE user_id = auth.uid()
-    )
+    public.fn_role_at_least(organization_id, 'agent') OR public.fn_is_platform_admin()
   );
 
 CREATE POLICY sales_channel_integrations_update ON public.sales_channel_integrations
   FOR UPDATE USING (
-    organization_id IN (
-      SELECT organization_id FROM public.organization_memberships WHERE user_id = auth.uid()
-    )
+    public.fn_role_at_least(organization_id, 'agent') OR public.fn_is_platform_admin()
+  ) WITH CHECK (
+    public.fn_role_at_least(organization_id, 'agent') OR public.fn_is_platform_admin()
   );
 
 CREATE POLICY sales_channel_integrations_delete ON public.sales_channel_integrations
   FOR DELETE USING (
-    organization_id IN (
-      SELECT organization_id FROM public.organization_memberships WHERE user_id = auth.uid()
-    )
+    public.fn_role_at_least(organization_id, 'manager') OR public.fn_is_platform_admin()
   );
+
+REVOKE ALL ON public.sales_channel_integrations FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sales_channel_integrations TO authenticated;
+GRANT ALL ON public.sales_channel_integrations TO service_role;

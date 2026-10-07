@@ -31,8 +31,9 @@ describe("Migration 0087: financial_records and sales_channel_integrations schem
     expect(content).toContain("platform IN ('Shopee', 'Mercado Livre', 'Facebook')");
     expect(content).toContain("ENABLE ROW LEVEL SECURITY");
     expect(content).toContain("sales_channel_integrations_select");
-    expect(content).toContain("sales_channel_integrations_insert");
-    expect(content).toContain("sales_channel_integrations_update");
-    expect(content).toContain("sales_channel_integrations_delete");
+    expect(content).toContain("fn_user_org_ids");
+    expect(content).toContain("fn_role_at_least");
+    expect(content).toContain("fn_is_platform_admin");
   });
+
 });
