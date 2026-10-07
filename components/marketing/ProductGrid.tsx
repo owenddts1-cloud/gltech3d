@@ -27,7 +27,7 @@ function formatPrice(product: LandingProduct): string {
  * Imagem do produto, ou o placeholder da oficina quando a peça foi cadastrada
  * antes da sessão de fotos. Evita renderizar <Image> num arquivo que não existe.
  */
-function ProductMedia({
+export function ProductMedia({
   product,
   className = '',
   sizes,
@@ -193,7 +193,7 @@ function BestsellerRunnerUp({ product, rank }: { product: LandingProduct; rank: 
   );
 }
 
-function ProductCard({ product, index }: { product: LandingProduct; index: number }) {
+export function ProductCard({ product, index }: { product: LandingProduct; index: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}

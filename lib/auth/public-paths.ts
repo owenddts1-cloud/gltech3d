@@ -5,7 +5,11 @@
 export const PUBLIC_PATHS: RegExp[] = [
   /^\/$/,
   /^\/product\/.+$/,
+  /^\/produtos(\/.*)?$/,
   /^\/catalogo(\/.*)?$/,
+  // Catálogo público de filamentos (0087) e a página de cada filamento. O
+  // carrinho posta em /api/v1/public/filament-orders (já coberto abaixo).
+  /^\/filamentos(\/.*)?$/,
   /^\/orcamento(\/.*)?$/,
   /^\/tecnologias(\/.*)?$/,
   /^\/calc3d-pro(\/.*)?$/,
@@ -14,7 +18,7 @@ export const PUBLIC_PATHS: RegExp[] = [
   // o token assinado no caminho; exigir sessao aqui tornaria a recuperacao de
   // conta impossivel.
   /^\/esqueci-senha$/,
-  /^\/redefinir-senha\/.+$/,
+  /^\/redefinir-senha(\/.*)?$/,
   // Ativação do comprador do Calc3D PRO: ele ainda NÃO tem conta quando abre
   // este link — exigir sessão aqui tornaria a ativação impossível. O token
   // assinado no caminho é a credencial. Mesmo desenho de /team/accept-invite.
