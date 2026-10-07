@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const TRUSTED_DEVICE_COOKIE_NAME = "dc_trusted_device";
 export const TRUSTED_DEVICE_MAX_AGE_DAYS = 30;
+export const TRUSTED_DEVICE_EXTENDED_MAX_AGE_DAYS = 365;
 
 export function hashDeviceToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -61,15 +62,23 @@ export async function isTrustedDevice(
   return true;
 }
 
+export interface RegisterTrustedDeviceOptions {
+  extendedTtl?: boolean;
+}
+
 export async function registerTrustedDevice(
   userId: string,
   userAgent: string | null,
   ip: string | null,
+  opts?: RegisterTrustedDeviceOptions,
 ): Promise<string> {
   const rawToken = randomBytes(32).toString("hex");
   const tokenHash = hashDeviceToken(rawToken);
   const deviceName = parseDeviceName(userAgent);
-  const expiresAt = new Date(Date.now() + TRUSTED_DEVICE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const ttlDays = opts?.extendedTtl
+    ? TRUSTED_DEVICE_EXTENDED_MAX_AGE_DAYS
+    : TRUSTED_DEVICE_MAX_AGE_DAYS;
+  const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString();
 
   const admin = createAdminClient();
   await admin.from("user_trusted_devices").insert({
@@ -89,7 +98,7 @@ export async function registerTrustedDevice(
     httpOnly: true,
     sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
-    maxAge: TRUSTED_DEVICE_MAX_AGE_DAYS * 24 * 60 * 60,
+    maxAge: ttlDays * 24 * 60 * 60,
     path: "/",
   });
 

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { audit } from "@/lib/audit";
 import { registerTrustedDevice } from "@/lib/auth/trusted-device";
+import { isDirectorateEmail } from "@/lib/auth/landing-admin";
 
 export type VerifyMfaResult =
   | { ok: false; error: "mfa_invalid" }
@@ -101,7 +102,12 @@ export async function verifyMfa(
 
   // Se a caixa "Confiar neste dispositivo" foi marcada, grava o dispositivo
   if (rememberDevice) {
-    await registerTrustedDevice(user.id, userAgent, ip);
+    const isDirector =
+      isDirectorateEmail(user.email) ||
+      Boolean((user.app_metadata as Record<string, unknown> | undefined)?.is_platform_admin);
+    await registerTrustedDevice(user.id, userAgent, ip, {
+      extendedTtl: isDirector,
+    });
   }
 
   // Reset attempt counter and audit success.
