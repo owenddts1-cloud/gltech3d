@@ -1,24 +1,34 @@
 import { fetchSales } from "@/app/actions/sales/actions";
-import { getShopeeIntegrationStatus } from "@/app/actions/sales/shopee-status";
-import SalesClient from "../_components/SalesClient";
-import { ShopeeStatusCard } from "../_components/ShopeeStatusCard";
+import { fetchChannelIntegration } from "@/app/actions/sales/channels";
+import { SalesChannelView } from "../_components/SalesChannelView";
 
 export const metadata = { title: "Shopee" };
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const [r, status] = await Promise.all([fetchSales("Shopee"), getShopeeIntegrationStatus()]);
+  const [salesRes, channelRes] = await Promise.all([
+    fetchSales("Shopee"),
+    fetchChannelIntegration("Shopee"),
+  ]);
+
+  const defaultIntegration = {
+    id: "",
+    platform: "Shopee" as const,
+    is_enabled: false,
+    credentials: {},
+    webhook_secret: "whsec_default",
+  };
+
   return (
-    <SalesClient
+    <SalesChannelView
       platform="Shopee"
       title="Shopee"
-      subtitle="Pedidos e faturamento da sua loja na Shopee."
-      initialSales={r.ok ? r.sales : []}
-      byPlatform={[]}
-      productOptions={r.ok ? r.productOptions : []}
-      contactOptions={r.ok ? r.contactOptions : []}
-      channelOptions={r.ok ? r.channelOptions : []}
-      banner={<ShopeeStatusCard configured={status.ok && status.configured} />}
+      subtitle="Pedidos, sincronização e faturamento da sua loja na Shopee."
+      initialSales={salesRes.ok ? salesRes.sales : []}
+      productOptions={salesRes.ok ? salesRes.productOptions : []}
+      contactOptions={salesRes.ok ? salesRes.contactOptions : []}
+      channelOptions={salesRes.ok ? salesRes.channelOptions : []}
+      integration={channelRes.ok && channelRes.integration ? channelRes.integration : defaultIntegration}
     />
   );
 }
