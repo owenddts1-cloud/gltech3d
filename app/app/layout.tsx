@@ -14,8 +14,15 @@ import {
   type ImpersonatingInfo,
 } from "@/components/app/ImpersonateBanner";
 
+import { CRM_NAV } from "@/components/shell/nav-crm";
+import { filterCrmNav } from "@/lib/auth/nav-filter";
+import { isDirectorateEmail } from "@/lib/auth/landing-admin";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, activeOrg, plan, mustEnrollMfa } = await loadAppShellContext();
+
+  const isAdmin = Boolean(user.is_platform_admin || isDirectorateEmail(user.email));
+  const nav = filterCrmNav(CRM_NAV, { isAdmin });
 
   // Read sidebar collapsed state SSR to avoid flash.
   const store = await cookies();
@@ -49,7 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <AuthProvider user={user} activeOrg={activeOrg} plan={plan}>
       <ImpersonateBanner impersonating={impersonating} />
       <TrialBanner />
-      {mustEnrollMfa ? <MfaEnrollGate /> : <AppShell sidebarCollapsed={collapsed}>{children}</AppShell>}
+      {mustEnrollMfa ? <MfaEnrollGate /> : <AppShell sidebarCollapsed={collapsed} nav={nav}>{children}</AppShell>}
     </AuthProvider>
   );
 }
