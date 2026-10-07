@@ -10,6 +10,7 @@ describe("Catalog Editor Integration & Filter Pipeline (Agent 2)", () => {
       slug: "engrenagem-helicoidal",
       category: "Mecânica",
       price_cents: 8500,
+      sale_price_cents: 8500,
       photo_url: null,
       filament_grams: 45,
       print_time_hours: 2,
@@ -23,6 +24,7 @@ describe("Catalog Editor Integration & Filter Pipeline (Agent 2)", () => {
       slug: "vaso-geometrico",
       category: "Decoração",
       price_cents: 12000,
+      sale_price_cents: 12000,
       photo_url: null,
       filament_grams: 180,
       print_time_hours: 6,
@@ -35,17 +37,17 @@ describe("Catalog Editor Integration & Filter Pipeline (Agent 2)", () => {
   it("filters products by text search matching name or material", () => {
     const res = filterCatalogProducts(sampleProducts, { search: "Helicoidal", category: "all" });
     expect(res.length).toBe(1);
-    expect(res[0].id).toBe("prod-1");
+    expect(res[0]!.id).toBe("prod-1");
 
     const resMat = filterCatalogProducts(sampleProducts, { search: "silk", category: "all" });
     expect(resMat.length).toBe(1);
-    expect(resMat[0].id).toBe("prod-2");
+    expect(resMat[0]!.id).toBe("prod-2");
   });
 
   it("filters products by category accurately", () => {
     const res = filterCatalogProducts(sampleProducts, { search: "", category: "Decoração" });
     expect(res.length).toBe(1);
-    expect(res[0].name).toContain("Vaso");
+    expect(res[0]!.name).toContain("Vaso");
   });
 
   it("returns all products when search is empty and category is all", () => {

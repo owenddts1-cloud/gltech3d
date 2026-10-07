@@ -45,7 +45,10 @@ export function EditorialCard({
   showTolerances = true,
 }: EditorialCardProps) {
   const isDetail = layoutMode === "editorial_detail";
-  const formattedPrice = formatCatalogPrice(product.price_cents ?? 0, priceMode, wholesaleDiscountPct);
+  const rawPriceCents = product.price_cents ?? product.sale_price_cents ?? 0;
+  const formattedPrice = formatCatalogPrice(rawPriceCents, priceMode, wholesaleDiscountPct);
+  const photoUrl = product.photo_url || product.image_url;
+  const isTopItem = Boolean(product.is_top || product.is_bestseller);
 
   return (
     <div
@@ -65,9 +68,9 @@ export function EditorialCard({
           isDetail ? "h-64 sm:h-80 w-full" : "h-40 sm:h-48 w-full"
         }`}
       >
-        {product.photo_url ? (
+        {photoUrl ? (
           <Image
-            src={product.photo_url}
+            src={photoUrl}
             alt={product.name}
             fill
             className="object-contain p-3 transition-transform duration-300 hover:scale-105"
@@ -86,7 +89,7 @@ export function EditorialCard({
         )}
 
         {/* Badge de Destaque Hero */}
-        {product.is_top && (
+        {isTopItem && (
           <span
             style={{ backgroundColor: theme.accent, color: "#fff" }}
             className="absolute top-2 left-2 rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"

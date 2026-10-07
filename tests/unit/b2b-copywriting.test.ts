@@ -22,10 +22,10 @@ describe("B2B copywriting & conversion engineering (Agent 3)", () => {
 
   it("defines the 4 technical industrial categories", () => {
     expect(INDUSTRIAL_CATEGORIES.length).toBe(4);
-    expect(INDUSTRIAL_CATEGORIES[0].title).toContain("Prototipagem Rápida");
-    expect(INDUSTRIAL_CATEGORIES[1].title).toContain("Gabaritos");
-    expect(INDUSTRIAL_CATEGORIES[2].title).toContain("Polímeros de Engenharia");
-    expect(INDUSTRIAL_CATEGORIES[3].title).toContain("Séries Seriadas");
+    expect(INDUSTRIAL_CATEGORIES[0]!.title).toContain("Prototipagem Rápida");
+    expect(INDUSTRIAL_CATEGORIES[1]!.title).toContain("Gabaritos");
+    expect(INDUSTRIAL_CATEGORIES[2]!.title).toContain("Polímeros de Engenharia");
+    expect(INDUSTRIAL_CATEGORIES[3]!.title).toContain("Séries Seriadas");
   });
 
   it("exports technical materials properties matrix for engineering comparison", () => {

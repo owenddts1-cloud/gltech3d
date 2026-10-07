@@ -1,4 +1,5 @@
 import { siteUrl } from "@/lib/marketing/site-url";
+import { STORE_WHATSAPP_FALLBACK, storeWhatsappUrl } from "@/lib/landing/whatsapp-number";
 
 export interface CatalogProductItem {
   id: string;
@@ -7,11 +8,17 @@ export interface CatalogProductItem {
   sale_price_cents: number;
   cost_total_cents?: number;
   material?: string | null;
-  dimensions?: string | null;
+  dimensions?: string | { x?: number; y?: number; z?: number } | null;
   hero_copy?: string | null;
   stock_qty?: number;
   is_bestseller?: boolean;
   image_url?: string | null;
+  category?: string | null;
+  filament_grams?: number | null;
+  print_time_hours?: number | null;
+  photo_url?: string | null;
+  price_cents?: number | null;
+  is_top?: boolean;
 }
 
 export interface WhatsAppCatalogOptions {
@@ -90,7 +97,7 @@ export function formatCatalogForWhatsApp(
   if (options.whatsappNumber) {
     text += `💬 *Fale conosco pelo WhatsApp:* https://wa.me/${options.whatsappNumber.replace(/\D/g, "")}\n`;
   } else {
-    text += `💬 *Fale conosco pelo WhatsApp:* https://wa.me/5531999284834\n`;
+    text += `💬 *Fale conosco pelo WhatsApp:* ${storeWhatsappUrl(STORE_WHATSAPP_FALLBACK)}\n`;
   }
 
   return text;

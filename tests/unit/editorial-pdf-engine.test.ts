@@ -50,6 +50,7 @@ describe("Editorial PDF Engine (Agent 4)", () => {
       slug: `peca-${i + 1}`,
       category: "Usinagem Aditiva",
       price_cents: 15000,
+      sale_price_cents: 15000,
       photo_url: null,
       filament_grams: 120,
       print_time_hours: 3.5,
@@ -61,19 +62,19 @@ describe("Editorial PDF Engine (Agent 4)", () => {
     // Grid 2x2 = 4 per page -> [4, 4, 1]
     const pages2x2 = partitionProductsForLayout(mockProducts, "grid_2x2");
     expect(pages2x2.length).toBe(3);
-    expect(pages2x2[0].length).toBe(4);
-    expect(pages2x2[1].length).toBe(4);
-    expect(pages2x2[2].length).toBe(1);
+    expect(pages2x2[0]!.length).toBe(4);
+    expect(pages2x2[1]!.length).toBe(4);
+    expect(pages2x2[2]!.length).toBe(1);
 
     // Editorial Detail = 1 per page -> 9 pages
     const pagesDetail = partitionProductsForLayout(mockProducts, "editorial_detail");
     expect(pagesDetail.length).toBe(9);
-    expect(pagesDetail[0].length).toBe(1);
+    expect(pagesDetail[0]!.length).toBe(1);
 
     // Technical List = 6 per page -> [6, 3]
     const pagesTech = partitionProductsForLayout(mockProducts, "technical_list");
     expect(pagesTech.length).toBe(2);
-    expect(pagesTech[0].length).toBe(6);
-    expect(pagesTech[1].length).toBe(3);
+    expect(pagesTech[0]!.length).toBe(6);
+    expect(pagesTech[1]!.length).toBe(3);
   });
 });

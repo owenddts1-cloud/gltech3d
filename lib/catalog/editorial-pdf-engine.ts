@@ -113,12 +113,13 @@ export async function generateEditorialCatalogPdf(
   const mutedRgb = hexToRgb(theme.muted);
 
   // Pré-carrega fotos
+  const imageUrls = products.map((p) => p.photo_url || p.image_url).filter(Boolean);
   const images: Map<string, PdfImageResult> =
     options.includeImages === false
       ? new Map()
       : await loadPdfImages(
-          products.map((p) => p.photo_url),
-          options.onImageProgress,
+          imageUrls,
+          options.onImageProgress ? { onProgress: options.onImageProgress } : undefined,
         );
 
   const { jsPDF } = await import("jspdf");
@@ -301,7 +302,8 @@ export async function generateEditorialCatalogPdf(
       doc.setFillColor(...surfaceRgb);
       doc.roundedRect(imgBox.x, imgBox.y, imgBox.w, imgBox.h, 2, 2, "F");
 
-      const imgRes = p.photo_url ? images.get(p.photo_url) : undefined;
+      const photoUrl = p.photo_url || p.image_url;
+      const imgRes = photoUrl ? images.get(photoUrl) : undefined;
       if (imgRes?.ok) {
         doc.addImage(imgRes.image.dataUrl, "JPEG", imgBox.x + 10, imgBox.y + 10, imgBox.w - 20, imgBox.h - 20, undefined, "FAST");
       }
@@ -332,7 +334,8 @@ export async function generateEditorialCatalogPdf(
         doc.text("VALOR SOB CONSULTA B2B", MARGIN, 205);
       } else {
         doc.setTextColor(...fgRgb);
-        const precoReais = ((p.price_cents ?? 0) / 100).toFixed(2).replace(".", ",");
+        const priceCents = p.price_cents ?? p.sale_price_cents ?? 0;
+        const precoReais = (priceCents / 100).toFixed(2).replace(".", ",");
         doc.text(`R$ ${precoReais}`, MARGIN, 205);
       }
     } else {
@@ -357,7 +360,8 @@ export async function generateEditorialCatalogPdf(
         doc.setFillColor(...bgRgb);
         doc.roundedRect(cardX + 2, cardY + 2, cardW - 4, photoH, 1, 1, "F");
 
-        const imgRes = p.photo_url ? images.get(p.photo_url) : undefined;
+        const photoUrl = p.photo_url || p.image_url;
+        const imgRes = photoUrl ? images.get(photoUrl) : undefined;
         if (imgRes?.ok) {
           doc.addImage(imgRes.image.dataUrl, "JPEG", cardX + 4, cardY + 4, cardW - 8, photoH - 4, undefined, "FAST");
         } else {
@@ -371,7 +375,7 @@ export async function generateEditorialCatalogPdf(
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9.5);
         doc.setTextColor(...fgRgb);
-        doc.text(doc.splitTextToSize(p.name, cardW - 8)[0], cardX + 4, cardY + photoH + 9);
+        doc.text(doc.splitTextToSize(p.name, cardW - 8)[0] || "", cardX + 4, cardY + photoH + 9);
 
         // Metadados técnicos
         doc.setFont("courier", "normal");
@@ -388,7 +392,8 @@ export async function generateEditorialCatalogPdf(
           doc.text("Sob Consulta", cardX + 4, cardY + cardH - 6);
         } else {
           doc.setTextColor(...fgRgb);
-          const precoReais = ((p.price_cents ?? 0) / 100).toFixed(2).replace(".", ",");
+          const priceCents = p.price_cents ?? p.sale_price_cents ?? 0;
+          const precoReais = (priceCents / 100).toFixed(2).replace(".", ",");
           doc.text(`R$ ${precoReais}`, cardX + 4, cardY + cardH - 6);
         }
       });

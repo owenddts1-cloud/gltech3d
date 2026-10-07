@@ -126,8 +126,16 @@ export const TECHNICAL_BADGES = {
   ],
 };
 
-export function formatDimensionBadge(d?: { x?: number; y?: number; z?: number } | null): string {
-  if (!d || (!d.x && !d.y && !d.z)) {
+export function formatDimensionBadge(
+  d?: { x?: number; y?: number; z?: number } | string | null,
+): string {
+  if (!d) {
+    return "Sob Medida";
+  }
+  if (typeof d === "string") {
+    return d.trim() || "Sob Medida";
+  }
+  if (!d.x && !d.y && !d.z) {
     return "Sob Medida";
   }
   const x = d.x ?? "—";
