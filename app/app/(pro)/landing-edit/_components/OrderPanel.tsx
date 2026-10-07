@@ -115,51 +115,64 @@ export default function OrderPanel({ products, onReordered }: OrderPanelProps) {
                 return (
                   <Draggable key={p.id} draggableId={p.id} index={index}>
                     {(dragProvided, snapshot) => (
-                      <div
-                        ref={dragProvided.innerRef}
-                        {...dragProvided.draggableProps}
-                        className={`flex items-center gap-3 rounded-lg border p-2.5 transition-shadow ${
-                          snapshot.isDragging
-                            ? 'border-accent bg-accent/10 shadow-lg'
-                            : 'border-border bg-card hover:border-accent/40'
-                        }`}
-                      >
+                      <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} className="space-y-2">
+                        {index === 8 && (
+                          <div className="my-3 flex items-center gap-2 px-1">
+                            <div className="h-px flex-1 border-t border-dashed border-border" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">
+                              Fim da Vitrine da Home (Top 8) · Catálogo Completo abaixo
+                            </span>
+                            <div className="h-px flex-1 border-t border-dashed border-border" />
+                          </div>
+                        )}
                         <div
-                          {...dragProvided.dragHandleProps}
-                          className="flex h-8 w-6 cursor-grab items-center justify-center text-muted-foreground hover:text-foreground active:cursor-grabbing"
-                          title="Arrastar para reordenar"
+                          className={`flex items-center gap-3 rounded-lg border p-2.5 transition-shadow ${
+                            snapshot.isDragging
+                              ? 'border-accent bg-accent/10 shadow-lg'
+                              : 'border-border bg-card hover:border-accent/40'
+                          }`}
                         >
-                          <GripVertical className="h-4 w-4" />
-                        </div>
+                          <div
+                            {...dragProvided.dragHandleProps}
+                            className="flex h-8 w-6 cursor-grab items-center justify-center text-muted-foreground hover:text-foreground active:cursor-grabbing"
+                            title="Arrastar para reordenar"
+                          >
+                            <GripVertical className="h-4 w-4" />
+                          </div>
 
-                        <span className="w-5 text-center text-xs font-semibold text-muted-foreground">
-                          #{index + 1}
-                        </span>
+                          <span className="w-5 text-center text-xs font-semibold text-muted-foreground">
+                            #{index + 1}
+                          </span>
 
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
-                          {img ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={img} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground">Sem foto</span>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-xs font-medium">{p.name}</span>
-                            {!p.isPublished && (
-                              <Badge variant="outline" className="gap-0.5 px-1 py-0 text-[9px] text-muted-foreground">
-                                <EyeOff className="h-2.5 w-2.5" />
-                                Rascunho
-                              </Badge>
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                            {img ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={img} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">Sem foto</span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                            <span>{p.category || 'Sem nicho'}</span>
-                            {price && <span>• {price}</span>}
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="truncate text-xs font-medium">{p.name}</span>
+                              {index < 8 && (
+                                <Badge variant="secondary" className="gap-0.5 px-1 py-0 text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/20 font-mono">
+                                  Vitrine #{index + 1}
+                                </Badge>
+                              )}
+                              {!p.isPublished && (
+                                <Badge variant="outline" className="gap-0.5 px-1 py-0 text-[9px] text-muted-foreground">
+                                  <EyeOff className="h-2.5 w-2.5" />
+                                  Rascunho
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                              <span>{p.category || 'Sem nicho'}</span>
+                              {price && <span>• {price}</span>}
+                            </div>
                           </div>
-                        </div>
 
                         <div className="flex shrink-0 items-center gap-1">
                           <Button

@@ -92,9 +92,11 @@ async function requireCtx(): Promise<{ ok: true; ctx: Ctx } | { ok: false; error
   };
 }
 
-/** Invalida a landing pública e a própria tela de edição. */
+/** Invalida a landing pública, o catálogo dedicado de produtos e a tela de edição. */
 function refresh(): void {
   revalidateLanding();
+  revalidatePath("/");
+  revalidatePath("/produtos");
   revalidatePath("/app/landing-edit");
 }
 
@@ -104,7 +106,13 @@ export async function fetchLandingEditData() {
   const { supabase, orgId } = c.ctx;
 
   const [prodRes, filRes, prnRes, orgRes, setRes, comRes] = await Promise.all([
-    supabase.from("products").select("*").order("sort_order", { ascending: true, nullsFirst: false }),
+    // Pieces only (kind 'peca', 0087) + explicit org filter on top of RLS.
+    supabase
+      .from("products")
+      .select("*")
+      .eq("organization_id", orgId)
+      .eq("kind", "peca")
+      .order("sort_order", { ascending: true, nullsFirst: false }),
     supabase.from("filaments").select("client_id, name, cost_per_gram"),
     supabase.from("printers").select("client_id, name, power_draw, depreciation_per_hour"),
     supabase.from("organizations").select("settings").eq("id", orgId).single(),
@@ -269,6 +277,7 @@ export async function updateLandingProduct(id: string, raw: unknown) {
     .from("products")
     .update(patch)
     .eq("organization_id", c.ctx.orgId)
+    .eq("kind", "peca")
     .eq("id", id);
 
   if (error) {
@@ -299,6 +308,7 @@ export async function setBestsellerRank(raw: unknown) {
       .from("products")
       .update({ bestseller_rank: null })
       .eq("organization_id", orgId)
+      .eq("kind", "peca")
       .eq("bestseller_rank", rank)
       .neq("id", productId);
     if (clearError) return { ok: false as const, error: clearError.message };
@@ -308,6 +318,7 @@ export async function setBestsellerRank(raw: unknown) {
     .from("products")
     .update({ bestseller_rank: rank })
     .eq("organization_id", orgId)
+    .eq("kind", "peca")
     .eq("id", productId);
   if (error) return { ok: false as const, error: error.message };
 
@@ -401,6 +412,7 @@ export async function deleteLandingProduct(id: string) {
     .from("products")
     .delete()
     .eq("organization_id", c.ctx.orgId)
+    .eq("kind", "peca")
     .eq("id", id)
     .select("id");
   if (error) return { ok: false as const, error: error.message };
@@ -432,6 +444,7 @@ export async function renameCategory(raw: unknown) {
     .from("products")
     .update({ category: to, updated_at: new Date().toISOString() })
     .eq("organization_id", c.ctx.orgId)
+    .eq("kind", "peca")
     .eq("category", from)
     .select("id");
   if (error) return { ok: false as const, error: error.message };
@@ -455,6 +468,7 @@ export async function reassignCategory(raw: unknown) {
     .from("products")
     .update({ category: parsed.data.to || null, updated_at: new Date().toISOString() })
     .eq("organization_id", c.ctx.orgId)
+    .eq("kind", "peca")
     .eq("category", parsed.data.from)
     .select("id");
   if (error) return { ok: false as const, error: error.message };
@@ -486,6 +500,7 @@ export async function reorderLandingProducts(raw: unknown) {
       .from("products")
       .update({ sort_order: write.sortOrder, updated_at: now })
       .eq("organization_id", orgId)
+      .eq("kind", "peca")
       .eq("id", write.id);
     if (error) return { ok: false as const, error: error.message };
   }
