@@ -8,6 +8,8 @@ import { loginSchema, type LoginInput } from "@/lib/auth/schemas";
 import { audit, hashEmail } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { isTrustedDevice } from "@/lib/auth/trusted-device";
+import { isDirectorateEmail } from "@/lib/auth/landing-admin";
+import { sendEmail } from "@/lib/email/send";
 
 export type SignInResult = {
   ok: false;
@@ -81,15 +83,43 @@ export async function signInWithPassword(
     return { ok: false, error: "invalid_credentials" };
   }
 
-  // MFA gating — se o usuário tem TOTP verificado, exigimos o desafio a menos que
-  // este dispositivo já tenha sido aprovado e marcado como confiável.
+  // MFA gating & Anti-lockout:
+  // Se o usuário tem TOTP verificado, exigimos o desafio a menos que este
+  // dispositivo já tenha sido aprovado e marcado como confiável.
   const { data: factorsData } = await supabase.auth.mfa.listFactors();
   const verifiedTotp = factorsData?.totp?.find((f) => f.status === "verified");
+
+  const isDirector =
+    isDirectorateEmail(data.user.email) ||
+    Boolean((data.user.app_metadata as Record<string, unknown> | undefined)?.is_platform_admin);
+
   if (verifiedTotp) {
     const trusted = await isTrustedDevice(data.user.id);
     if (!trusted) {
       return { ok: false, error: "mfa_required", challengeId: verifiedTotp.id };
     }
+  } else if (isDirector) {
+    // ANTI-LOCKOUT & SEGURANÇA DIRETORIA:
+    // A conta da diretoria (ex: diretoria.gltech@gmail.com) ainda não possui TOTP configurado.
+    // Para evitar lockout acidental durante a transição, permitimos o login normalmente
+    // e enviamos um alerta de segurança via Brevo/SMTP notificando o acesso e orientando
+    // o cadastro de MFA / Passkeys.
+    void sendEmail({
+      to: data.user.email ?? "diretoria.gltech@gmail.com",
+      subject: "Aviso de Segurança: Login na Diretoria GLTech3D",
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+          <h2>Acesso administrativo identificado</h2>
+          <p>Olá,</p>
+          <p>Identificamos um novo acesso à sua conta da Diretoria (<strong>${data.user.email}</strong>).</p>
+          <p>Como medida de segurança recomendada para administradores, sugerimos ativar a autenticação em duas etapas (TOTP) ou Passkeys na sua <a href="https://gltech3d.vercel.app/app/settings/security">Central de Segurança</a>.</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+          <p style="font-size: 12px; color: #64748b;">IP: ${ip ?? "Desconhecido"} | Agente: ${userAgent ?? "Navegador"}</p>
+        </div>
+      `,
+    }).catch(() => {
+      // Best-effort: não interrompe o fluxo de login em caso de falha de rede SMTP
+    });
   }
 
   await audit({
