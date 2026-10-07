@@ -28,10 +28,11 @@ import { buildNewsletterWelcomeEmail } from "@/lib/email/templates/newsletter-we
 import { sendWAHA, resolveWahaChatId } from "@/lib/waha/send";
 
 import { ownerNotifyEmail } from "@/lib/email/owner";
+import { getStoreWhatsapp } from "@/lib/landing/whatsapp";
+import { storeWhatsappUrl } from "@/lib/landing/whatsapp-number";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const WHATSAPP_URL = "https://wa.me/5531999284834";
 
 function clientIp(req: NextRequest): string {
   const xff = req.headers.get("x-forwarded-for");
@@ -188,6 +189,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       name: input.name,
       email: input.email,
       phone: phoneE164,
+      projectType: input.projectType,
+      message: input.message,
+      attachmentUrl: input.attachmentUrl,
       createdAt,
     });
     jobs.push(bestEffortEmail("diretoria_notify", requestId, {
@@ -208,7 +212,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         text: welcome.text,
       }));
     } else {
-      const welcome = buildLeadWelcomeEmail({ name: input.name, whatsappUrl: WHATSAPP_URL });
+      const welcome = buildLeadWelcomeEmail({
+        name: input.name,
+        projectType: input.projectType,
+        whatsappUrl: storeWhatsappUrl(await getStoreWhatsapp()),
+      });
       jobs.push(bestEffortEmail("lead_welcome", requestId, {
         to: input.email,
         subject: welcome.subject,
@@ -291,7 +299,8 @@ async function sendWhatsappWelcome(
 }
 
 /**
- * Sends a WhatsApp notification to the director (31999284834) via the active WAHA session.
+ * Sends a WhatsApp notification to the store's own number (Links manager,
+ * lib/landing/whatsapp.ts) via the active WAHA session.
  */
 async function sendWhatsappNotificationToDirector(
   admin: ReturnType<typeof createAdminClient>,
@@ -314,8 +323,8 @@ async function sendWhatsappNotificationToDirector(
     const sessionName = session?.waha_session_name as string | undefined;
     if (!sessionName) return;
 
-    // Director's WhatsApp number in E.164 format with WAHA suffix
-    const chatId = "5531999284834@c.us";
+    // Store's WhatsApp number (digits with country code) with the WAHA suffix.
+    const chatId = `${await getStoreWhatsapp()}@c.us`;
 
     const text =
       `🔔 *Novo Lead Capturado!* 🚀\n\n` +

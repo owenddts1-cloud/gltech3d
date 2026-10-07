@@ -13,6 +13,9 @@ export const landingLeadSchema = z
     email: z.string().trim().toLowerCase().email().max(200),
     /** Raw phone as typed (masked or digits). Normalized to E.164 server-side. */
     phone: z.string().trim().max(40).optional(),
+    projectType: z.string().trim().max(100).optional(),
+    message: z.string().trim().max(2000).optional(),
+    attachmentUrl: z.string().trim().max(1000).optional(),
     consent: z.boolean().optional(),
   })
   .refine((d) => d.type === "newsletter" || (d.name?.length ?? 0) > 0, {
