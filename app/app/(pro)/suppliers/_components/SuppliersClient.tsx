@@ -22,6 +22,7 @@ import {
 } from "@/app/actions/suppliers/actions";
 import { SUPPLIER_CATEGORIES, type SupplierCategory } from "@/lib/schemas/suppliers";
 import { brlFromCents } from "@/lib/format/money";
+import { QuotationGeneratorModal } from "./QuotationGeneratorModal";
 
 
 
@@ -51,6 +52,7 @@ export function SuppliersClient({ data }: { data: SuppliersData }) {
   // null = creating; a supplier = editing it in the same dialog.
   const [editingSupplier, setEditingSupplier] = useState<SupplierView | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  const [quotationOpen, setQuotationOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const perPage = 6;
@@ -108,6 +110,9 @@ export function SuppliersClient({ data }: { data: SuppliersData }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="rounded-lg h-9 gap-1.5 font-semibold text-xs border-amber-500/30 hover:bg-amber-500/10 text-amber-500" onClick={() => setQuotationOpen(true)}>
+              <Receipt size={14} /> Gerar Cotação
+            </Button>
             <Button variant="outline" size="sm" className="rounded-lg h-9 gap-1.5 font-semibold text-xs" onClick={() => setLogOpen(true)} disabled={suppliers.length === 0}>
               <Receipt size={14} /> Registrar Compra
             </Button>
@@ -284,6 +289,7 @@ export function SuppliersClient({ data }: { data: SuppliersData }) {
         onSaved={() => { setAddOpen(false); setEditingSupplier(null); router.refresh(); }}
       />
       <LogPurchaseDialog open={logOpen} onOpenChange={setLogOpen} suppliers={suppliers} onSaved={() => { setLogOpen(false); router.refresh(); }} />
+      <QuotationGeneratorModal open={quotationOpen} onOpenChange={setQuotationOpen} suppliers={suppliers} filaments={filaments} />
     </div>
   );
 }
