@@ -37,14 +37,23 @@ export default function NewsletterBar({ settings }: { settings?: LandingSettings
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/v1/public/leads', {
+      const res = await fetch('/api/newsletter/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'newsletter', email: value }),
+        body: JSON.stringify({ email: value }),
       });
       if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
       setDone(true);
-      toast.success('Inscrição confirmada! 📬');
+      if (data?.data?.alreadySubscribed) {
+        toast.info('Você já está na nossa lista! ✨', {
+          description: 'Seu e-mail já está cadastrado para receber as novidades da GLTech3D.',
+        });
+      } else {
+        toast.success('Inscrição confirmada! 📬', {
+          description: 'Enviamos uma mensagem de boas-vindas para o seu e-mail.',
+        });
+      }
     } catch (err) {
       console.error('[newsletter] submit failed', err);
       toast.error('Não foi possível inscrever agora', {
