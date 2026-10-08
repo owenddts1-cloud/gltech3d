@@ -4,16 +4,16 @@ import { render, screen } from "@testing-library/react";
 import {
   calculateLiveCmv,
   Step3LiveCmv,
-} from "@/app/app/(pro)/calculator/_components/Step3LiveCmv";
+} from "@/app/app/calculator/_components/Step3LiveCmv";
 import {
   calculateBatchFeasibility,
   Step4BatchFeasibility,
-} from "@/app/app/(pro)/calculator/_components/Step4BatchFeasibility";
+} from "@/app/app/calculator/_components/Step4BatchFeasibility";
 import type { SlicedFilamentInfo } from "@/lib/slicer/3d-file-parser";
 
 describe("Calc3D Wizard Steps 3 & 4", () => {
   const filaments: SlicedFilamentInfo[] = [
-    { name: "PLA Branco", colorHex: "#FFFFFF", material: "PLA", weightGrams: 100, usedMeters: 33 },
+    { id: 1, type: "PLA", name: "PLA Branco", colorHex: "#FFFFFF", material: "PLA", weightGrams: 100, usedMeters: 33 },
   ];
   const stockMap: Record<number, { costPerGram: number }> = {
     0: { costPerGram: 0.12 }, // R$ 120/kg

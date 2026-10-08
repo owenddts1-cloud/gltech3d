@@ -76,12 +76,18 @@ export function CalculatorWizardClient({
     });
   }
 
-  const printHours = parsedData ? parsedData.printTimeMinutes / 60 : 2;
-  const unitWeightGrams = parsedData ? parsedData.weightGrams : 50;
+  const printHours = parsedData
+    ? parsedData.totalTimeSeconds
+      ? parsedData.totalTimeSeconds / 3600
+      : (parsedData.printTimeMinutes ?? 120) / 60
+    : 2;
+  const unitWeightGrams = parsedData
+    ? (parsedData.totalWeightGrams ?? parsedData.weightGrams ?? 50)
+    : 50;
 
   const handleSaveProposal = async (batch: BatchFeasibilityResult) => {
     const res = await saveCalculatorProposal({
-      title: `Orçamento: ${parsedData?.fileName || "Projeto 3D"} (${batch.quantity} un)`,
+      title: `Orçamento: ${parsedData?.filename || parsedData?.fileName || "Projeto 3D"} (${batch.quantity} un)`,
       totalRevenue: batch.totalRevenue,
       quantity: batch.quantity,
       weightGrams: unitWeightGrams,
@@ -92,7 +98,7 @@ export function CalculatorWizardClient({
 
   const handleCreateServiceOrder = async (batch: BatchFeasibilityResult) => {
     const res = await createCalculatorServiceOrder({
-      title: `Produção: ${parsedData?.fileName || "Peça 3D"} (${batch.quantity} un)`,
+      title: `Produção: ${parsedData?.filename || parsedData?.fileName || "Peça 3D"} (${batch.quantity} un)`,
       totalRevenue: batch.totalRevenue,
       quantity: batch.quantity,
       weightGrams: unitWeightGrams,
@@ -187,7 +193,9 @@ export function CalculatorWizardClient({
                   ? parsedData.filaments
                   : [
                       {
+                        id: 1,
                         name: "Filamento Principal",
+                        type: "PLA",
                         colorHex: "#C89666",
                         material: "PLA",
                         weightGrams: 50,

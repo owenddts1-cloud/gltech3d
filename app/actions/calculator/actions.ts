@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { assertProAccess } from "@/lib/plan/server";
 
 /** Fetch registered printers and filaments for the calculator dropdowns */
 export async function fetchCalculatorData() {
@@ -67,6 +68,8 @@ export async function saveCalculatorProposal(input: CalculatorProposalInput) {
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -96,6 +99,8 @@ export async function createCalculatorServiceOrder(input: CalculatorProposalInpu
   if (!authUser) return { ok: false as const, error: "Unauthenticated" };
   const activeOrg = await resolveActiveOrg(authUser);
   if (!activeOrg) return { ok: false as const, error: "No active organization" };
+  const denied = await assertProAccess(activeOrg.orgId);
+  if (denied) return { ok: false as const, error: denied };
 
   const supabase = await createClient();
   const { data, error } = await supabase

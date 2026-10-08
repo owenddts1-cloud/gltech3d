@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { autoMatchFilament } from "@/app/app/(pro)/calculator/_components/Step2StockLink";
-import { Step1XRay } from "@/app/app/(pro)/calculator/_components/Step1XRay";
-import { Step2StockLink } from "@/app/app/(pro)/calculator/_components/Step2StockLink";
+import { autoMatchFilament } from "@/app/app/calculator/_components/Step2StockLink";
+import { Step1XRay } from "@/app/app/calculator/_components/Step1XRay";
+import { Step2StockLink } from "@/app/app/calculator/_components/Step2StockLink";
 import type { Parsed3DFile, SlicedFilamentInfo } from "@/lib/slicer/3d-file-parser";
 
 describe("Calc3D Wizard Steps 1 & 2", () => {
@@ -16,6 +16,8 @@ describe("Calc3D Wizard Steps 1 & 2", () => {
   describe("autoMatchFilament", () => {
     it("matches filament by color and material", () => {
       const parsedFilament: SlicedFilamentInfo = {
+        id: 1,
+        type: "PLA",
         name: "PLA Basic White",
         colorHex: "#FFFFFF",
         material: "PLA",
@@ -29,6 +31,8 @@ describe("Calc3D Wizard Steps 1 & 2", () => {
 
     it("matches filament by material fallback if color is unknown", () => {
       const parsedFilament: SlicedFilamentInfo = {
+        id: 2,
+        type: "PETG",
         name: "PETG Translucent",
         colorHex: "#00000000",
         material: "PETG",
@@ -42,6 +46,8 @@ describe("Calc3D Wizard Steps 1 & 2", () => {
 
     it("returns null or first available if no material matches", () => {
       const parsedFilament: SlicedFilamentInfo = {
+        id: 3,
+        type: "Nylon",
         name: "Nylon PA12",
         colorHex: "#333333",
         material: "Nylon",
@@ -57,15 +63,21 @@ describe("Calc3D Wizard Steps 1 & 2", () => {
   describe("Step1XRay Component", () => {
     it("renders project metrics and layer breakdown", () => {
       const mockParsed: Parsed3DFile = {
+        success: true,
         format: "3mf",
+        filename: "suporte_articulado.3mf",
         fileName: "suporte_articulado.3mf",
-        weightGrams: 142.5,
+        totalTimeSeconds: 245 * 60,
         printTimeMinutes: 245, // ~4h 5m
+        totalWeightGrams: 142.5,
+        weightGrams: 142.5,
+        platesCount: 2,
         plateCount: 2,
-        filaments: [
-          { name: "PLA Branco", colorHex: "#FFFFFF", material: "PLA", weightGrams: 142.5, usedMeters: 45 },
-        ],
+        slicer: "BambuStudio",
         slicerSoftware: "BambuStudio",
+        filaments: [
+          { id: 1, type: "PLA", name: "PLA Branco", colorHex: "#FFFFFF", material: "PLA", weightGrams: 142.5, usedMeters: 45 },
+        ],
       };
 
       render(
@@ -95,7 +107,7 @@ describe("Calc3D Wizard Steps 1 & 2", () => {
   describe("Step2StockLink Component", () => {
     it("renders 2-column layout with visual matching", () => {
       const parsedFilaments: SlicedFilamentInfo[] = [
-        { name: "Extrusor 1 (Branco)", colorHex: "#FFFFFF", material: "PLA", weightGrams: 85, usedMeters: 28 },
+        { id: 1, type: "PLA", name: "Extrusor 1 (Branco)", colorHex: "#FFFFFF", material: "PLA", weightGrams: 85, usedMeters: 28 },
       ];
 
       render(

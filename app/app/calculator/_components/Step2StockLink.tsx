@@ -23,8 +23,8 @@ export function autoMatchFilament(
 ): string | null {
   if (!stock || stock.length === 0) return null;
 
-  const parsedMat = (parsed.material || "").trim().toLowerCase();
-  const parsedColor = (parsed.name || "").trim().toLowerCase();
+  const parsedMat = (parsed.material || parsed.type || "").trim().toLowerCase();
+  const parsedColor = (parsed.name || parsed.colorName || "").trim().toLowerCase();
 
   // 1. Tentar match exato de material e cor
   const exactMatch = stock.find((item) => {
@@ -54,7 +54,7 @@ export function autoMatchFilament(
   }
 
   // 3. Fallback: primeiro item do estoque se existir
-  return stock[0].id;
+  return stock[0]?.id ?? null;
 }
 
 interface Step2StockLinkProps {
@@ -125,10 +125,12 @@ export function Step2StockLink({
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-sora text-sm font-bold text-[#241F1C]">
-                      {filament.name || `Extrusor ${index + 1}`}
+                      {filament.name || filament.colorName || `Extrusor ${index + 1}`}
                     </p>
                     <p className="text-xs text-[#736B63]">
-                      <span className="font-semibold text-[#A27953]">{filament.material}</span>
+                      <span className="font-semibold text-[#A27953]">
+                        {filament.material || filament.type || "PLA"}
+                      </span>
                       {" · "}
                       <span className="font-mono text-[11px]">{filament.colorHex}</span>
                       {" · "}

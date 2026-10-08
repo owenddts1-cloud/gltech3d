@@ -13,10 +13,21 @@ interface Step1XRayProps {
 }
 
 export function Step1XRay({ parsedData, onParsed, onNext }: Step1XRayProps) {
-  const hours = parsedData ? Math.floor(parsedData.printTimeMinutes / 60) : 0;
-  const minutes = parsedData ? Math.round(parsedData.printTimeMinutes % 60) : 0;
-  const totalWeight = parsedData ? parsedData.weightGrams : 0;
-  const plateCount = parsedData ? (parsedData.plateCount || 1) : 1;
+  const totalMinutes = parsedData
+    ? parsedData.totalTimeSeconds
+      ? parsedData.totalTimeSeconds / 60
+      : (parsedData.printTimeMinutes ?? 0)
+    : 0;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = Math.round(totalMinutes % 60);
+  const totalWeight = parsedData
+    ? (parsedData.totalWeightGrams ?? parsedData.weightGrams ?? 0)
+    : 0;
+  const plateCount = parsedData
+    ? (parsedData.platesCount ?? parsedData.plateCount ?? 1)
+    : 1;
+  const fileName = parsedData ? (parsedData.filename || parsedData.fileName || "arquivo") : "";
+  const slicerName = parsedData ? (parsedData.slicer || parsedData.slicerSoftware || "Slicer") : "Slicer";
 
   return (
     <div className="space-y-6">
@@ -40,7 +51,7 @@ export function Step1XRay({ parsedData, onParsed, onNext }: Step1XRayProps) {
           {parsedData && (
             <div className="flex items-center gap-2 self-start rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <span>{parsedData.fileName} · lido ✓</span>
+              <span>{fileName} · lido ✓</span>
             </div>
           )}
         </div>
@@ -86,7 +97,7 @@ export function Step1XRay({ parsedData, onParsed, onNext }: Step1XRayProps) {
                 {hours}h {minutes}m
               </p>
               <p className="mt-1 text-xs text-[#D5CBBF]">
-                {(parsedData.printTimeMinutes / 60).toFixed(2)} horas de máquina
+                {(totalMinutes / 60).toFixed(2)} horas de máquina
               </p>
             </div>
 
@@ -100,7 +111,7 @@ export function Step1XRay({ parsedData, onParsed, onNext }: Step1XRayProps) {
                 {plateCount} {plateCount === 1 ? "mesa" : "mesas"}
               </p>
               <p className="mt-1 text-xs text-[#D5CBBF]">
-                Format: .{parsedData.format.toUpperCase()} ({parsedData.slicerSoftware || "Slicer"})
+                Format: .{parsedData.format.toUpperCase()} ({slicerName})
               </p>
             </div>
           </div>

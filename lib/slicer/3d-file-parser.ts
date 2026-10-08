@@ -9,20 +9,28 @@ import JSZip from "jszip";
 export interface SlicedFilamentInfo {
   id: number;
   type: string;            // PLA, PETG, ABS, TPU, Resina
+  material?: string;       // Alias para type
   colorHex: string;        // #RRGGBB
   colorName?: string;
+  name?: string;           // Alias para colorName / rótulo
   weightGrams: number;
   lengthMeters?: number;
+  usedMeters?: number;     // Alias para lengthMeters
 }
 
 export interface Parsed3DFile {
   success: boolean;
   format: "3mf" | "gcode" | "stl" | "unknown";
   slicer: "BambuStudio" | "OrcaSlicer" | "PrusaSlicer" | "Cura" | "Unknown";
+  slicerSoftware?: string; // Alias
   filename: string;
+  fileName?: string;       // Alias
   totalTimeSeconds: number;
+  printTimeMinutes?: number; // Alias: minutos de impressão
   totalWeightGrams: number;
+  weightGrams?: number;    // Alias
   platesCount: number;
+  plateCount?: number;     // Alias
   filaments: SlicedFilamentInfo[];
   breakdown?: {
     wallsPct: number;
@@ -189,24 +197,25 @@ async function parse3mfFile(file: File): Promise<Parsed3DFile> {
       let fMatch;
       let idx = 1;
       while ((fMatch = filamentRegex.exec(xmlText)) !== null) {
-        const attrs = fMatch[1];
+        const attrs = fMatch[1] ?? "";
         const typeMatch = attrs.match(/type\s*=\s*["']([^"']+)["']/i);
         const colorMatch = attrs.match(/color\s*=\s*["']([^"']+)["']/i);
         const weightMatch = attrs.match(/used_g\s*=\s*["']([\d.]+)["']/i);
         const meterMatch = attrs.match(/used_m\s*=\s*["']([\d.]+)["']/i);
 
-        const weight = weightMatch ? parseFloat(weightMatch[1]) : 0;
-        const colorHex = colorMatch ? (colorMatch[1].startsWith("#") ? colorMatch[1] : `#${colorMatch[1]}`) : "#10B981";
+        const weight = weightMatch && weightMatch[1] ? parseFloat(weightMatch[1]) : 0;
+        const rawColor = colorMatch && colorMatch[1] ? colorMatch[1] : "";
+        const colorHex = rawColor ? (rawColor.startsWith("#") ? rawColor : `#${rawColor}`) : "#10B981";
 
         if (weight > 0) {
           totalWeightGrams += weight;
           filaments.push({
             id: idx++,
-            type: typeMatch ? typeMatch[1] : "PLA",
+            type: typeMatch && typeMatch[1] ? typeMatch[1] : "PLA",
             colorHex,
             colorName: colorHex,
             weightGrams: Math.round(weight * 100) / 100,
-            lengthMeters: meterMatch ? parseFloat(meterMatch[1]) : undefined,
+            lengthMeters: meterMatch && meterMatch[1] ? parseFloat(meterMatch[1]) : undefined,
           });
         }
       }
@@ -309,34 +318,58 @@ async function parseStlFile(file: File): Promise<Parsed3DFile> {
   };
 }
 
+function normalizeParsed3DFile(raw: Parsed3DFile): Parsed3DFile {
+  const printTimeMinutes = Math.round(raw.totalTimeSeconds / 60);
+  const weightGrams = raw.totalWeightGrams;
+  const plateCount = raw.platesCount;
+  const fileName = raw.filename;
+  const slicerSoftware = raw.slicer;
+
+  const filaments = (raw.filaments || []).map((f) => ({
+    ...f,
+    name: f.name || f.colorName || `Extrusor ${f.id}`,
+    material: f.material || f.type || "PLA",
+    usedMeters: f.usedMeters ?? f.lengthMeters,
+  }));
+
+  return {
+    ...raw,
+    fileName,
+    printTimeMinutes,
+    weightGrams,
+    plateCount,
+    slicerSoftware,
+    filaments,
+  };
+}
+
 /**
  * Ponto de entrada unificado para leitura de arquivos 3D no cliente.
  */
 export async function parse3DFile(file: File): Promise<Parsed3DFile> {
   const name = file.name.toLowerCase();
+  let result: Parsed3DFile;
 
   if (name.endsWith(".3mf")) {
-    return parse3mfFile(file);
-  }
-
-  if (name.endsWith(".gcode") || name.endsWith(".gco")) {
+    result = await parse3mfFile(file);
+  } else if (name.endsWith(".gcode") || name.endsWith(".gco")) {
     const content = await readGcodeChunks(file);
-    return parseGcodeContent(content, file.name);
+    result = parseGcodeContent(content, file.name);
+  } else if (name.endsWith(".stl")) {
+    result = await parseStlFile(file);
+  } else {
+    result = {
+      success: false,
+      format: "unknown",
+      slicer: "Unknown",
+      filename: file.name,
+      totalTimeSeconds: 0,
+      totalWeightGrams: 0,
+      platesCount: 1,
+      filaments: [],
+      warning: "Formato não suportado. Envie arquivos .gcode, .3mf ou .stl.",
+    };
   }
 
-  if (name.endsWith(".stl")) {
-    return parseStlFile(file);
-  }
-
-  return {
-    success: false,
-    format: "unknown",
-    slicer: "Unknown",
-    filename: file.name,
-    totalTimeSeconds: 0,
-    totalWeightGrams: 0,
-    platesCount: 1,
-    filaments: [],
-    warning: "Formato não suportado. Envie arquivos .gcode, .3mf ou .stl.",
-  };
+  return normalizeParsed3DFile(result);
 }
