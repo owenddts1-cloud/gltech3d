@@ -66,7 +66,8 @@ export function calculateRealtimeDRE(
   options: DREFilterOptions = {}
 ): DREStatementResult {
   const period = options.period || "all";
-  const targetDate = options.targetDate || new Date().toISOString().split("T")[0];
+  const defaultDate = new Date().toISOString().slice(0, 10);
+  const targetDate: string = options.targetDate || defaultDate;
   const channel = options.channel || "all";
 
   let grossRevenueCents = 0;
