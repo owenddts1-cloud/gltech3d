@@ -52,3 +52,71 @@ export async function fetchCalculatorData() {
     contacts: contactsRes.data || [],
   };
 }
+
+export interface CalculatorProposalInput {
+  title: string;
+  totalRevenue: number;
+  quantity: number;
+  weightGrams: number;
+  printHours: number;
+  contactId?: string;
+}
+
+export async function saveCalculatorProposal(input: CalculatorProposalInput) {
+  const authUser = await loadAuthUser();
+  if (!authUser) return { ok: false as const, error: "Unauthenticated" };
+  const activeOrg = await resolveActiveOrg(authUser);
+  if (!activeOrg) return { ok: false as const, error: "No active organization" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("service_orders")
+    .insert({
+      organization_id: activeOrg.orgId,
+      title: input.title || "Orçamento Calc3D",
+      status: "orcamento",
+      total_cents: Math.round((input.totalRevenue || 0) * 100),
+      qty: Math.max(1, input.quantity || 1),
+      contact_id: input.contactId || null,
+      slicer_notes: {
+        weightGrams: input.weightGrams,
+        printHours: input.printHours,
+        source: "Calc3D Wizard PRO",
+      },
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false as const, error: error.message };
+  return { ok: true as const, id: data.id };
+}
+
+export async function createCalculatorServiceOrder(input: CalculatorProposalInput) {
+  const authUser = await loadAuthUser();
+  if (!authUser) return { ok: false as const, error: "Unauthenticated" };
+  const activeOrg = await resolveActiveOrg(authUser);
+  if (!activeOrg) return { ok: false as const, error: "No active organization" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("service_orders")
+    .insert({
+      organization_id: activeOrg.orgId,
+      title: input.title || "Ordem de Produção Calc3D",
+      status: "em_producao",
+      total_cents: Math.round((input.totalRevenue || 0) * 100),
+      qty: Math.max(1, input.quantity || 1),
+      contact_id: input.contactId || null,
+      slicer_notes: {
+        weightGrams: input.weightGrams,
+        printHours: input.printHours,
+        source: "Calc3D Wizard PRO",
+      },
+    })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false as const, error: error.message };
+  return { ok: true as const, id: data.id };
+}
+

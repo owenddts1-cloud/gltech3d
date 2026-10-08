@@ -4,6 +4,9 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Step1XRay } from "./Step1XRay";
 import { Step2StockLink, autoMatchFilament, type StockFilament } from "./Step2StockLink";
+import { Step3LiveCmv, type LiveCmvResult } from "./Step3LiveCmv";
+import { Step4BatchFeasibility, type BatchFeasibilityResult } from "./Step4BatchFeasibility";
+import { saveCalculatorProposal, createCalculatorServiceOrder } from "@/app/actions/calculator/actions";
 import type { Parsed3DFile } from "@/lib/slicer/3d-file-parser";
 import { Sparkles, Layers, Box, DollarSign, BarChart3, Check } from "lucide-react";
 
@@ -44,6 +47,7 @@ export function CalculatorWizardClient({
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [parsedData, setParsedData] = useState<Parsed3DFile | null>(null);
   const [mappings, setMappings] = useState<Record<number, string>>({});
+  const [cmvResult, setCmvResult] = useState<LiveCmvResult | null>(null);
 
   // Auto-matching ao carregar arquivo
   const handleFileParsed = (data: Parsed3DFile) => {
@@ -60,6 +64,41 @@ export function CalculatorWizardClient({
 
   const handleUpdateMapping = (index: number, stockId: string) => {
     setMappings((prev) => ({ ...prev, [index]: stockId }));
+  };
+
+  // Montar stockMap para o cálculo de CMV
+  const stockMap: Record<number, { costPerGram: number }> = {};
+  if (parsedData) {
+    parsedData.filaments.forEach((_, idx) => {
+      const stockId = mappings[idx];
+      const found = initialFilaments.find((f) => f.id === stockId);
+      stockMap[idx] = { costPerGram: found ? found.costPerGram : 0.12 };
+    });
+  }
+
+  const printHours = parsedData ? parsedData.printTimeMinutes / 60 : 2;
+  const unitWeightGrams = parsedData ? parsedData.weightGrams : 50;
+
+  const handleSaveProposal = async (batch: BatchFeasibilityResult) => {
+    const res = await saveCalculatorProposal({
+      title: `Orçamento: ${parsedData?.fileName || "Projeto 3D"} (${batch.quantity} un)`,
+      totalRevenue: batch.totalRevenue,
+      quantity: batch.quantity,
+      weightGrams: unitWeightGrams,
+      printHours: printHours,
+    });
+    if (!res.ok) throw new Error(res.error);
+  };
+
+  const handleCreateServiceOrder = async (batch: BatchFeasibilityResult) => {
+    const res = await createCalculatorServiceOrder({
+      title: `Produção: ${parsedData?.fileName || "Peça 3D"} (${batch.quantity} un)`,
+      totalRevenue: batch.totalRevenue,
+      quantity: batch.quantity,
+      weightGrams: unitWeightGrams,
+      printHours: printHours,
+    });
+    if (!res.ok) throw new Error(res.error);
   };
 
   return (
@@ -172,30 +211,17 @@ export function CalculatorWizardClient({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 10 }}
             transition={{ duration: 0.2 }}
-            className="rounded-2xl border border-[#E8E3DA] bg-white p-8 text-center"
           >
-            <h3 className="font-sora text-lg font-bold text-[#241F1C]">
-              Etapa 3: CMV ao Vivo
-            </h3>
-            <p className="mt-2 text-sm text-[#736B63]">
-              Em construção na Task 5.
-            </p>
-            <div className="mt-6 flex justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setCurrentStep(2)}
-                className="rounded-xl border border-[#E8E3DA] px-4 py-2 text-xs font-bold"
-              >
-                Voltar
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentStep(4)}
-                className="rounded-xl bg-[#241F1C] px-4 py-2 text-xs font-bold text-white"
-              >
-                Avançar para Etapa 4
-              </button>
-            </div>
+            <Step3LiveCmv
+              filaments={parsedData ? parsedData.filaments : []}
+              stockMap={stockMap}
+              printHours={printHours}
+              onNext={(result) => {
+                setCmvResult(result);
+                setCurrentStep(4);
+              }}
+              onBack={() => setCurrentStep(2)}
+            />
           </motion.div>
         )}
 
@@ -206,23 +232,19 @@ export function CalculatorWizardClient({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 10 }}
             transition={{ duration: 0.2 }}
-            className="rounded-2xl border border-[#E8E3DA] bg-white p-8 text-center"
           >
-            <h3 className="font-sora text-lg font-bold text-[#241F1C]">
-              Etapa 4: Viabilidade em Lote
-            </h3>
-            <p className="mt-2 text-sm text-[#736B63]">
-              Em construção na Task 5.
-            </p>
-            <div className="mt-6 flex justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setCurrentStep(3)}
-                className="rounded-xl border border-[#E8E3DA] px-4 py-2 text-xs font-bold"
-              >
-                Voltar
-              </button>
-            </div>
+            <Step4BatchFeasibility
+              unitWeightGrams={unitWeightGrams}
+              unitPrintHours={printHours}
+              unitCmv={cmvResult?.totalCmv ?? 30.0}
+              unitPrice={cmvResult?.suggestedPrice ?? 60.0}
+              costPerGram={stockMap[0]?.costPerGram ?? 0.12}
+              stockAvailableGrams={2500}
+              activePrintersCount={initialPrinters.length > 0 ? initialPrinters.length : 1}
+              onBack={() => setCurrentStep(3)}
+              onSaveProposal={handleSaveProposal}
+              onCreateServiceOrder={handleCreateServiceOrder}
+            />
           </motion.div>
         )}
       </AnimatePresence>
