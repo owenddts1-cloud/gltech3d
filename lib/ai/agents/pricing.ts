@@ -146,3 +146,106 @@ export function executePricingEngine(params: FullPricingParams) {
     final_price_brl,
   };
 }
+
+export const POLYMER_DENSITIES_G_CM3: Record<string, number> = {
+  PLA: 1.24,
+  PETG: 1.27,
+  ABS: 1.04,
+  ASA: 1.07,
+  TPU: 1.21,
+  "PA-CF": 1.15,
+  NYLON: 1.14,
+  RESIN_STANDARD: 1.10,
+};
+
+export interface CatalogProductPricingParams {
+  filament_grams: number;
+  print_time_hours: number;
+  material?: string;
+  spool_cost_per_kg?: number;
+  kwh_rate_brl?: number;
+  hourly_labor_rate_brl?: number;
+  contribution_margin_pct?: number;
+  tax_rate_pct?: number;
+}
+
+export function priceCatalogProductItem(params: CatalogProductPricingParams) {
+  const polymer = params.material || "PETG";
+  return executePricingEngine({
+    net_mass_g: params.filament_grams,
+    support_mass_g: 0,
+    number_of_switches: 0,
+    purge_mass_per_switch_g: 0,
+    waste_factor: 0.03,
+    spool_cost_per_kg: params.spool_cost_per_kg ?? 95,
+    print_time_hours: params.print_time_hours,
+    average_power_watts: 180,
+    kwh_rate_brl: params.kwh_rate_brl ?? 0.85,
+    prep_time_min: 5,
+    support_removal_time_min: 0,
+    brass_inserts_count: 0,
+    time_per_insert_min: 0,
+    post_processing_time_min: 5,
+    qc_time_min: 5,
+    hourly_labor_rate_brl: params.hourly_labor_rate_brl ?? 40,
+    polymer,
+    contribution_margin_pct: params.contribution_margin_pct ?? 0.35,
+    tax_rate_pct: params.tax_rate_pct ?? 0.08,
+  });
+}
+
+export interface StlUploadPricingParams {
+  volume_cm3?: number;
+  net_mass_g?: number;
+  polymer?: string;
+  infill_pct?: number;
+  supports_volume_cm3?: number;
+  print_time_hours?: number;
+  is_multicolor?: boolean;
+  number_of_switches?: number;
+  spool_cost_per_kg?: number;
+  kwh_rate_brl?: number;
+  hourly_labor_rate_brl?: number;
+}
+
+export function priceStlExternalUpload(params: StlUploadPricingParams) {
+  const polymer = (params.polymer || "PETG").toUpperCase();
+  const density = POLYMER_DENSITIES_G_CM3[polymer] || 1.25;
+
+  let net_mass = params.net_mass_g ?? 0;
+  if (!net_mass && params.volume_cm3) {
+    const infillRatio = Math.max(0.1, Math.min(1.0, (params.infill_pct ?? 20) / 100));
+    const effectiveVolume = params.volume_cm3 * (0.35 + 0.65 * infillRatio);
+    net_mass = Math.round(effectiveVolume * density * 100) / 100;
+  }
+
+  const support_mass = params.supports_volume_cm3
+    ? Math.round(params.supports_volume_cm3 * 0.25 * density * 100) / 100
+    : 0;
+
+  const estimatedPrintTime =
+    params.print_time_hours ?? Math.max(0.5, Math.round((net_mass / 25) * 10) / 10);
+
+  return executePricingEngine({
+    net_mass_g: net_mass,
+    support_mass_g: support_mass,
+    number_of_switches: params.number_of_switches ?? 0,
+    purge_mass_per_switch_g: params.number_of_switches ? 4 : 0,
+    waste_factor: 0.05,
+    spool_cost_per_kg: params.spool_cost_per_kg ?? 100,
+    print_time_hours: estimatedPrintTime,
+    average_power_watts: 200,
+    kwh_rate_brl: params.kwh_rate_brl ?? 0.85,
+    prep_time_min: 10,
+    support_removal_time_min: support_mass > 0 ? 15 : 0,
+    brass_inserts_count: 0,
+    time_per_insert_min: 0,
+    post_processing_time_min: 10,
+    qc_time_min: 5,
+    hourly_labor_rate_brl: params.hourly_labor_rate_brl ?? 45,
+    polymer,
+    is_multicolor: params.is_multicolor,
+    contribution_margin_pct: 0.40,
+    tax_rate_pct: 0.08,
+  });
+}

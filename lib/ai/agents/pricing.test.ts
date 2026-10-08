@@ -5,6 +5,8 @@ import {
   estimateBenchLaborCost,
   calculatePolymerRiskFactor,
   executePricingEngine,
+  priceCatalogProductItem,
+  priceStlExternalUpload,
 } from "./pricing";
 
 describe("PricingEngineAgent Tool Calling Module", () => {
@@ -107,5 +109,33 @@ describe("PricingEngineAgent Tool Calling Module", () => {
     // C_fab = 30.50 * 1.045 = 31.8725
     // PV = 31.8725 / (1 - 0.40) = 53.12
     expect(result.final_price_brl).toBeGreaterThan(50);
+  });
+
+  it("prices catalog product items seamlessly", () => {
+    const res = priceCatalogProductItem({
+      filament_grams: 80,
+      print_time_hours: 3.5,
+      material: "PETG",
+      spool_cost_per_kg: 95,
+      kwh_rate_brl: 0.90,
+      hourly_labor_rate_brl: 40,
+    });
+
+    expect(res.cost_material_brl).toBeGreaterThan(0);
+    expect(res.cost_machine_brl).toBeGreaterThan(0);
+    expect(res.final_price_brl).toBeGreaterThan(res.c_fab_brl);
+  });
+
+  it("prices external STL uploads estimating mass from volume and polymer density", () => {
+    const res = priceStlExternalUpload({
+      volume_cm3: 50,
+      polymer: "PETG",
+      infill_pct: 25,
+      supports_volume_cm3: 5,
+      print_time_hours: 2.5,
+    });
+
+    expect(res.cost_material_brl).toBeGreaterThan(0);
+    expect(res.final_price_brl).toBeGreaterThan(20);
   });
 });
