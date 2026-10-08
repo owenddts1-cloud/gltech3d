@@ -506,6 +506,74 @@ export const GUIDES: GuideEntry[] = [
     primaryAction: { label: "Nova peça" },
   },
   {
+    id: "filamentos",
+    paths: ["/app/filamentos"],
+    group: "vendas",
+    title: "Filamentos",
+    idea: "Os rolos que você revende: ficha técnica, preço e disponibilidade, direto na vitrine do site.",
+    purpose: [
+      "Cadastrar cada filamento à venda com material, linha, cor, peso e temperaturas.",
+      "Publicar no site (/filamentos) só o que tem preço, e marcar o que está acabando ou esgotado.",
+      "Gerar o catálogo de filamentos em PDF, com ou sem preço, para mandar em grupos.",
+    ],
+    steps: [
+      {
+        title: "Cadastre o filamento",
+        detail: "Clique em “Novo filamento”, escolha o material e preencha linha, cor e peso. O título se monta sozinho.",
+      },
+      {
+        title: "Defina preço e disponibilidade",
+        detail: "Informe o valor de venda e escolha Em estoque, Últimas unidades, Sob encomenda ou Esgotado.",
+      },
+      {
+        title: "Publique e ordene",
+        detail: "Ligue “Publicado” para aparecer no site e arraste os cards para definir a ordem da vitrine.",
+      },
+      {
+        title: "Divulgue",
+        detail: "Use “Catálogo em PDF” para gerar o arquivo com fotos, cores e especificações.",
+      },
+    ],
+    tip: "“Últimas unidades” e “Esgotado” aparecem como selo no site. Use só quando for verdade: selo falso de escassez é propaganda enganosa.",
+    notice: {
+      kind: "info",
+      text: "Os pedidos que os clientes fazem pelo carrinho do site chegam em Vendas → Pedidos do site.",
+    },
+    primaryAction: { label: "Novo filamento" },
+  },
+  {
+    id: "pedidos-site",
+    paths: ["/app/pedidos-site"],
+    group: "vendas",
+    title: "Pedidos do site",
+    idea: "Os carrinhos que os clientes montaram na vitrine de filamentos e mandaram pelo WhatsApp.",
+    purpose: [
+      "Ver cada pedido com itens, total e o WhatsApp do cliente.",
+      "Confirmar ou cancelar depois de combinar estoque, frete e pagamento na conversa.",
+      "Converter o pedido confirmado em venda, para entrar no estoque e nos relatórios.",
+    ],
+    steps: [
+      {
+        title: "Abra a conversa",
+        detail: "Clique no WhatsApp do cliente. A mensagem dele já traz o número do pedido (#XXXXXXXX).",
+      },
+      {
+        title: "Confirme ou cancele",
+        detail: "Depois de combinar tudo, use “Confirmar” ou “Cancelar” no pedido.",
+      },
+      {
+        title: "Converta em venda",
+        detail: "Em um pedido pago, clique em “Converter em venda”. Cada item vira uma venda e baixa o estoque.",
+      },
+    ],
+    tip: "Os preços do pedido são os do momento da compra. Mudar o preço do filamento depois não altera pedidos antigos.",
+    notice: {
+      kind: "info",
+      text: "Pedidos chegam aqui só pelo carrinho do site (/filamentos). Pagamento e frete são combinados no WhatsApp; nada é cobrado automaticamente.",
+    },
+    autoOpen: true,
+  },
+  {
     id: "new-product",
     paths: ["/app/sales/new-product"],
     group: "vendas",
@@ -568,6 +636,57 @@ export const GUIDES: GuideEntry[] = [
       text: "As abas personalizadas ainda não ficam salvas: somem ao recarregar a página. Dashboard e Lançamentos são salvos normalmente.",
     },
     primaryAction: { label: "Sincronizar" },
+  },
+  {
+    id: "financeiro-dre",
+    paths: ["/app/financeiro/dre"],
+    group: "financeiro",
+    title: "DRE Gerencial",
+    idea: "Demonstrativo do resultado em tempo real com apuração de CPV de filamentos e horas de impressão 3D.",
+    purpose: [
+      "Acompanhar a Receita Bruta e as deduções de taxas.",
+      "Ver o CPV direto calculado a partir da massa real de filamento e energia da farm.",
+      "Calcular a Margem de Contribuição e o Lucro Líquido Operacional.",
+      "Filtrar por períodos (dia, semana, mês) e por canais de venda.",
+    ],
+    steps: [
+      {
+        title: "Selecione o período",
+        detail: "Alterne entre Hoje, Semana, Mês ou Todo o histórico para atualizar a cascata.",
+      },
+      {
+        title: "Filtre por canal",
+        detail: "Isole vendas de filamento, encomendas de impressão 3D ou veja o resultado consolidado.",
+      },
+      {
+        title: "Analise a cascata",
+        detail: "Veja a transição da Receita Bruta até o Lucro Líquido Operacional com as respectivas margens percentuais.",
+      },
+    ],
+    tip: "A margem de contribuição saudável para impressão 3D sob medida costuma ficar acima de 50%.",
+  },
+  {
+    id: "financeiro-fluxo-caixa",
+    paths: ["/app/financeiro/fluxo-caixa"],
+    group: "financeiro",
+    title: "Fluxo de Caixa & Pix",
+    idea: "Acompanhe o dinheiro disponível, projeção de liquidações futuras e concilie pagamentos Pix em 1 clique.",
+    purpose: [
+      "Ver o saldo realizado disponível no caixa da empresa.",
+      "Visualizar projeções de entradas e saídas previstas.",
+      "Conciliar pagamentos Pix pendentes com a identificação ponta a ponta.",
+    ],
+    steps: [
+      {
+        title: "Acompanhe os saldos",
+        detail: "Veja nos cartões de destaque o saldo disponível e a previsão para as próximas semanas.",
+      },
+      {
+        title: "Concilie as transações",
+        detail: "Clique em “Conciliar Pix” nos lançamentos pendentes para confirmar a liquidação em conta.",
+      },
+    ],
+    tip: "Manter o extrato conciliado garante que o DRE reflita exatamente a realidade do seu caixa.",
   },
   {
     id: "reports",
