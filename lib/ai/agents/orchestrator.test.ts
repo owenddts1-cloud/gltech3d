@@ -137,9 +137,9 @@ describe("FarmOrchestratorAgent Tool Calling Module", () => {
     ];
 
     const sorted = sortQueueByPriority(queue);
-    expect(sorted[0].id).toBe("job-3"); // Urgent job jumped ahead
-    expect(sorted[1].id).toBe("job-1"); // Normal job next
-    expect(sorted[2].id).toBe("job-2"); // Low job last
+    expect(sorted[0]?.id).toBe("job-3"); // Urgent job jumped ahead
+    expect(sorted[1]?.id).toBe("job-1"); // Normal job next
+    expect(sorted[2]?.id).toBe("job-2"); // Low job last
   });
 
   it("allocates next jobs to available machines cleanly balancing load", () => {
@@ -169,11 +169,11 @@ describe("FarmOrchestratorAgent Tool Calling Module", () => {
     const allocation = allocateNextQueueJob(queue, farm);
     expect(allocation.allocated.length).toBe(2);
     // Urgent PETG assigned to Bambu X1C (which has PETG loaded)
-    expect(allocation.allocated[0].job.id).toBe("job-urgent-petg");
-    expect(allocation.allocated[0].machine.id).toBe("m-bambu-x1c");
+    expect(allocation.allocated[0]?.job.id).toBe("job-urgent-petg");
+    expect(allocation.allocated[0]?.machine.id).toBe("m-bambu-x1c");
     // Normal PLA assigned to Ender 3
-    expect(allocation.allocated[1].job.id).toBe("job-normal-pla");
-    expect(allocation.allocated[1].machine.id).toBe("m-ender-3");
+    expect(allocation.allocated[1]?.job.id).toBe("job-normal-pla");
+    expect(allocation.allocated[1]?.machine.id).toBe("m-ender-3");
     expect(allocation.unallocated.length).toBe(0);
   });
 });
