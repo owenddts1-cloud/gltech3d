@@ -33,6 +33,8 @@ interface ApprovedUpgrade extends ApprovedCommon {
 
 interface ApprovedCreate extends ApprovedCommon {
   mode: "create";
+  /** Masked buyer e-mail (`m***@dominio`): where the activation link went. */
+  buyer_email_masked: string;
   existing_account: boolean;
   activation_url: string | null;
   activation_expires_at: string | null;
@@ -95,6 +97,7 @@ export function toView(status: number, json: unknown): View {
         data: {
           ...common,
           mode: "create",
+          buyer_email_masked: str(data.buyer_email_masked),
           existing_account: data.existing_account === true,
           activation_url: strOrNull(data.activation_url),
           activation_expires_at: strOrNull(data.activation_expires_at),
@@ -294,11 +297,12 @@ export function EmailActionRunner({
               <ManualActions
                 linkLabel="Link de ativação"
                 link={activationUrl}
+                note="Envie este link SOMENTE para o e-mail do comprador. O aviso do WhatsApp não leva o link."
                 whatsappUrl={buildWhatsappUrl(
                   view.data.buyer_phone,
                   buildActivationMessage({
                     buyerName: view.data.buyer_name,
-                    activationUrl,
+                    maskedEmail: view.data.buyer_email_masked,
                     expiresAt: view.data.activation_expires_at
                       ? new Date(view.data.activation_expires_at)
                       : null,
@@ -353,10 +357,10 @@ export function EmailActionRunner({
     case "ambiguous":
       return (
         <Shell>
-          <h1 className="text-lg font-semibold text-foreground">Escolha a organização no painel</h1>
+          <h1 className="text-lg font-semibold text-foreground">Decida pelo painel</h1>
           <p className="text-sm text-muted-foreground">
-            Este e-mail tem mais de uma organização — escolha no painel qual recebe o PRO. Nada foi
-            liberado ainda.
+            Este pedido precisa de uma decisão explícita: o e-mail tem mais de uma organização, ou
+            a conta com este e-mail foi criada depois do pedido. Nada foi liberado ainda.
           </p>
           {panelLink}
         </Shell>

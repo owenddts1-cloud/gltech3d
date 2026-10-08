@@ -104,12 +104,15 @@ interface ProductCostInfo {
   name: string;
   unitCostCents: number;
   suggestedPriceCents: number;
+  kind: "peca" | "filamento";
 }
 
 interface CostProdRow {
   id: string; name: string; filament_client_id: string | null; filament_grams: number | string;
   print_time_seconds: number | string; printer_client_id: string | null; extra_costs: unknown;
   margin_pct: number | string;
+  kind: string | null;
+  sale_price_cents: number | string | null;
 }
 
 const num = (v: number | string | null | undefined): number => (v == null ? 0 : Number(v));
@@ -123,7 +126,11 @@ async function buildProductCostMap(
   orgId: string,
 ): Promise<Map<string, ProductCostInfo>> {
   const [prodRes, filRes, prnRes, orgRes] = await Promise.all([
-    supabase.from("products").select("id, name, filament_client_id, filament_grams, print_time_seconds, printer_client_id, extra_costs, margin_pct"),
+    // Both kinds (0087): a filament spool for sale is sellable like a piece.
+    supabase
+      .from("products")
+      .select("id, name, kind, sale_price_cents, filament_client_id, filament_grams, print_time_seconds, printer_client_id, extra_costs, margin_pct")
+      .eq("organization_id", orgId),
     supabase.from("filaments").select("client_id, cost_per_gram"),
     supabase.from("printers").select("client_id, power_draw, depreciation_per_hour"),
     supabase.from("organizations").select("settings").eq("id", orgId).single(),
@@ -155,10 +162,22 @@ async function buildProductCostMap(
       extraCostCents: extras,
       marginPct: num(r.margin_pct),
     });
+    if (r.kind === "filamento") {
+      // No print-cost model for a resold spool (no grams/time): cost unknown = 0,
+      // suggested price = the catalog price.
+      map.set(r.id, {
+        name: `${r.name} (filamento)`,
+        unitCostCents: 0,
+        suggestedPriceCents: num(r.sale_price_cents),
+        kind: "filamento",
+      });
+      continue;
+    }
     map.set(r.id, {
       name: r.name,
       unitCostCents: Math.round(pricing.totalCost * 100),
       suggestedPriceCents: Math.round(pricing.suggestedPrice * 100),
+      kind: "peca",
     });
   }
   return map;
@@ -250,7 +269,7 @@ export async function fetchSales(platform?: string) {
 
   // Opções p/ vincular produto (combobox de Vendas): custo/preço da engine.
   const productOptions: SaleProductOption[] = Array.from(costMap.entries())
-    .map(([id, p]) => ({ id, name: p.name, unitCostCents: p.unitCostCents, suggestedPriceCents: p.suggestedPriceCents }))
+    .map(([id, p]) => ({ id, name: p.name, unitCostCents: p.unitCostCents, suggestedPriceCents: p.suggestedPriceCents, kind: p.kind }))
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
   // Opções p/ vincular cliente (combobox de Vendas): contatos reais da org.

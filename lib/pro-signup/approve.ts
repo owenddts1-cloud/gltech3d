@@ -24,7 +24,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { audit as auditImpl } from "@/lib/audit";
 import { logger } from "@/lib/logger";
-import { findUserIdByEmail as findUserIdByEmailImpl } from "@/lib/auth/admin-users";
+import {
+  findUserIdByEmail as findUserIdByEmailImpl,
+  userCreatedAt as userCreatedAtImpl,
+} from "@/lib/auth/admin-users";
 import { signInviteToken as signInviteTokenImpl } from "@/lib/auth/invite-token";
 import { grantProAccess as grantProAccessImpl } from "@/lib/plan/server";
 import { createTenant as createTenantImpl, type CreatedTenant } from "@/lib/tenants/createTenant";
@@ -32,10 +35,11 @@ import { sendEmail as sendEmailImpl } from "@/lib/email/send";
 import { buildProActivationEmail } from "@/lib/email/templates/pro-activation";
 import { buildProUpgradedEmail } from "@/lib/email/templates/pro-upgraded";
 import { absoluteSiteUrl } from "@/lib/marketing/site-url";
-import { PRO_PLANS } from "@/lib/pricing/pro-plans";
+import type { ProPlan } from "@/lib/pricing/pro-plans";
+import { getProPlanLive } from "@/lib/pricing/settings";
 import { slugify } from "@/lib/text/slugify";
 import { ACTIVATION_TTL_SECONDS } from "./constants";
-import { resolveTargetOrg, type Membership } from "./resolve-target-org";
+import { resolveTargetOrg, type AmbiguityReason, type Membership } from "./resolve-target-org";
 import { buyerMembershipOutcome, type BuyerMembership } from "./buyer-membership";
 
 export type { BuyerMembership };
@@ -45,22 +49,27 @@ export type ApprovalVia = "panel" | "email_link";
 /** Side effects, injectable so the decision branches are testable without I/O. */
 export interface ApproveDeps {
   findUserIdByEmail: typeof findUserIdByEmailImpl;
+  userCreatedAt: typeof userCreatedAtImpl;
   grantProAccess: typeof grantProAccessImpl;
   createTenant: typeof createTenantImpl;
   sendEmail: typeof sendEmailImpl;
   audit: typeof auditImpl;
   signInviteToken: typeof signInviteTokenImpl;
   now: () => Date;
+  /** Live plan (platform_settings): the period granted on approval. */
+  proPlan: () => Promise<ProPlan>;
 }
 
 const DEFAULT_DEPS: ApproveDeps = {
   findUserIdByEmail: findUserIdByEmailImpl,
+  userCreatedAt: userCreatedAtImpl,
   grantProAccess: grantProAccessImpl,
   createTenant: createTenantImpl,
   sendEmail: sendEmailImpl,
   audit: auditImpl,
   signInviteToken: signInviteTokenImpl,
   now: () => new Date(),
+  proPlan: getProPlanLive,
 };
 
 export interface BuyerInfo {
@@ -133,6 +142,13 @@ export interface AmbiguousOrg {
   outcome: "ambiguous";
   signupId: string;
   candidates: readonly Membership[];
+  /**
+   * `multiple_orgs`: the e-mail has several orgs. `account_newer_than_request`:
+   * the account was created after the (public) request — possibly by someone
+   * else using the buyer's e-mail. Both require an explicit panel decision; the
+   * e-mail link never resolves them.
+   */
+  reason: AmbiguityReason;
 }
 
 export type ApproveErrorCode =
@@ -163,10 +179,27 @@ interface SignupRow {
   company_name: string | null;
   organization_id: string | null;
   amount_cents: number;
+  created_at: string | null;
 }
 
 const SIGNUP_COLUMNS =
-  "id, status, buyer_name, buyer_email, buyer_phone, company_name, organization_id, amount_cents";
+  "id, status, buyer_name, buyer_email, buyer_phone, company_name, organization_id, amount_cents, created_at";
+
+/**
+ * Was the account created after the request (or is either date unknown)?
+ * Only relevant for requests WITHOUT organization_id (public form): signup
+ * does not verify e-mail ownership, so an account registered after someone
+ * paid with that e-mail must not inherit the payment automatically.
+ */
+export function isAccountNewerThanRequest(
+  accountCreatedAt: string | null,
+  requestCreatedAt: string | null,
+): boolean {
+  const account = accountCreatedAt ? Date.parse(accountCreatedAt) : Number.NaN;
+  const request = requestCreatedAt ? Date.parse(requestCreatedAt) : Number.NaN;
+  if (!Number.isFinite(account) || !Number.isFinite(request)) return true;
+  return account > request;
+}
 
 function failure(
   error: ApproveErrorCode,
@@ -215,7 +248,9 @@ export async function approveProSignup(args: ApproveProSignupArgs): Promise<Appr
 
   const buyerEmail = row.buyer_email.trim().toLowerCase();
   const buyer: BuyerInfo = { name: row.buyer_name, email: buyerEmail, phone: row.buyer_phone };
-  const plan = PRO_PLANS.pro;
+  // Period from platform_settings at APPROVAL time; the amount was fixed on the
+  // request when it was created (and checked above against the email token).
+  const plan = await deps.proPlan();
 
   // --- A quem este pagamento dá PRO? ---------------------------------------
   const existingUserId = await deps.findUserIdByEmail(admin, buyerEmail);
@@ -241,15 +276,27 @@ export async function approveProSignup(args: ApproveProSignupArgs): Promise<Appr
     });
   }
 
+  // Public request (no org) + existing account: who registered first?
+  let accountNewerThanRequest = false;
+  if (!row.organization_id && existingUserId) {
+    accountNewerThanRequest = isAccountNewerThanRequest(
+      await deps.userCreatedAt(admin, existingUserId),
+      row.created_at,
+    );
+  }
+
   const target = resolveTargetOrg({
     requestOrgId: row.organization_id,
     existingUserId,
     memberships,
-    chosenOrgId: args.chosenOrgId,
+    // The e-mail link never carries a choice: an account newer than the
+    // request always stops there and goes to the panel.
+    chosenOrgId: args.via === "panel" ? args.chosenOrgId : null,
+    accountNewerThanRequest,
   });
 
   if (target.mode === "ambiguous") {
-    return { outcome: "ambiguous", signupId, candidates: target.candidates };
+    return { outcome: "ambiguous", signupId, candidates: target.candidates, reason: target.reason };
   }
 
   if (target.mode === "create" && args.via === "panel") {

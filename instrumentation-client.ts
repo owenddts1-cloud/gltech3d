@@ -27,7 +27,11 @@ Sentry.init({
     typeof window !== "undefined" ? window.__PUBLIC_ENV__?.SENTRY_DSN : undefined,
   ),
 
-  integrations: [Sentry.replayIntegration()],
+  // Replay is NOT listed here on purpose: importing `replayIntegration` puts
+  // ~37 KB gzip into the root chunk of every route. It is attached after the
+  // page has loaded (see `loadReplayWhenIdle` below). The two replay sample
+  // rates below are read by the integration when it is added, so their meaning
+  // is unchanged.
 
   // 10% in production, 100% in dev; /monitoring (tunnel) and health checks
   // are never traced. See lib/sentry/sampling.ts.
@@ -59,5 +63,48 @@ Sentry.init({
     return event;
   },
 });
+
+/**
+ * Attaches Session Replay once the page is loaded and the main thread is idle,
+ * fetching the integration from the Sentry CDN (`lazyLoadIntegration`), so it
+ * never competes with the first paint / hydration.
+ *
+ * Trade-off: an error thrown before Replay is attached has no replay buffer.
+ * If the CDN is unreachable (offline, ad-blocker), the app keeps working and
+ * errors are still reported — only replays are missing — and a breadcrumb
+ * records why.
+ */
+function loadReplayWhenIdle(): void {
+  if (typeof window === "undefined") return;
+  // Telemetry disabled (SENTRY_DSN=off): do not fetch anything from the CDN.
+  if (!Sentry.getClient()?.getDsn()) return;
+
+  const attach = (): void => {
+    Sentry.lazyLoadIntegration("replayIntegration")
+      .then((replayIntegration) => {
+        Sentry.addIntegration(replayIntegration());
+      })
+      .catch((err: unknown) => {
+        Sentry.addBreadcrumb({
+          category: "sentry.replay",
+          level: "warning",
+          message: `Replay lazy-load failed: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      });
+  };
+
+  const whenIdle = (): void => {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(attach, { timeout: 5000 });
+    } else {
+      window.setTimeout(attach, 1000);
+    }
+  };
+
+  if (document.readyState === "complete") whenIdle();
+  else window.addEventListener("load", whenIdle, { once: true });
+}
+
+loadReplayWhenIdle();
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

@@ -26,7 +26,8 @@ import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { normalizeBrPhone } from "@/lib/schemas/public-leads";
-import { getProPlan, formatBRL } from "@/lib/pricing/pro-plans";
+import { formatBRL } from "@/lib/pricing/pro-plans";
+import { getProPlanLive } from "@/lib/pricing/settings";
 import { sendEmail } from "@/lib/email/send";
 import { buildProSignupNotifyEmail } from "@/lib/email/templates/pro-signup-notify";
 import { absoluteSiteUrl } from "@/lib/marketing/site-url";
@@ -38,6 +39,10 @@ import {
 
 import { ownerNotifyEmail } from "@/lib/email/owner";
 export const dynamic = "force-dynamic";
+
+/** Shown to the in-app user when another pending request holds this e-mail. */
+const PENDING_REQUEST_CONFLICT_MESSAGE =
+  "Já existe um pedido pendente com este e-mail — fale com o suporte para concluirmos a liberação.";
 export const runtime = "nodejs";
 
 const schema = z
@@ -85,10 +90,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   }
 
-  const plan = getProPlan("pro");
+  const plan = await getProPlanLive();
   const declaredPaidAt = new Date();
   const phoneE164 = normalizeBrPhone(parsed.data.buyer_phone);
   const admin = createAdminClient();
+  const buyerEmail = user.email.trim().toLowerCase();
+
+  // A PENDING request from the PUBLIC form with this e-mail is NEVER touched
+  // here (pendência 18 stays open). Signup does not verify e-mail ownership
+  // (email_confirm: true), so "the session has this e-mail" does not prove
+  // "this person paid the public Pix": cancelling/replacing that request would
+  // let whoever registered the e-mail first take the PRO paid by someone else.
+  // The unique pending-per-e-mail index (0081) refuses the insert instead, and
+  // the owner decides in the panel.
 
   const { data: inserted, error: insErr } = await admin
     .from("pro_signup_requests")
@@ -98,7 +112,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       status: "pending",
       plan: plan.id,
       buyer_name: parsed.data.buyer_name,
-      buyer_email: user.email,
+      buyer_email: buyerEmail,
       buyer_phone: phoneE164 ?? parsed.data.buyer_phone,
       company_name: activeOrg.name,
       amount_cents: plan.amountCents,
@@ -116,7 +130,42 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // comum de quem não viu a confirmação; não é erro, e não pode disparar um
     // segundo e-mail ao dono.
     if (insErr.code === "23505") {
-      return ok({ received: true, duplicate: true }, { status: 200, requestId });
+      // Whose pending request is it? Ours (resubmit) = silent duplicate, as
+      // before. Anyone else's (public form, or another org) = say so, audit,
+      // and never alter it.
+      const { data: existing, error: existingErr } = await admin
+        .from("pro_signup_requests")
+        .select("id, organization_id")
+        .eq("status", "pending")
+        .eq("buyer_email", buyerEmail)
+        .maybeSingle();
+      if (existingErr) {
+        logger.error("pro_upgrade_conflict_lookup_failed", { requestId, details: existingErr.message });
+      }
+      const existingRow = existing as { id: string; organization_id: string | null } | null;
+      if (existingRow && existingRow.organization_id === activeOrg.orgId) {
+        return ok({ received: true, duplicate: true }, { status: 200, requestId });
+      }
+      await audit({
+        action: "pro_signup.blocked_by_pending",
+        actorUserId: user.id,
+        organizationId: activeOrg.orgId,
+        resourceType: "pro_signup_request",
+        resourceId: existingRow?.id ?? null,
+        requestId,
+        bypassedRls: true,
+        metadata: {
+          origin: "in_app",
+          existing_is_public: existingRow ? existingRow.organization_id === null : null,
+          buyer_email_hash: emailDigest(buyerEmail),
+        },
+      });
+      return fail(
+        "state_conflict",
+        PENDING_REQUEST_CONFLICT_MESSAGE,
+        409,
+        { requestId },
+      );
     }
     logger.error("pro_upgrade_insert_failed", { requestId, reason: insErr.code, details: insErr.message });
     return fail("internal_error", "falha ao registrar o pedido", 500, { requestId });

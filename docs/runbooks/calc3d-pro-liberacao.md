@@ -204,6 +204,8 @@ Se o arquivo não existir, a imagem simplesmente some e a chave copiável contin
 
 > ⚠ **QR com valor fixo morre quando o preço mudar.** Trocar `amountCents` em `lib/pricing/pro-plans.ts` exige regerar o QR.
 
+> **Preço editável (platform_settings, migration 0087).** Com `NEXT_PUBLIC_PIX_KEY` preenchida, o servidor gera o copia-e-cola e o QR com o preço vigente; o QR estático acima vira só fallback (e some se o valor dele não bater com o preço atual). O pedido grava o valor do momento em que é enviado: quem abriu a página antes de uma mudança de preço pode ter pago o valor antigo. **Ao mudar o preço, confira o valor do Pix no extrato contra o valor do pedido** antes de aprovar.
+
 ---
 
 ## Passo a passo: ativar o TOTP na sua conta

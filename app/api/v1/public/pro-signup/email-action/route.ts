@@ -33,6 +33,7 @@ import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyEmailActionToken } from "@/lib/pro-signup/email-action-token";
 import { approveProSignup, rejectProSignup } from "@/lib/pro-signup/approve";
+import { maskEmail } from "@/lib/pro-signup/whatsapp-message";
 import { sendEmail } from "@/lib/email/send";
 import { ownerNotifyEmail } from "@/lib/email/owner";
 import { buildProApprovedAlarmEmail } from "@/lib/email/templates/pro-approved-alarm";
@@ -168,9 +169,11 @@ export async function POST(req: NextRequest) {
     case "ambiguous":
       return fail(
         "ambiguous_org",
-        "Este e-mail tem mais de uma organização — escolha no painel",
+        result.reason === "account_newer_than_request"
+          ? "A conta com este e-mail foi criada depois do pedido — decida pelo painel"
+          : "Este e-mail tem mais de uma organização — escolha no painel",
         409,
-        { requestId, details: { signup_id: rid } },
+        { requestId, details: { signup_id: rid, reason: result.reason } },
       );
     case "error":
       if (result.error === "not_pending") {
@@ -237,6 +240,9 @@ export async function POST(req: NextRequest) {
           email_dispatched: result.emailDispatched,
           buyer_name: result.buyer.name,
           buyer_phone: result.buyer.phone,
+          // Masked: the WhatsApp notice says where the activation link went,
+          // without carrying the link (pendência 19) nor the full address.
+          buyer_email_masked: maskEmail(result.buyer.email),
         },
         { requestId },
       );

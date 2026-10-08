@@ -13,14 +13,26 @@ import Footer from '@/components/marketing/Footer';
 import { SmoothScroll } from '@/components/marketing/cinematic/SmoothScroll';
 import { SlicerReveal } from '@/components/marketing/cinematic/SlicerReveal';
 import { MaterialsParallax } from '@/components/marketing/cinematic/MaterialsParallax';
+import FilamentsHomeSection from '@/components/marketing/filaments/FilamentsHomeSection';
 import type { LandingCatalog } from '@/lib/landing/types';
+import type { PublicFilament } from '@/lib/filament-catalog/types';
+import { STORE_WHATSAPP_FALLBACK } from '@/lib/landing/whatsapp-number';
 
 /**
  * Corpo da landing. Recebe o catálogo por prop em vez de importar o módulo:
  * é o que permite ao Live Preview do Landing Edit renderizar ESTES componentes
  * com dados de rascunho, em vez de um mock paralelo que envelhece mal.
  */
-export default function HomeClient({ catalog }: { catalog: LandingCatalog }) {
+export default function HomeClient({
+  catalog,
+  filaments = [],
+  storeWhatsapp = STORE_WHATSAPP_FALLBACK,
+}: {
+  catalog: LandingCatalog;
+  /** Published filaments (empty in the Landing Edit preview = section hidden). */
+  filaments?: PublicFilament[];
+  storeWhatsapp?: string;
+}) {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -44,6 +56,7 @@ export default function HomeClient({ catalog }: { catalog: LandingCatalog }) {
           selectedCategory={selectedCategory}
           searchQuery={searchQuery}
         />
+        <FilamentsHomeSection filaments={filaments} storeWhatsapp={storeWhatsapp} />
         <SlicerReveal />
         <MaterialsParallax />
         <HowItWorks settings={catalog.settings} />

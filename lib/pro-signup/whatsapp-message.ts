@@ -29,14 +29,33 @@ export function toWhatsappNumber(raw: string | null | undefined): string | null 
   return null;
 }
 
+/**
+ * `"maria.souza@gmail.com"` → `"m***@gmail.com"`. Enough for the buyer to
+ * recognize the address, without the WhatsApp text carrying it in full.
+ */
+export function maskEmail(email: string): string {
+  const clean = email.trim();
+  const at = clean.lastIndexOf("@");
+  if (at <= 0) return "***";
+  return `${clean[0]}***${clean.slice(at)}`;
+}
+
 export interface ActivationMessageInput {
   buyerName: string;
-  activationUrl: string;
+  /** Already masked (`maskEmail`): where the activation link was sent. */
+  maskedEmail: string;
   /** Quando houver, entra como "válido até". */
   expiresAt?: Date | null;
 }
 
-/** O texto que o comprador recebe. */
+/**
+ * O texto que o comprador recebe no caminho CRIAR.
+ *
+ * NÃO leva o link de ativação (pendência 19): o link cria a conta com o e-mail
+ * do pedido já verificado, então ele só pode chegar por ESSE e-mail. Mandado
+ * para o telefone do pedido, quem pagou usando o e-mail de outra pessoa
+ * criaria a conta dela. A mensagem só avisa para onde o link foi.
+ */
 export function buildActivationMessage(input: ActivationMessageInput): string {
   const first = input.buyerName.trim().split(/\s+/)[0] || "";
   const saudacao = first ? `Oi, ${first}!` : "Oi!";
@@ -49,8 +68,8 @@ export function buildActivationMessage(input: ActivationMessageInput): string {
   return (
     `${saudacao} Aqui é da GLTech3D.\n\n` +
     `Confirmei seu pagamento e seu Calc3D PRO já está liberado. ` +
-    `Use este link para criar sua senha e entrar:\n\n` +
-    `${input.activationUrl}${validade}`
+    `Enviamos o link de ativação para o seu e-mail ${input.maskedEmail} — ` +
+    `é por ele que você cria sua senha e entra (confira também a caixa de spam).${validade}`
   );
 }
 

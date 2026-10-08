@@ -86,3 +86,8 @@ Imports_github/
 # regenera), o PDF nao. Projeto e open-source.
 docs/guia-setup-calc3d-pro.pdf
 resend-records.json
+
+# Superpowers scratch & graphify
+.superpowers/
+graphify-out/
+

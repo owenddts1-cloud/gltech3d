@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { Star, ShoppingBag, Package, Facebook, Instagram, MessageCircle } from 'lucide-react';
+import { ShoppingBag, Package, Facebook, Instagram, MessageCircle } from 'lucide-react';
 import type { LandingSectionItem, LandingSettings } from '@/lib/landing/types';
 
 // Marcas / onde a GLTech3D vende (marquee).
@@ -14,30 +14,18 @@ const brands = [
 ];
 
 /**
- * Depoimentos padrão — SÃO EXEMPLOS, não avaliações reais. Ficam no ar até
- * serem substituídos pelo Landing Edit (aba Textos → Prova Social).
+ * Testimonials come ONLY from the Landing Edit (Textos → Prova Social), i.e.
+ * real customers who authorized it. There are no default/example testimonials:
+ * publishing invented reviews is misleading advertising (CDC art. 37). With an
+ * empty list the testimonial block is not rendered at all.
  */
-const DEFAULT_TESTIMONIALS: LandingSectionItem[] = [
-  {
-    text: 'Peça impecável e chegou rapidíssimo. A Luminária Lua ficou linda na estante!',
-    author: 'Marina S.',
-    detail: 'Belo Horizonte · MG',
-  },
-  {
-    text: 'Encomendei um action figure personalizado e superou a expectativa. Acabamento premium.',
-    author: 'Rafael T.',
-    detail: 'São Paulo · SP',
-  },
-  {
-    text: 'Atendimento nota 10 e o protótipo saiu exatamente como pedi. Recomendo demais.',
-    author: 'Juliana M.',
-    detail: 'Curitiba · PR',
-  },
-];
+function realTestimonials(items: LandingSectionItem[] | undefined): LandingSectionItem[] {
+  return (items ?? []).filter((t) => (t.text ?? '').trim().length > 0 && (t.author ?? '').trim().length > 0);
+}
 
 export default function SocialProof({ settings }: { settings?: LandingSettings }) {
   const copy = settings?.sections?.prova_social;
-  const testimonials = copy?.items?.length ? copy.items : DEFAULT_TESTIMONIALS;
+  const testimonials = realTestimonials(copy?.items);
   return (
     <section className="py-20 px-6 bg-[#F0EEE9]/50 border-y border-[#E8E2D9]">
       <div className="max-w-7xl mx-auto">
@@ -45,7 +33,7 @@ export default function SocialProof({ settings }: { settings?: LandingSettings }
         <p className="text-center text-[10px] font-bold uppercase tracking-[0.25em] text-[#8E6D4D] mb-6">
           Onde você encontra a GLTech3D
         </p>
-        <div className="marquee-mask mb-16">
+        <div className={`marquee-mask ${testimonials.length > 0 ? 'mb-16' : ''}`}>
           <motion.div
             className="flex w-max gap-6"
             animate={{ x: ['0%', '-50%'] }}
@@ -71,7 +59,9 @@ export default function SocialProof({ settings }: { settings?: LandingSettings }
           </motion.div>
         </div>
 
-        {/* Depoimentos */}
+        {/* Depoimentos (só reais) */}
+        {testimonials.length > 0 ? (
+        <>
         <div className="text-center mb-10">
           <span className="text-[11px] font-bold tracking-widest uppercase text-[#8E6D4D]">{copy?.eyebrow ?? 'Depoimentos'}</span>
           <h2 className="text-3xl md:text-4xl font-extrabold font-sora mt-2 text-[#2B2622]">
@@ -88,11 +78,7 @@ export default function SocialProof({ settings }: { settings?: LandingSettings }
               transition={{ duration: 0.5, delay: i * 0.1 }}
               className="rounded-2xl bg-white border border-[#E8E2D9] p-7 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#A6815C]/10 transition-all"
             >
-              <div className="mb-4 flex gap-0.5 text-[#A6815C]">
-                {Array.from({ length: 5 }).map((_, s) => (
-                  <Star key={s} className="h-4 w-4 fill-current" />
-                ))}
-              </div>
+              {/* No star rating: the Landing Edit does not collect one, and showing 5 stars would invent it. */}
               <p className="text-[15px] leading-relaxed text-[#3F342C]">“{t.text}”</p>
               <footer className="mt-5 flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#A6815C] text-sm font-bold text-white">
@@ -106,6 +92,8 @@ export default function SocialProof({ settings }: { settings?: LandingSettings }
             </motion.blockquote>
           ))}
         </div>
+        </>
+        ) : null}
       </div>
     </section>
   );

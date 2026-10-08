@@ -214,6 +214,10 @@ const schema = z.object({
   // Pix copia e cola (BR Code), com valor fixo. Validado contra o preço do
   // plano em lib/pix/config.ts — se divergir, a página esconde o código.
   NEXT_PUBLIC_PIX_COPIA_E_COLA: z.string().optional().default(""),
+  // Cidade do recebedor gravada no BR Code gerado no servidor (lib/pix/qr.ts).
+  // O banco mostra a cidade cadastrada da chave; esta só precisa ser plausível.
+  // ASCII maiúsculo, até 15 caracteres (o gerador sanitiza o resto).
+  PIX_RECEIVER_CITY: z.string().optional().default("BELO HORIZONTE"),
 
   // App URLs
   NEXT_PUBLIC_APP_URL: z

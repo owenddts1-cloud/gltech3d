@@ -5,8 +5,10 @@ import {
   approveProSignup,
   rejectProSignup,
   slugCandidates,
+  isAccountNewerThanRequest,
   type ApproveDeps,
 } from "./approve";
+import { proPlanWith } from "@/lib/pricing/pro-plans";
 
 // ---------------------------------------------------------------------------
 // Minimal fake of the supabase-js query builder. Every terminal call resolves
@@ -84,11 +86,14 @@ const PENDING_ROW = {
   company_name: "Maria Impressões",
   organization_id: null as string | null,
   amount_cents: 19_700,
+  created_at: "2026-10-05T12:00:00.000Z",
 };
 
 function deps(over: Partial<ApproveDeps> = {}): Partial<ApproveDeps> {
   return {
     findUserIdByEmail: vi.fn(async () => null),
+    // Default: the account predates the request (the trial → paid case).
+    userCreatedAt: vi.fn(async () => "2026-09-01T12:00:00.000Z"),
     grantProAccess: vi.fn(async () => ({ ok: true as const, planExpiresAt: "2027-10-06T12:00:00.000Z" })),
     createTenant: vi.fn(async (_c, input) => ({
       ok: true as const,
@@ -98,6 +103,7 @@ function deps(over: Partial<ApproveDeps> = {}): Partial<ApproveDeps> {
     audit: vi.fn(async () => undefined),
     signInviteToken: vi.fn(() => "tok"),
     now: () => new Date("2026-10-06T12:00:00.000Z"),
+    proPlan: async () => proPlanWith({ amountCents: 8900, periodDays: 365 }),
     ...over,
   };
 }
@@ -239,6 +245,13 @@ describe("approveProSignup — efeito único", () => {
     );
   });
 
+  it("o período concedido vem do plano VIVO (platform_settings), não da constante", async () => {
+    const d = deps({ proPlan: async () => proPlanWith({ amountCents: 8900, periodDays: 180 }) });
+    const { client } = fakeAdmin(happyHandler({ ...PENDING_ROW, organization_id: ORG_A }));
+    await approveProSignup({ ...base, admin: client, via: "email_link", deps: d });
+    expect(d.grantProAccess).toHaveBeenCalledWith(client, ORG_A, 180);
+  });
+
   it("falha ao conceder depois do claim → devolve o pedido para pending", async () => {
     const d = deps({
       grantProAccess: vi.fn(async () => ({ ok: false as const, message: "db down" })),
@@ -251,6 +264,77 @@ describe("approveProSignup — efeito único", () => {
     expect(updates).toHaveLength(2);
     expect(updates[1]?.payload).toMatchObject({ status: "pending", reviewed_by: null });
     expect(d.audit).not.toHaveBeenCalled();
+  });
+});
+
+describe("approveProSignup — conta criada DEPOIS do pedido público (sequestro de PRO)", () => {
+  const ATTACKER_ORG = "99999999-9999-4999-8999-999999999999";
+  const oneOrg = (call: Call): Result | null =>
+    call.table === "user_organizations" && call.op === "select"
+      ? { data: [{ organization_id: ATTACKER_ORG, organizations: { display_name: "Org do atacante" } }], error: null }
+      : null;
+
+  it("pelo e-mail: recusa (ambiguous, decida pelo painel) e não escreve nada", async () => {
+    const d = deps({
+      findUserIdByEmail: vi.fn(async () => USER),
+      userCreatedAt: vi.fn(async () => "2026-10-05T13:00:00.000Z"),
+    });
+    const { client, calls } = fakeAdmin(happyHandler(PENDING_ROW, oneOrg));
+    const res = await approveProSignup({ ...base, admin: client, via: "email_link", deps: d });
+    expect(res).toMatchObject({ outcome: "ambiguous", reason: "account_newer_than_request" });
+    expect(calls.filter((c) => c.op !== "select")).toHaveLength(0);
+    expect(d.grantProAccess).not.toHaveBeenCalled();
+  });
+
+  it("pelo e-mail: ignora qualquer chosenOrgId", async () => {
+    const d = deps({
+      findUserIdByEmail: vi.fn(async () => USER),
+      userCreatedAt: vi.fn(async () => "2026-10-05T13:00:00.000Z"),
+    });
+    const { client } = fakeAdmin(happyHandler(PENDING_ROW, oneOrg));
+    const res = await approveProSignup({
+      ...base,
+      chosenOrgId: ATTACKER_ORG,
+      admin: client,
+      via: "email_link",
+      deps: d,
+    });
+    expect(res.outcome).toBe("ambiguous");
+  });
+
+  it("pelo painel: sem escolha explícita também para; com escolha, libera a org escolhida", async () => {
+    const d = deps({
+      findUserIdByEmail: vi.fn(async () => USER),
+      userCreatedAt: vi.fn(async () => "2026-10-05T13:00:00.000Z"),
+    });
+    const { client } = fakeAdmin(happyHandler(PENDING_ROW, oneOrg));
+    const stop = await approveProSignup({ ...base, admin: client, via: "panel", deps: d });
+    expect(stop).toMatchObject({ outcome: "ambiguous", reason: "account_newer_than_request" });
+
+    const go = await approveProSignup({ ...base, chosenOrgId: ATTACKER_ORG, admin: client, via: "panel", deps: d });
+    expect(go).toMatchObject({ outcome: "approved", mode: "upgrade", organizationId: ATTACKER_ORG });
+  });
+
+  it("data da conta ilegível = trata como suspeita (fail-closed)", async () => {
+    const d = deps({ findUserIdByEmail: vi.fn(async () => USER), userCreatedAt: vi.fn(async () => null) });
+    const { client } = fakeAdmin(happyHandler(PENDING_ROW, oneOrg));
+    const res = await approveProSignup({ ...base, admin: client, via: "email_link", deps: d });
+    expect(res.outcome).toBe("ambiguous");
+  });
+
+  it("pedido feito de DENTRO do CRM (com org) não consulta a data da conta", async () => {
+    const d = deps({ findUserIdByEmail: vi.fn(async () => USER), userCreatedAt: vi.fn(async () => null) });
+    const { client } = fakeAdmin(happyHandler({ ...PENDING_ROW, organization_id: ORG_A }));
+    const res = await approveProSignup({ ...base, admin: client, via: "email_link", deps: d });
+    expect(res).toMatchObject({ outcome: "approved", mode: "upgrade", organizationId: ORG_A });
+    expect(d.userCreatedAt).not.toHaveBeenCalled();
+  });
+
+  it("isAccountNewerThanRequest", () => {
+    expect(isAccountNewerThanRequest("2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z")).toBe(false);
+    expect(isAccountNewerThanRequest("2026-03-01T00:00:00Z", "2026-02-01T00:00:00Z")).toBe(true);
+    expect(isAccountNewerThanRequest(null, "2026-02-01T00:00:00Z")).toBe(true);
+    expect(isAccountNewerThanRequest("2026-01-01T00:00:00Z", null)).toBe(true);
   });
 });
 

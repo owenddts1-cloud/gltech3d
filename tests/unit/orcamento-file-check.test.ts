@@ -81,10 +81,11 @@ describe("recusas", () => {
     expect(check("stl", "model/stl", exe, 5_000_000).ok).toBe(false);
   });
 
-  it("zip qualquer passa como 3MF so pela assinatura — limite conhecido", () => {
-    // 3MF E um zip; validar o conteudo do pacote exigiria baixar o diretorio
-    // central no fim do arquivo. O link continua num bucket privado, com
-    // validade de 7 dias e servido como model/3mf (download, nao renderizado).
+  it("a checagem de cabecalho do 3MF so ve a assinatura de zip — o pacote e conferido a parte", () => {
+    // O conteudo do pacote ([Content_Types].xml + 3D/*.model no diretorio
+    // central, lido do fim do arquivo) e conferido por check3mfPackage, chamado
+    // pela rota de confirm via lib/orcamento/verify-upload.ts — testes em
+    // lib/orcamento/verify-upload.test.ts. Aqui fica so o primeiro filtro.
     expect(check("3mf", "model/3mf", bytes([0x50, 0x4b, 0x03, 0x04])).ok).toBe(true);
   });
 

@@ -27,7 +27,11 @@ const baselineBlock = (() => {
   const marker =
     "-- ---- organizations: plan / trial_ends_at / plan_expires_at (migration 0082) ----";
   const start = baselineSql.indexOf(marker);
-  return start === -1 ? "" : baselineSql.slice(start);
+  if (start === -1) return "";
+  // Cut at the next labelled appendix block: later migrations (e.g. 0087's
+  // platform_settings policies) must not be judged as part of 0082.
+  const next = baselineSql.indexOf("\n-- ---- ", start + marker.length);
+  return next === -1 ? baselineSql.slice(start) : baselineSql.slice(start, next);
 })();
 
 const SOURCES: ReadonlyArray<[string, string]> = [

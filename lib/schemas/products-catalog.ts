@@ -20,14 +20,35 @@ import { z } from "zod";
  *
  * O `!startsWith("//")` recusa URL protocol-relative (`//host/x.png`), que
  * passaria no teste de "começa com /" e carregaria de um host externo.
+ *
+ * URL absoluta só do Storage do PRÓPRIO projeto: mesma origem de
+ * `NEXT_PUBLIC_SUPABASE_URL` (https em produção) e caminho
+ * `/storage/v1/object/...`. Qualquer outro host era aceito antes — a vitrine
+ * pública passaria a carregar mídia (e rastreio) de terceiros escolhidos por
+ * quem edita o produto.
  */
+export function isAllowedMediaUrl(value: string, supabaseUrl: string | undefined): boolean {
+  if (value.startsWith("/")) return !value.startsWith("//") && !value.startsWith("/\\");
+  if (!supabaseUrl) return false;
+  let url: URL;
+  let base: URL;
+  try {
+    url = new URL(value);
+    base = new URL(supabaseUrl);
+  } catch {
+    // Not a parseable absolute URL: refused (the caller shows the Zod message).
+    return false;
+  }
+  return url.origin === base.origin && url.pathname.startsWith("/storage/v1/object/");
+}
+
 export const mediaPath = z
   .string()
   .trim()
   .min(1)
   .max(1000)
-  .refine((v) => (v.startsWith("/") && !v.startsWith("//")) || /^https?:\/\//.test(v), {
-    message: "Use um caminho de /public ou uma URL http(s).",
+  .refine((v) => isAllowedMediaUrl(v, process.env.NEXT_PUBLIC_SUPABASE_URL), {
+    message: "Use um caminho de /public ou uma URL do Storage do projeto.",
   });
 
 /** URL de canal de venda. `""` é válido e significa "herda o link global da loja". */

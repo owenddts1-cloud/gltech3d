@@ -7,20 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Check, Lock, Copy, CheckCircle } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
-import { PRO_PLANS, formatBRL, monthlyEquivalentCents } from "@/lib/pricing/pro-plans";
-import { TRIAL_DAYS } from "@/lib/tenants/trial";
+import { formatBRL, monthlyEquivalentCents, proPlanWith } from "@/lib/pricing/pro-plans";
+import type { PublicProPricing } from "@/lib/pricing/settings-schema";
+import type { ProPixCheckout } from "@/lib/pix/qr";
+import { storeWhatsappUrl } from "@/lib/landing/whatsapp-number";
 import type { PlanState } from "@/lib/plan/types";
 import type { ProModule } from "@/lib/plan/modules";
 import { PRO_REQUEST_FORBIDDEN_MESSAGE } from "@/lib/pro-signup/request-permission";
 
-import {
-  PIX_KEY,
-  PIX_RECEIVER_NAME as PIX_RECEIVER,
-  PIX_QR_SRC,
-  PIX_COPIA_E_COLA_TEXT,
-} from "@/lib/pix/config";
-
-const WHATSAPP_URL = "https://wa.me/5531999284834";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -79,6 +73,9 @@ export function BillingClient({
   buyerName,
   buyerEmail,
   canRequest,
+  pricing,
+  pix,
+  storeWhatsapp,
 }: {
   plan: PlanState | null;
   orgName: string | null;
@@ -88,13 +85,23 @@ export function BillingClient({
   buyerEmail: string;
   /** Só o admin da org (ou platform admin) pede o PRO — mesma regra da rota. */
   canRequest: boolean;
+  /** Live price/period/trial (platform_settings), from the server page. */
+  pricing: PublicProPricing;
+  /** Pix code + QR generated on the server with the live price (lib/pix/qr.ts). */
+  pix: ProPixCheckout;
+  /** Store WhatsApp digits (lib/landing/whatsapp.ts). */
+  storeWhatsapp: string;
 }) {
+  const PIX_KEY = pix.key ?? "";
+  const PIX_RECEIVER = pix.receiverName;
+  const qrImage = pix.qrDataUrl ?? pix.qrSrc;
+  const WHATSAPP_URL = storeWhatsappUrl(storeWhatsapp);
   const [copied, setCopied] = useState<"key" | "code" | null>(null);
   const [qrAvailable, setQrAvailable] = useState(true);
-  const copiaECola = PIX_COPIA_E_COLA_TEXT;
+  const copiaECola = pix.copiaECola;
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
-  const planInfo = PRO_PLANS.pro;
+  const planInfo = proPlanWith(pricing);
   const status = statusLine(plan);
   const isPaid = plan?.status === "active";
 
@@ -125,6 +132,16 @@ export function BillingClient({
         }),
       });
       if (!res.ok) {
+        if (res.status === 409) {
+          // Another pending request holds this e-mail: the route explains it in pt-BR.
+          const body: unknown = await res.json().catch(() => null);
+          const message =
+            typeof body === "object" && body !== null && "error" in body
+              ? (body as { error?: { message?: unknown } }).error?.message
+              : undefined;
+          toast.error(typeof message === "string" ? message : "Já existe um pedido pendente com este e-mail.");
+          return;
+        }
         toast.error(
           res.status === 403
             ? PRO_REQUEST_FORBIDDEN_MESSAGE
@@ -200,7 +217,7 @@ export function BillingClient({
           {!isPaid && (
             <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
               Calculadora, Dashboard e Configurações continuam livres — mesmo depois dos{" "}
-              {TRIAL_DAYS} dias. Nada é apagado.
+              {pricing.trialDays} dias. Nada é apagado.
             </p>
           )}
         </Card>
@@ -211,11 +228,11 @@ export function BillingClient({
 
             {PIX_KEY ? (
               <div className="space-y-4">
-                {qrAvailable ? (
+                {qrImage && qrAvailable ? (
                   <div className="flex flex-col items-center gap-1">
                     {/* eslint-disable-next-line @next/next/no-img-element -- QR pequeno e estático; next/image roda com unoptimized neste projeto */}
                     <img
-                      src={PIX_QR_SRC}
+                      src={qrImage}
                       alt="QR Code do Pix"
                       width={180}
                       height={180}

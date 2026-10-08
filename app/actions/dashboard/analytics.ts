@@ -207,7 +207,12 @@ export async function fetchDashboardData(
   ]);
   const productsRes = await supabase
     .from("products")
-    .select("sale_price_cents, stock_qty, filament_grams, filament_client_id");
+    .select("sale_price_cents, stock_qty, filament_grams, filament_client_id")
+    .eq("organization_id", activeOrg.orgId)
+    // "Peças em estoque": pieces only. A filament for sale (0087) has no
+    // filament_grams cost, so it would inflate the potential profit; spool
+    // stock is already the `filaments` card.
+    .eq("kind", "peca");
   // Total Investido é ACUMULADO (todo o histórico), não do período: soma de tudo
   // que foi comprado (máquinas, filamentos, ferramentas, insumos) na planilha de Controle.
   const investRes = await supabase.from("financial_records").select("expense_cents");

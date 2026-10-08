@@ -44,6 +44,16 @@ export async function findUserIdByEmail(
 }
 
 /**
+ * `created_at` (ISO) da conta, ou `null` se não existir ou a leitura falhar.
+ * A aprovação de pedido PRO trata `null` como "conta suspeita" (fail-closed).
+ */
+export async function userCreatedAt(admin: SupabaseClient, userId: string): Promise<string | null> {
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error || !data.user) return null;
+  return data.user.created_at ?? null;
+}
+
+/**
  * E-mails de um conjunto de usuários, por id. Ids sem conta ficam fora do mapa.
  *
  * O SDK não tem busca em lote por id; `getUserById` em paralelo, limitado a

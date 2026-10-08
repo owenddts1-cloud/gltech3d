@@ -50,6 +50,8 @@ export async function fetchCatalogProducts(): Promise<{
         bestseller_rank
       `)
       .eq("organization_id", activeOrg.orgId)
+      // Pieces only: filaments for sale (0087) have their own catalog.
+      .eq("kind", "peca")
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
 

@@ -86,12 +86,13 @@ describe("listas padrão espelhadas entre componente e editor", () => {
     }
   });
 
-  it("os depoimentos de exemplo batem nos dois lados", () => {
-    const fromComponent = literals(socialProof, "DEFAULT_TESTIMONIALS");
-    expect(fromComponent.length).toBeGreaterThan(0);
-    for (const text of fromComponent) {
-      expect(editor, `depoimento ausente no editor: "${text.slice(0, 40)}…"`).toContain(text);
-    }
+  // Fake testimonials are misleading advertising (CDC art. 37): neither the
+  // component nor the editor may ship example ones. Real ones come from the
+  // Landing Edit only.
+  it("não existem depoimentos de exemplo no componente nem no editor", () => {
+    expect(literals(socialProof, "DEFAULT_TESTIMONIALS")).toEqual([]);
+    expect(socialProof).not.toContain("DEFAULT_TESTIMONIALS");
+    expect(editor).not.toMatch(/kind: 'testimonial',\s*fallback: \[\s*\{/);
   });
 
   it("todo ícone usado nos passos padrão existe na allowlist", () => {

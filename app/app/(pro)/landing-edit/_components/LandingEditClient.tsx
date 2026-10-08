@@ -25,6 +25,8 @@ import {
 } from '@/app/actions/landing/actions';
 import type { LandingSection, LandingSectionItem } from '@/lib/landing/types';
 import OrderPanel from './OrderPanel';
+import FilamentsPanel from './FilamentsPanel';
+import type { FilamentAdmin } from '@/lib/filament-catalog/types';
 import LivePreview from './LivePreview';
 import SaveIndicator from './SaveIndicator';
 import CategoryPanel from './CategoryPanel';
@@ -39,6 +41,8 @@ interface Props {
   initialProducts: LandingProductAdmin[];
   initialSettings: { sections: Record<string, LandingSection>; links: Record<string, string> };
   initialCommissions: PlatformCommission[];
+  /** Filaments of the active org (CRM list). Empty when the read failed. */
+  initialFilaments?: FilamentAdmin[];
 }
 
 /** Seções da landing que têm texto editável. */
@@ -109,26 +113,11 @@ const EDITABLE_SECTIONS: {
     key: 'prova_social',
     label: 'Prova Social (depoimentos)',
     defaults: { eyebrow: 'Depoimentos', title: 'Quem imprime com a gente' },
-    // Espelha DEFAULT_TESTIMONIALS de components/marketing/SocialProof.tsx.
+    // No example testimonials (CDC art. 37): the list starts empty and the
+    // site hides the testimonial block until a real, authorized one is added.
     list: {
       kind: 'testimonial',
-      fallback: [
-        {
-          text: 'Peça impecável e chegou rapidíssimo. A Luminária Lua ficou linda na estante!',
-          author: 'Marina S.',
-          detail: 'Belo Horizonte · MG',
-        },
-        {
-          text: 'Encomendei um action figure personalizado e superou a expectativa. Acabamento premium.',
-          author: 'Rafael T.',
-          detail: 'São Paulo · SP',
-        },
-        {
-          text: 'Atendimento nota 10 e o protótipo saiu exatamente como pedi. Recomendo demais.',
-          author: 'Juliana M.',
-          detail: 'Curitiba · PR',
-        },
-      ],
+      fallback: [],
     },
   },
   {
@@ -157,6 +146,7 @@ export default function LandingEditClient({
   initialProducts,
   initialSettings,
   initialCommissions,
+  initialFilaments,
 }: Props) {
   const [products, setProducts] = useState(initialProducts);
   const [settings, setSettings] = useState(initialSettings);
@@ -308,9 +298,10 @@ export default function LandingEditClient({
         {/* ── Esquerda: formulários ─────────────────────────────────── */}
         <div className="flex min-h-0 flex-col border-r border-border">
           <Tabs defaultValue="ordem" className="flex min-h-0 flex-1 flex-col">
-            <TabsList className="mx-4 mt-3 grid w-auto grid-cols-6">
+            <TabsList className="mx-4 mt-3 grid w-auto grid-cols-7 [&>button]:px-1 [&>button]:text-[11px]">
               <TabsTrigger value="ordem">Ordem</TabsTrigger>
               <TabsTrigger value="podio">Pódio</TabsTrigger>
+              <TabsTrigger value="filamentos">Filamentos</TabsTrigger>
               <TabsTrigger value="nichos">Nichos</TabsTrigger>
               <TabsTrigger value="textos">Textos</TabsTrigger>
               <TabsTrigger value="links">Links</TabsTrigger>
@@ -320,6 +311,11 @@ export default function LandingEditClient({
             {/* Ordem (Vitrine) */}
             <TabsContent value="ordem" className="min-h-0 flex-1 overflow-y-auto p-4">
               <OrderPanel products={products} onReordered={setProducts} />
+            </TabsContent>
+
+            {/* Filamentos (vitrine de filamentos) */}
+            <TabsContent value="filamentos" className="min-h-0 flex-1 overflow-y-auto p-4">
+              <FilamentsPanel initialFilaments={initialFilaments ?? []} />
             </TabsContent>
 
             {/* Pódio */}

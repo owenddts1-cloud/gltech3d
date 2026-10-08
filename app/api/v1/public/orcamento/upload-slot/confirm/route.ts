@@ -17,7 +17,12 @@
  *      file's extension and its first bytes must match the format
  *      (lib/orcamento/file-check.ts). The uploader picks the content type —
  *      a signed upload URL cannot bind it — so this is where it is enforced.
- *      A mismatching object is DELETED, not just refused.
+ *      A mismatching object is DELETED, not just refused. For .3mf the ZIP
+ *      central directory must list [Content_Types].xml and a 3D/*.model part.
+ *   5. The check runs on a COPY under `verified/` and the link points at that
+ *      copy; the original upload path is deleted. Replacing the uploaded object
+ *      after the check (x-upsert on the signed upload) no longer changes what
+ *      the link serves (pendência 19).
  */
 import { randomUUID } from "node:crypto";
 import type { NextRequest, NextResponse } from "next/server";
@@ -34,18 +39,10 @@ import {
   orcamentoConfirmSchema,
   orcamentoKindOf,
 } from "@/lib/schemas/orcamento-upload";
-import {
-  SNIFF_BYTES,
-  checkOrcamentoFile,
-  readHead,
-  totalSizeFromHeaders,
-} from "@/lib/orcamento/file-check";
+import { verifyAndPublishUpload } from "@/lib/orcamento/verify-upload";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-/** Validity of the internal link used only to read the first bytes. */
-const SNIFF_LINK_TTL_SECONDS = 60;
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const requestId = randomUUID();
@@ -81,73 +78,42 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const bucket = createAdminClient().storage.from(ORCAMENTO_BUCKET);
 
-  // Read only the first bytes through a short-lived signed URL. supabase-js
-  // `download()` replaces the auth headers when given custom ones, so a Range
-  // request goes through a signed link instead.
-  const { data: sniffLink, error: sniffLinkErr } = await bucket.createSignedUrl(path, SNIFF_LINK_TTL_SECONDS);
-  if (sniffLinkErr || !sniffLink) {
-    // Storage answers "Object not found" here when nothing was uploaded.
-    logger.warn("orcamento_upload_confirm_missing", { requestId, details: sniffLinkErr?.message ?? "no data" });
-    return fail("not_found", "arquivo não encontrado — envie novamente", 404, { requestId });
-  }
-
-  let res: Response;
-  try {
-    res = await fetch(sniffLink.signedUrl, {
-      headers: { Range: `bytes=0-${SNIFF_BYTES - 1}` },
-      cache: "no-store",
-    });
-  } catch (err) {
-    logger.error("orcamento_upload_confirm_read_failed", {
-      requestId,
-      details: err instanceof Error ? err.message : String(err),
-    });
-    return fail("internal_error", "falha ao verificar o arquivo", 502, { requestId });
-  }
-  if (res.status === 404 || res.status === 400) {
-    await res.body?.cancel();
-    return fail("not_found", "arquivo não encontrado — envie novamente", 404, { requestId });
-  }
-  if (res.status !== 200 && res.status !== 206) {
-    await res.body?.cancel();
-    logger.error("orcamento_upload_confirm_read_failed", { requestId, details: `HTTP ${res.status}` });
-    return fail("internal_error", "falha ao verificar o arquivo", 502, { requestId });
-  }
-
-  const check = checkOrcamentoFile({
+  // Copy to verified/ → delete the original → check the COPY → sign the copy.
+  // See lib/orcamento/verify-upload.ts for why the order matters.
+  const result = await verifyAndPublishUpload({
+    bucket,
+    path,
     kind,
-    storedContentType: res.headers.get("content-type"),
-    head: await readHead(res.body, SNIFF_BYTES),
-    totalSize: totalSizeFromHeaders(res.status, res.headers),
+    linkTtlSeconds: ORCAMENTO_LINK_TTL_SECONDS,
   });
 
-  if (!check.ok) {
-    const { error: removeErr } = await bucket.remove([path]);
-    logger.warn("orcamento_upload_rejected", {
-      requestId,
-      ip,
-      kind,
-      reason: check.reason,
-      removed: !removeErr,
-      removeError: removeErr?.message,
-    });
+  if (!result.ok) {
+    if (result.code === "file_rejected") {
+      logger.warn("orcamento_upload_rejected", { requestId, ip, kind, reason: result.reason });
+      return fail(
+        "file_rejected",
+        `o conteúdo não corresponde a um arquivo .${kind} válido`,
+        422,
+        { requestId },
+      );
+    }
+    if (result.code === "not_found") {
+      logger.warn("orcamento_upload_confirm_missing", { requestId, details: result.reason });
+      return fail("not_found", "arquivo não encontrado — envie novamente", 404, { requestId });
+    }
+    logger.error("orcamento_upload_confirm_failed", { requestId, kind, details: result.reason });
     return fail(
-      "file_rejected",
-      `o conteúdo não corresponde a um arquivo .${kind} válido`,
-      422,
+      "internal_error",
+      result.status === 502 ? "falha ao verificar o arquivo" : "falha ao gerar o link do arquivo",
+      result.status,
       { requestId },
     );
   }
 
-  const { data, error } = await bucket.createSignedUrl(path, ORCAMENTO_LINK_TTL_SECONDS);
-  if (error || !data) {
-    logger.error("orcamento_upload_confirm_failed", {
-      requestId,
-      details: error?.message ?? "no data",
-    });
-    return fail("internal_error", "falha ao gerar o link do arquivo", 500, { requestId });
+  if (result.originalRemoveError) {
+    logger.warn("orcamento_upload_original_not_removed", { requestId, details: result.originalRemoveError });
   }
 
   const expiresAt = new Date(Date.now() + ORCAMENTO_LINK_TTL_SECONDS * 1000).toISOString();
-  return ok({ fileUrl: data.signedUrl, expiresAt }, { requestId });
+  return ok({ fileUrl: result.signedUrl, expiresAt }, { requestId });
 }

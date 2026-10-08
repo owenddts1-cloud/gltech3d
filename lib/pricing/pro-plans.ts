@@ -49,3 +49,31 @@ export function monthlyEquivalentCents(plan: ProPlan): number {
   const months = plan.periodDays / 30.4375;
   return Math.round(plan.amountCents / months);
 }
+
+/**
+ * The plan with the price/period currently set in `platform_settings`.
+ *
+ * `PRO_PLANS` keeps the TYPE and the defaults; the live values come from
+ * `getProPlanLive()` (lib/pricing/settings.ts) on the server. Pure, so client
+ * components can rebuild the plan from the numbers their page passed down.
+ */
+export function proPlanWith(values: { amountCents: number; periodDays: number }): ProPlan {
+  const base = PRO_PLANS.pro;
+  const isYearly = values.periodDays === 365 || values.periodDays === 366;
+  return {
+    ...base,
+    amountCents: values.amountCents,
+    periodDays: values.periodDays,
+    label: isYearly ? base.label : `Calc3D PRO — ${values.periodDays} dias`,
+    tagline: isYearly
+      ? base.tagline
+      : `Um Pix a cada ${values.periodDays} dias. Sem cartão, sem fidelidade.`,
+  };
+}
+
+/** Suffix after the price: "ano", "mês" or "N dias". */
+export function periodSuffix(periodDays: number): string {
+  if (periodDays === 365 || periodDays === 366) return "ano";
+  if (periodDays === 30 || periodDays === 31) return "mês";
+  return `${periodDays} dias`;
+}

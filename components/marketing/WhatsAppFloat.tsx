@@ -3,10 +3,11 @@
 import { MessageCircle } from 'lucide-react';
 
 import { track } from "@/lib/analytics/track";
+import { STORE_WHATSAPP_FALLBACK, storeWhatsappUrl } from "@/lib/landing/whatsapp-number";
 
-export default function WhatsAppFloat() {
-  const message = encodeURIComponent('Olá! Vim pelo site GLTech3D e gostaria de tirar uma dúvida sobre impressão 3D.');
-  const whatsappUrl = `https://wa.me/5531999284834?text=${message}`;
+/** `phone`: store WhatsApp digits resolved on the server (lib/landing/whatsapp.ts). */
+export default function WhatsAppFloat({ phone = STORE_WHATSAPP_FALLBACK }: { phone?: string }) {
+  const whatsappUrl = storeWhatsappUrl(phone, 'Olá! Vim pelo site GLTech3D e gostaria de tirar uma dúvida sobre impressão 3D.');
 
   return (
     <a

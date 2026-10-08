@@ -156,3 +156,113 @@ export async function readHead(body: ReadableStream<Uint8Array> | null, max = SN
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// 3MF: ZIP central directory
+// ---------------------------------------------------------------------------
+//
+// The `PK\x03\x04` signature only proves "some zip": any renamed .zip passed as
+// a 3MF (pendência 19). A 3MF is an OPC package, so its central directory must
+// list `[Content_Types].xml` and a 3D model part under `3D/` (the spec's
+// canonical name is `3D/3dmodel.model`; the actual path is declared in
+// `_rels/.rels`, so any `3D/*.model` is accepted).
+//
+// The central directory sits at the END of the file, located by the End Of
+// Central Directory record (EOCD, last 22 bytes + up to 64 KiB of comment).
+// The confirm route reads only that tail with a Range request.
+
+/** EOCD (22 bytes) + the maximum zip comment (65535 bytes). */
+export const ZIP_TAIL_BYTES = 22 + 0xffff;
+/** A 3MF with a central directory larger than this is refused (no real one is close). */
+export const MAX_CENTRAL_DIRECTORY_BYTES = 1024 * 1024;
+
+const EOCD_SIG = 0x06054b50;
+const CDH_SIG = 0x02014b50;
+
+export type ZipDirectoryLocation =
+  | { ok: true; offset: number; size: number; entries: number }
+  | { ok: false; reason: string };
+
+/**
+ * Finds the EOCD in the last bytes of the file and returns where the central
+ * directory is (absolute offset in the file). `totalSize` is the file size.
+ */
+export function locateZipCentralDirectory(tail: Uint8Array, totalSize: number): ZipDirectoryLocation {
+  if (tail.length < 22) return { ok: false, reason: "arquivo curto demais para ser um zip" };
+  const view = new DataView(tail.buffer, tail.byteOffset, tail.byteLength);
+  for (let i = tail.length - 22; i >= 0; i--) {
+    if (view.getUint32(i, true) !== EOCD_SIG) continue;
+    const commentLen = view.getUint16(i + 20, true);
+    // The comment must end exactly at the end of the file; otherwise this is
+    // a stray signature inside the data.
+    if (i + 22 + commentLen !== tail.length) continue;
+    const entries = view.getUint16(i + 10, true);
+    const size = view.getUint32(i + 12, true);
+    const offset = view.getUint32(i + 16, true);
+    if (entries === 0xffff || size === 0xffffffff || offset === 0xffffffff) {
+      return { ok: false, reason: "zip64 não é aceito" };
+    }
+    const eocdAbs = totalSize - tail.length + i;
+    if (offset + size > eocdAbs) return { ok: false, reason: "diretório central inconsistente" };
+    if (size > MAX_CENTRAL_DIRECTORY_BYTES) return { ok: false, reason: "diretório central grande demais" };
+    return { ok: true, offset, size, entries };
+  }
+  return { ok: false, reason: "fim do diretório central (EOCD) não encontrado" };
+}
+
+/** File names listed in a central directory (raw bytes of exactly that region). */
+export function parseZipCentralDirectory(cd: Uint8Array, expectedEntries: number): string[] | null {
+  const view = new DataView(cd.buffer, cd.byteOffset, cd.byteLength);
+  const decoder = new TextDecoder("utf-8", { fatal: false });
+  const names: string[] = [];
+  let p = 0;
+  while (p + 46 <= cd.length && names.length < expectedEntries) {
+    if (view.getUint32(p, true) !== CDH_SIG) return null;
+    const nameLen = view.getUint16(p + 28, true);
+    const extraLen = view.getUint16(p + 30, true);
+    const commentLen = view.getUint16(p + 32, true);
+    if (p + 46 + nameLen > cd.length) return null;
+    names.push(decoder.decode(cd.subarray(p + 46, p + 46 + nameLen)));
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return names.length === expectedEntries ? names : null;
+}
+
+/** The 3MF parts that must be present. */
+export function check3mfEntries(names: readonly string[]): FileCheckResult {
+  const normalized = names.map((n) => n.replace(/\\/g, "/").replace(/^\/+/, ""));
+  if (!normalized.includes("[Content_Types].xml")) {
+    return { ok: false, reason: "3MF sem [Content_Types].xml" };
+  }
+  if (!normalized.some((n) => /^3D\/[^/]+\.model$/i.test(n))) {
+    return { ok: false, reason: "3MF sem modelo 3D (3D/3dmodel.model)" };
+  }
+  return { ok: true };
+}
+
+/**
+ * Whole 3MF content check from the file tail. `readRange` fetches an
+ * arbitrary byte range when the central directory is not inside the tail
+ * (only for archives with a huge directory; normally unused).
+ */
+export async function check3mfPackage(
+  tail: Uint8Array,
+  totalSize: number,
+  readRange: (start: number, endInclusive: number) => Promise<Uint8Array>,
+): Promise<FileCheckResult> {
+  const loc = locateZipCentralDirectory(tail, totalSize);
+  if (!loc.ok) return { ok: false, reason: loc.reason };
+
+  const tailStart = totalSize - tail.length;
+  let cd: Uint8Array;
+  if (loc.offset >= tailStart) {
+    cd = tail.subarray(loc.offset - tailStart, loc.offset - tailStart + loc.size);
+  } else {
+    cd = await readRange(loc.offset, loc.offset + loc.size - 1);
+    if (cd.length !== loc.size) return { ok: false, reason: "não consegui ler o diretório central" };
+  }
+
+  const names = parseZipCentralDirectory(cd, loc.entries);
+  if (!names) return { ok: false, reason: "diretório central corrompido" };
+  return check3mfEntries(names);
+}

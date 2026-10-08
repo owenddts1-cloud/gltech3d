@@ -66,6 +66,44 @@ describe("resolveTargetOrg", () => {
     expect(r.mode).toBe("ambiguous");
   });
 
+  it("2d. conta mais nova que o pedido: nunca deduz (nem com uma org só, nem sem org)", () => {
+    const one = resolveTargetOrg({
+      requestOrgId: null,
+      existingUserId: USER,
+      memberships: [ORG_A],
+      accountNewerThanRequest: true,
+    });
+    expect(one).toMatchObject({ mode: "ambiguous", reason: "account_newer_than_request" });
+    const none = resolveTargetOrg({
+      requestOrgId: null,
+      existingUserId: USER,
+      memberships: [],
+      accountNewerThanRequest: true,
+    });
+    expect(none).toMatchObject({ mode: "ambiguous", candidates: [] });
+  });
+
+  it("2d. conta mais nova + escolha explícita entre as orgs dela: upgrade", () => {
+    const r = resolveTargetOrg({
+      requestOrgId: null,
+      existingUserId: USER,
+      memberships: [ORG_A],
+      chosenOrgId: "org-a",
+      accountNewerThanRequest: true,
+    });
+    expect(r).toEqual({ mode: "upgrade", organizationId: "org-a", userId: USER });
+  });
+
+  it("2d. pedido com org ignora a idade da conta", () => {
+    const r = resolveTargetOrg({
+      requestOrgId: "org-do-pedido",
+      existingUserId: USER,
+      memberships: [],
+      accountNewerThanRequest: true,
+    });
+    expect(r).toMatchObject({ mode: "upgrade", organizationId: "org-do-pedido" });
+  });
+
   it("2c. usuário existente sem nenhuma membership: cria, mas reusa a conta", () => {
     const r = resolveTargetOrg({ requestOrgId: null, existingUserId: USER, memberships: [] });
     expect(r).toEqual({ mode: "create", userId: USER });

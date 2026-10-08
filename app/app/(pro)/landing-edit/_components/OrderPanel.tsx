@@ -197,8 +197,9 @@ export default function OrderPanel({ products, onReordered }: OrderPanelProps) {
                           </Button>
                         </div>
                       </div>
-                    )}
-                  </Draggable>
+                    </div>
+                  )}
+                </Draggable>
                 );
               })}
               {provided.placeholder}

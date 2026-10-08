@@ -5,8 +5,16 @@ import Link from "next/link";
 import { WhatsappLogo, ArrowUpRight, MagnifyingGlass, Sparkle } from "@phosphor-icons/react";
 
 import type { LandingCatalog, LandingProduct } from "@/lib/landing/types";
+import { storeWhatsappUrl } from "@/lib/landing/whatsapp-number";
 
-export function PublicCatalogClient({ catalog }: { catalog: LandingCatalog }) {
+export function PublicCatalogClient({
+  catalog,
+  storeWhatsapp,
+}: {
+  catalog: LandingCatalog;
+  /** Store WhatsApp digits (lib/landing/whatsapp.ts), resolved by the server page. */
+  storeWhatsapp: string;
+}) {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("todas");
 
@@ -154,7 +162,7 @@ export function PublicCatalogClient({ catalog }: { catalog: LandingCatalog }) {
                       </Link>
                     )}
                     <a
-                      href={`https://wa.me/5531999284834?text=${waMsg}`}
+                      href={`${storeWhatsappUrl(storeWhatsapp)}?text=${waMsg}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-500 transition-colors"

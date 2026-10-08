@@ -17,6 +17,7 @@ import WhatsAppFloat from "@/components/marketing/WhatsAppFloat";
 import { ConsentBanner } from "@/components/marketing/ConsentBanner";
 import { Analytics } from "@vercel/analytics/next";
 import { siteUrl } from "@/lib/marketing/site-url";
+import { getStoreWhatsapp } from "@/lib/landing/whatsapp";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -58,15 +59,21 @@ export const metadata: Metadata = {
 };
 
 import { CustomCursor } from "@/components/marketing/CustomCursor";
+import { CartProvider } from "@/components/marketing/cart/CartProvider";
+import CartDrawer from "@/components/marketing/cart/CartDrawer";
 
-export default function MarketingLayout({
+export default async function MarketingLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className={`${inter.variable} ${sora.variable} marketing-root min-h-screen`}>
       <CustomCursor />
-      {children}
-      <WhatsAppFloat />
+      {/* Filament cart: one provider for every marketing page, so it survives navigation. */}
+      <CartProvider>
+        {children}
+        <CartDrawer />
+      </CartProvider>
+      <WhatsAppFloat phone={await getStoreWhatsapp()} />
       <ConsentBanner />
       {/* Sem cookie: mede mesmo para quem recusa os de terceiro. */}
       <Analytics />

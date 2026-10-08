@@ -4,6 +4,10 @@ import { loadPlanState } from "@/lib/plan/server";
 import { proModuleForPath, PRO_MODULES } from "@/lib/plan/modules";
 import { canRequestProUpgrade } from "@/lib/pro-signup/request-permission";
 import { BillingClient } from "./_client";
+import { getPlatformSettings } from "@/lib/pricing/settings";
+import { toPublicProPricing } from "@/lib/pricing/settings-schema";
+import { getProPixCheckout } from "@/lib/pix/qr";
+import { getStoreWhatsapp } from "@/lib/landing/whatsapp";
 
 export const metadata: Metadata = { title: "Plano e cobrança" };
 export const dynamic = "force-dynamic";
@@ -20,7 +24,12 @@ export default async function BillingPage({
 }) {
   const user = await requireAuth();
   const activeOrg = await resolveActiveOrg(user);
-  const plan = activeOrg ? await loadPlanState(activeOrg.orgId) : null;
+  const [plan, settings, pix, storeWhatsapp] = await Promise.all([
+    activeOrg ? loadPlanState(activeOrg.orgId) : Promise.resolve(null),
+    getPlatformSettings(),
+    getProPixCheckout(),
+    getStoreWhatsapp(),
+  ]);
 
   // O parâmetro vem da URL, ou seja, do usuário. NUNCA renderizar cru: resolvemos
   // para um RÓTULO do catálogo e, se não reconhecer, não mostramos nada. Imprimir
@@ -41,6 +50,9 @@ export default async function BillingPage({
         role: activeOrg?.role,
         isPlatformAdmin: user.is_platform_admin,
       })}
+      pricing={toPublicProPricing(settings)}
+      pix={pix}
+      storeWhatsapp={storeWhatsapp}
     />
   );
 }

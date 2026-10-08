@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gltech3d — Sistema de Vendas e Instagram</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#151b23; --bg3:#1c242e; --line:#2a3442;
+    --tx:#e6edf3; --tx2:#9aa7b4; --tx3:#6b7885;
+    --ac:#ff7a1a; --ac2:#2dd4bf; --ok:#4ade80; --wr:#fbbf24;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 80px}
+  .wrap.top{padding-bottom:0}
+  header{padding:38px 0 22px;border-bottom:1px solid var(--line)}
+  h1{font-size:29px;letter-spacing:-.5px;font-weight:700}
+  h1 span{color:var(--ac)}
+  .sub{color:var(--tx2);margin-top:8px;font-size:15px;max-width:720px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .chip{background:var(--bg3);border:1px solid var(--line);color:var(--tx2);font-size:12.5px;padding:5px 11px;border-radius:20px}
+  .chip b{color:var(--tx)}
+  nav{position:sticky;top:0;z-index:20;background:rgba(13,17,23,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);margin-bottom:30px}
+  .tabs{display:flex;gap:2px;overflow-x:auto;max-width:1080px;margin:0 auto;padding:0 20px;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--tx3);font:inherit;font-size:14px;font-weight:500;padding:14px 13px;cursor:pointer;white-space:nowrap}
+  .tab:hover{color:var(--tx)}
+  .tab.on{color:var(--ac);border-bottom-color:var(--ac)}
+  section{display:none;animation:f .25s ease}
+  section.on{display:block}
+  @keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h2{font-size:21px;margin:34px 0 6px;letter-spacing:-.3px}
+  h2:first-child{margin-top:0}
+  h3{font-size:16px;margin:24px 0 8px;color:var(--tx)}
+  .lead{color:var(--tx2);font-size:14.5px;margin-bottom:18px;max-width:760px}
+  p{color:var(--tx2);font-size:14.5px;margin-bottom:10px}
+  strong{color:var(--tx);font-weight:600}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px;background:var(--ac);color:#12181f;font-weight:700;font-size:13px;margin-right:9px;flex:none}
+  .ch{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid rgba(42,52,66,.5);font-size:14.5px;color:var(--tx2);cursor:pointer}
+  .ch:last-child{border-bottom:none}
+  .ch input{margin-top:4px;accent-color:var(--ac);width:15px;height:15px;flex:none;cursor:pointer}
+  .ch input:checked + span{color:var(--tx3);text-decoration:line-through}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0 4px}
+  th{text-align:left;color:var(--tx3);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.6px;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:10px;border-bottom:1px solid rgba(42,52,66,.6);color:var(--tx2);vertical-align:top}
+  td b{color:var(--tx)}
+  .tag{display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;letter-spacing:.3px}
+  .t-reel{background:rgba(255,122,26,.15);color:#ffa45e}
+  .t-car{background:rgba(45,212,191,.15);color:#5eead4}
+  .t-sto{background:rgba(167,139,250,.15);color:#c4b5fd}
+  .t-off{background:rgba(107,120,133,.18);color:var(--tx3)}
+  .roteiro{background:var(--bg2);border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+  .rh{padding:15px 18px;cursor:pointer;display:flex;align-items:center;gap:12px;user-select:none}
+  .rh:hover{background:var(--bg3)}
+  .rh .idx{color:var(--ac);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+  .rh .ti{font-weight:600;font-size:15px;flex:1}
+  .rh .ar{color:var(--tx3);font-size:12px;transition:transform .2s}
+  .roteiro.open .rh .ar{transform:rotate(90deg)}
+  .rb{display:none;padding:0 18px 18px;border-top:1px solid var(--line)}
+  .roteiro.open .rb{display:block}
+  .lab{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--tx3);font-weight:700;margin:16px 0 6px}
+  .box{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:14px;color:var(--tx2);white-space:pre-wrap;position:relative}
+  .box.hook{color:var(--tx);font-weight:600;border-left:3px solid var(--ac)}
+  .cp{position:absolute;top:8px;right:8px;background:var(--bg3);border:1px solid var(--line);color:var(--tx2);font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;font-family:inherit}
+  .cp:hover{color:var(--tx);border-color:var(--ac)}
+  ul{margin:6px 0 6px 4px;list-style:none}
+  ul li{color:var(--tx2);font-size:14.5px;padding:4px 0 4px 18px;position:relative}
+  ul li::before{content:"";position:absolute;left:2px;top:12px;width:5px;height:5px;border-radius:50%;background:var(--ac)}
+  ol{margin:6px 0 6px 20px}
+  ol li{color:var(--tx2);font-size:14.5px;padding:4px 0}
+  .warn{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.3);border-left:3px solid var(--wr);border-radius:8px;padding:14px 16px;margin:14px 0}
+  .warn b{color:var(--wr)}
+  .good{background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.25);border-left:3px solid var(--ok);border-radius:8px;padding:14px 16px;margin:14px 0}
+  .good b{color:var(--ok)}
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0}
+  .kpi div{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:15px}
+  .kpi .v{font-size:24px;font-weight:700;color:var(--ac);letter-spacing:-.5px}
+  .kpi .l{font-size:12.5px;color:var(--tx3);margin-top:3px}
+  .week{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
+  .wt{background:var(--bg3);padding:11px 16px;font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+  .wt em{font-style:normal;color:var(--tx3);font-size:12.5px;font-weight:400}
+  .day{display:grid;grid-template-columns:96px 88px 1fr;gap:12px;padding:11px 16px;border-top:1px solid rgba(42,52,66,.6);font-size:14px;align-items:start}
+  .day .d{color:var(--tx3);font-size:13px}
+  .day .c{color:var(--tx2)}
+  .day .c b{color:var(--tx)}
+  footer{margin-top:50px;padding-top:20px;border-top:1px solid var(--line);color:var(--tx3);font-size:12.5px}
+  a{color:var(--ac2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  @media(max-width:620px){
+    .day{grid-template-columns:1fr;gap:5px}
+    h1{font-size:23px}
+    .wrap{padding:0 14px 60px}
+    .tabs{padding:0 14px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap top">
+<header>
+  <h1>Sistema de vendas <span>gltech3d</span></h1>
+  <div class="sub">Operação de Instagram desenhada para caber em 3 horas por semana, com automação de Direct e orçamento de até R$ 50/mês. O objetivo não é seguidor — é conversa no Direct que vira pedido.</div>
+  <div class="chips">
+    <span class="chip"><b>3h</b>/semana em 3 blocos</span>
+    <span class="chip"><b>4</b> publicações/semana</span>
+    <span class="chip"><b>R$ 50</b>/mês de teto</span>
+    <span class="chip">Meta: <b>20 conversas</b> no Direct/mês</span>
+  </div>
+</header>
+</div>
+
+<nav><div class="tabs">
+  <button class="tab on" data-s="s0">Como funciona</button>
+  <button class="tab" data-s="s1">Rotina 3h</button>
+  <button class="tab" data-s="s2">Calendário 30 dias</button>
+  <button class="tab" data-s="s3">Roteiros prontos</button>
+  <button class="tab" data-s="s4">Automação do Direct</button>
+  <button class="tab" data-s="s5">Perfil e busca</button>
+  <button class="tab" data-s="s6">Ferramentas e R$ 50</button>
+  <button class="tab" data-s="s7">Métricas</button>
+</div></nav>
+
+<div class="wrap">
+
+<!-- ============ 0 ============ -->
+<section id="s0" class="on">
+  <h2>A lógica do sistema</h2>
+  <div class="lead">Você vende produto personalizado de ticket médio, não produto de impulso. Ninguém compra um suporte com o escudo do time vendo um post bonito — a pessoa manda mensagem, pergunta se dá pra fazer do time dela, e aí compra. Então todo o sistema existe para produzir <strong>uma coisa só: mensagens no Direct</strong>.</div>
+
+  <div class="grid">
+    <div class="card">
+      <h3 style="margin-top:0"><span class="num">1</span>Conteúdo que o algoritmo distribui</h3>
+      <p>Em 2026 o Instagram distribui por <strong>tempo de exibição, salvamentos e compartilhamentos</strong> — não por curtida. Reels curto de impressão 3D em timelapse é um dos formatos com maior retenção que existe. Você tem a matéria-prima na mão.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0"><span class="num">2</span>Chamada que puxa comentário</h3>
+      <p>Todo Reel termina pedindo uma palavra no comentário (<strong>"comenta QUERO"</strong>, <strong>"comenta o seu time"</strong>). Comentário aumenta o alcance e, ao mesmo tempo, é o gatilho da automação.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0"><span class="num">3</span>Automação leva pro Direct</h3>
+      <p>O ManyChat detecta a palavra no comentário e manda mensagem automática no Direct em segundos, com foto, preço e link. Funciona 24h, inclusive enquanto você está imprimindo.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0"><span class="num">4</span>Você só entra pra fechar</h3>
+      <p>A automação faz a triagem. Você entra na conversa já qualificada, manda a prévia da personalização e fecha. É onde suas 3h rendem mais.</p>
+    </div>
+  </div>
+
+  <div class="warn">
+    <b>Sobre comprar seguidores, curtidas e visualizações:</b> não faça. Não é uma questão moral — é que quebra exatamente o mecanismo que te dá venda. O Instagram mede <em>proporção</em> de engajamento em relação ao público alcançado; encher a conta de perfil fantasma que nunca interage derruba essa taxa e o algoritmo passa a entregar menos para gente de verdade. Fora o risco de restrição de conta. Uma conta de 800 seguidores reais de gamer e torcedor vende mais que uma de 10 mil comprados.
+  </div>
+
+  <div class="good">
+    <b>O que realmente aumenta seguidor e visualização:</b> volume constante de Reels curtos com bom gancho nos 3 primeiros segundos, um tema que a pessoa se identifica (o time dela, o carro dela, o setup dela) e conteúdo feito para ser <em>enviado para um amigo</em>. Compartilhamento é o sinal de maior peso hoje.
+  </div>
+
+  <h2>O que muda na prática</h2>
+  <table>
+    <tr><th>Hoje</th><th>Com o sistema</th></tr>
+    <tr><td>Posta quando lembra</td><td><b>4 publicações/semana</b> agendadas de uma vez</td></tr>
+    <tr><td>Grava um vídeo por vez</td><td><b>Grava 3 Reels em 1 hora</b>, um dia só</td></tr>
+    <tr><td>Responde Direct quando vê</td><td><b>Resposta automática em segundos</b>, 24h por dia</td></tr>
+    <tr><td>Legenda inventada na hora</td><td><b>12 roteiros e legendas prontos</b> pra copiar</td></tr>
+    <tr><td>Não sabe o que funcionou</td><td><b>3 números</b> conferidos toda quinta</td></tr>
+  </table>
+</section>
+
+<!-- ============ 1 ============ -->
+<section id="s1">
+  <h2>A rotina de 3 horas</h2>
+  <div class="lead">Três blocos de 1 hora, dias fixos. O segredo é não misturar: gravar é gravar, editar é editar. Quando você grava e edita no mesmo movimento, um Reel come 40 minutos. Em lote, três Reels cabem em uma hora.</div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Bloco A — Segunda, 1h · <span style="color:var(--ac)">Gravar tudo da semana</span></h3>
+    <p style="font-size:13.5px">Cenário montado uma vez, celular no tripé, luz boa. Grave os 3 Reels da semana em sequência, sem editar nada.</p>
+    <label class="ch"><input type="checkbox"><span>Montar o cenário: bancada limpa, fundo neutro ou setup gamer, uma luz lateral</span></label>
+    <label class="ch"><input type="checkbox"><span>Deixar a impressora rodando uma peça e posicionar o celular para o timelapse (função nativa da câmera ou app do slicer)</span></label>
+    <label class="ch"><input type="checkbox"><span>Gravar Reel 1, 2 e 3 seguindo os roteiros da aba "Roteiros prontos"</span></label>
+    <label class="ch"><input type="checkbox"><span>Gravar 6 a 8 clipes soltos de 3s para Stories (peça saindo da mesa, embalagem, detalhe do escudo)</span></label>
+    <label class="ch"><input type="checkbox"><span>Tirar 5 fotos estáticas do produto para o carrossel</span></label>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Bloco B — Terça, 1h · <span style="color:var(--ac2)">Editar, escrever e agendar</span></h3>
+    <p style="font-size:13.5px">Edição no CapCut, sempre no mesmo modelo. Não invente formato novo toda semana — modelo repetido é o que faz caber em 15 minutos por vídeo.</p>
+    <label class="ch"><input type="checkbox"><span>Editar os 3 Reels: corte seco, texto grande no primeiro segundo, 15 a 25 segundos cada</span></label>
+    <label class="ch"><input type="checkbox"><span>Usar áudio em alta do próprio Instagram (a setinha ↗ ao lado do nome do áudio indica que está subindo)</span></label>
+    <label class="ch"><input type="checkbox"><span>Exportar sem marca d'água do CapCut — vídeo com marca de outro app perde alcance</span></label>
+    <label class="ch"><input type="checkbox"><span>Copiar as legendas prontas e trocar o que for específico da semana</span></label>
+    <label class="ch"><input type="checkbox"><span>Agendar as 4 publicações no Meta Business Suite (grátis, ilimitado)</span></label>
+    <label class="ch"><input type="checkbox"><span>Conferir se a palavra-chave do comentário está ativa no ManyChat para cada Reel</span></label>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Bloco C — Quinta, 1h · <span style="color:#c4b5fd">Vender e medir</span></h3>
+    <p style="font-size:13.5px">Essa é a hora que dá dinheiro. Prioridade absoluta: conversa parada no Direct.</p>
+    <label class="ch"><input type="checkbox"><span>Responder todo Direct pendente — quem pediu preço e não voltou, mandar a prévia da peça personalizada</span></label>
+    <label class="ch"><input type="checkbox"><span>Responder todos os comentários dos Reels da semana (responder comentário reabre entrega do vídeo)</span></label>
+    <label class="ch"><input type="checkbox"><span>Reativar: mandar mensagem para 5 pessoas que perguntaram preço nos últimos 30 dias e sumiram</span></label>
+    <label class="ch"><input type="checkbox"><span>Postar 3 Stories dos clipes gravados na segunda, com enquete ou caixinha de pergunta</span></label>
+    <label class="ch"><input type="checkbox"><span>Anotar os 3 números da aba "Métricas" na planilha mental: alcance, conversas iniciadas, pedidos</span></label>
+  </div>
+
+  <div class="good">
+    <b>Se em alguma semana você só tiver 1 hora:</b> faça o Bloco C. Responder Direct parado vende mais que postar Reel novo. Conteúdo sem resposta no Direct é dinheiro jogado fora.
+  </div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="s2">
+  <h2>Calendário de 30 dias</h2>
+  <div class="lead">Quatro semanas fechadas, 16 publicações. Cada semana tem um tema-âncora para o conteúdo não virar repetição. Horários pensados para o público brasileiro de setup/games: 12h30 no almoço e 19h à noite.</div>
+  <div id="cal"></div>
+  <div class="card">
+    <h3 style="margin-top:0">Depois do dia 30</h3>
+    <p>Não crie um calendário novo do zero. Pegue os <strong>3 Reels de maior alcance</strong> do mês, regrave cada um com outro gancho e outro produto e rode de novo. Conteúdo que funcionou funciona outra vez — seu público novo nunca viu.</p>
+  </div>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="s3">
+  <h2>12 roteiros prontos</h2>
+  <div class="lead">Clique para abrir. Cada roteiro tem gancho, o que filmar cena a cena, a legenda pronta e a palavra que dispara a automação. Grave em pé, 9:16, celular no tripé.</div>
+  <div id="rots"></div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="s4">
+  <h2>Automação do Direct</h2>
+  <div class="lead">Esse é o pedaço que trabalha enquanto você imprime. Duas camadas: o que o próprio Instagram já faz de graça, e o ManyChat no plano gratuito (até 1.000 contatos, Instagram incluso).</div>
+
+  <h3>Camada 1 — Nativa do Instagram (grátis, 15 minutos para configurar)</h3>
+  <div class="card">
+    <label class="ch"><input type="checkbox"><span><b>Perguntas frequentes:</b> Configurações → Empresa → Perguntas frequentes. Cadastre 4: "Quanto custa?", "Faz do meu time?", "Quanto tempo pra ficar pronto?", "Vocês enviam para todo o Brasil?". Aparecem como botão para quem abre a conversa.</span></label>
+    <label class="ch"><input type="checkbox"><span><b>Mensagem de saudação:</b> texto automático no primeiro contato, já com a pergunta que qualifica.</span></label>
+    <label class="ch"><input type="checkbox"><span><b>Respostas rápidas:</b> cadastre atalhos (<code>/preco</code>, <code>/prazo</code>, <code>/frete</code>, <code>/pix</code>) e responda em um toque.</span></label>
+    <label class="ch"><input type="checkbox"><span><b>Ausência:</b> mensagem automática no horário que você está imprimindo ou dormindo.</span></label>
+  </div>
+
+  <h3>Camada 2 — ManyChat gratuito (comentário → Direct)</h3>
+  <p>É o coração do sistema. A pessoa comenta uma palavra no Reel e recebe mensagem no Direct em segundos. Isso faz três coisas ao mesmo tempo: aumenta comentário (alcance), gera conversa (venda) e não custa nada.</p>
+
+  <div class="card">
+    <div class="lab">Fluxo 1 — Palavra "QUERO" (usar nos Reels de produto)</div>
+    <div class="box">Gatilho: comentário com a palavra QUERO em qualquer publicação
+
+Mensagem 1 (imediata):
+"Opa! Vi seu comentário 🔥 O suporte é impresso em 3D e eu faço personalizado do jeito que você quiser — escudo do seu time, seu nick, sua logo, nas cores que escolher.
+Me diz duas coisas rápido:
+1) É pra fone, controle ou os dois?
+2) Qual time / tema você quer?"
+
+Botão A: "Ver os modelos"  →  Mensagem 2 com 3 fotos + faixa de preço + link do site
+Botão B: "Quero orçamento"  →  Mensagem 3: "Fechado, me manda o time e a cor que eu já te mando a prévia hoje"
+<button class="cp">copiar</button></div>
+  </div>
+
+  <div class="card">
+    <div class="lab">Fluxo 2 — Palavra do time (usar no Reel de personalização)</div>
+    <div class="box">Gatilho: comentário contendo qualquer nome de time (cadastre a lista: Corinthians, Palmeiras, São Paulo, Santos, Flamengo, Vasco, Fluminense, Botafogo, Cruzeiro, Atlético, Grêmio, Inter, Bahia, Vitória, Sport...)
+
+Mensagem:
+"Boa escolha 😄 Já fiz esse escudo sim. Te mando a prévia em 3D aqui no Direct ainda hoje — quer na cor oficial do time ou preto com o escudo colorido?"
+
+Objetivo: fazer a pessoa responder UMA pergunta fácil. Conversa iniciada = venda a meio caminho.
+<button class="cp">copiar</button></div>
+  </div>
+
+  <div class="card">
+    <div class="lab">Fluxo 3 — Palavra "NOME" (usar no Reel de letreiro 3D)</div>
+    <div class="box">Gatilho: comentário com a palavra NOME
+
+Mensagem:
+"Eu faço letreiro 3D com qualquer nome ou palavra, no tamanho e na cor que você quiser — fica lindo em quarto, festa e vitrine ✨
+Escreve aqui o nome que você quer que eu já te mostro como fica."
+
+Botão: "Ver tamanhos e preços" → Mensagem 2 com tabela de 3 tamanhos + prazo
+<button class="cp">copiar</button></div>
+  </div>
+
+  <div class="card">
+    <div class="lab">Fluxo 4 — Recuperar quem sumiu (mandar manualmente, Bloco C)</div>
+    <div class="box">"Oi! Passando aqui só pra saber se você ainda quer o [produto] do [time/tema]. Terminei uma leva essa semana e consigo encaixar o seu — se fechar até [dia], sai pronto ainda nessa semana. Quer que eu separe?"
+<button class="cp">copiar</button></div>
+  </div>
+
+  <div class="warn">
+    <b>Cuidado com o tipo errado de automação.</b> Ferramenta que segue, curte ou comenta em massa em perfis de terceiros ("robô de crescimento") viola os termos da Meta e é o caminho mais rápido para restrição de conta. Automação de <em>resposta a quem interagiu com você</em> — que é o caso do ManyChat — é oficialmente suportada pela API do Instagram. É a linha que separa uma coisa da outra.
+  </div>
+
+  <h3>Ordem de montagem (faça nesta ordem, 40 minutos no total)</h3>
+  <ol>
+    <li>Converter o perfil para <strong>Conta comercial</strong> (necessário para qualquer automação)</li>
+    <li>Configurar as 4 perguntas frequentes e a saudação — 15 min</li>
+    <li>Criar conta no ManyChat, conectar o Instagram — 5 min</li>
+    <li>Montar o Fluxo 1 (QUERO) e testar com o seu próprio comentário — 15 min</li>
+    <li>Só depois que o Fluxo 1 estiver rodando, montar os Fluxos 2 e 3 — 5 min cada</li>
+  </ol>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="s5">
+  <h2>Perfil e busca</h2>
+  <div class="lead">Hoje muita gente procura produto na busca do Instagram como procuraria no Google. A busca lê o <strong>nome do perfil, a bio e o texto da legenda</strong> — não as hashtags. Ajustar isso é meia hora de trabalho que rende o ano inteiro.</div>
+
+  <h3>Campo "Nome" — o mais subestimado do Instagram</h3>
+  <p>O campo Nome (não o @) é indexado pela busca. Ele não é para escrever o nome da marca — é para escrever <strong>o que você vende</strong>.</p>
+  <div class="card">
+    <div class="lab">Trocar</div>
+    <div class="box" style="color:var(--tx3)">gltech3d</div>
+    <div class="lab">Por</div>
+    <div class="box hook">gltech3d | Suporte de Fone e Controle 3D<button class="cp">copiar</button></div>
+    <p style="margin-top:12px;font-size:13.5px">Assim você aparece quando alguém busca "suporte de fone", "suporte controle", "impressão 3d".</p>
+  </div>
+
+  <h3>Bio em 4 linhas</h3>
+  <div class="card">
+    <div class="box">Suporte de fone e controle impresso em 3D 🎮
+Personalizo com o escudo do seu time, seu nick ou sua logo
+Letreiro 3D e chaveiro sob encomenda ✨
+Envio para todo o Brasil · Chama no Direct 👇
+<button class="cp">copiar</button></div>
+    <ul style="margin-top:12px">
+      <li>Primeira linha diz o que é, não quem você é</li>
+      <li>Terceira linha abre a porta para os outros produtos</li>
+      <li>Última linha é ordem direta: chama no Direct</li>
+      <li>No link, aponte para o gltech3d.vercel.app com o catálogo visível na primeira dobra</li>
+    </ul>
+  </div>
+
+  <h3>Destaques (Stories fixados) — crie estes 5</h3>
+  <table>
+    <tr><th>Destaque</th><th>O que colocar</th><th>Por quê</th></tr>
+    <tr><td><b>Modelos</b></td><td>Cada produto em uso, um Story por modelo</td><td>Vitrine — primeira coisa que o visitante abre</td></tr>
+    <tr><td><b>Times</b></td><td>Todos os escudos que você já fez</td><td>Prova de que faz o time dele</td></tr>
+    <tr><td><b>Preços</b></td><td>Faixa de preço por produto e tamanho</td><td>Tira o "quanto custa?" do caminho</td></tr>
+    <tr><td><b>Entregas</b></td><td>Print de conversa, foto do cliente com a peça</td><td>Prova social — o que mais destrava compra</td></tr>
+    <tr><td><b>Como pedir</b></td><td>Passo a passo: manda o tema → aprova a prévia → paga → recebe</td><td>Reduz a insegurança de comprar de perfil pequeno</td></tr>
+  </table>
+
+  <h3>Hashtags — o que mudou</h3>
+  <p>Adam Mosseri, chefe do Instagram, foi direto: hashtag <strong>ajuda na busca, mas não aumenta alcance</strong>. Então pare de colar 30. Use <strong>3 a 6</strong>, específicas:</p>
+  <div class="card">
+    <div class="box">#impressao3d #setupgamer #suportedefone #[nomedotime] #decoracao3d #gltech3d<button class="cp">copiar</button></div>
+    <p style="margin-top:10px;font-size:13.5px">Regra: uma de nicho técnico, uma de público (setup gamer / decoração), uma do tema específico do vídeo, e a sua própria marca. O que carrega o alcance é a <strong>legenda escrita com as palavras que a pessoa usaria</strong> — "suporte de fone com escudo do Corinthians" dentro do texto vale mais que dez hashtags.</p>
+  </div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="s6">
+  <h2>Ferramentas dentro dos R$ 50</h2>
+  <div class="lead">A operação inteira roda de graça. Os R$ 50 ficam livres para uma coisa só, e ela está no fim desta página.</div>
+  <table>
+    <tr><th>Ferramenta</th><th>Para quê</th><th>Custo</th></tr>
+    <tr><td><b>Meta Business Suite</b></td><td>Agendar Reels, carrosséis e Stories sem limite; caixa de entrada unificada</td><td style="color:var(--ok)">Grátis</td></tr>
+    <tr><td><b>ManyChat (Free)</b></td><td>Comentário → Direct automático. Até 1.000 contatos, Instagram incluso</td><td style="color:var(--ok)">Grátis</td></tr>
+    <tr><td><b>CapCut</b></td><td>Edição dos Reels, legenda automática, modelo salvo</td><td style="color:var(--ok)">Grátis</td></tr>
+    <tr><td><b>Metricool (Free)</b></td><td>Opcional: métricas de 30 dias + 5 concorrentes analisados. Agenda até 20 posts/mês — exatamente sua cadência</td><td style="color:var(--ok)">Grátis</td></tr>
+    <tr><td><b>Câmera do celular + tripé</b></td><td>Timelapse da impressão. Não precisa de nada melhor</td><td style="color:var(--ok)">Grátis</td></tr>
+    <tr><td>Metricool Starter</td><td>Só se um dia precisar de mais de 20 posts/mês</td><td>~R$ 100/mês — <b>não precisa agora</b></td></tr>
+  </table>
+
+  <h2>Onde colocar os R$ 50</h2>
+  <div class="good">
+    <b>Não distribua.</b> R$ 50 divididos em 30 dias viram R$ 1,66/dia e não entregam nada. A jogada certa é uma só, no fim do mês:
+    <ol style="margin-top:10px">
+      <li>Deixe o mês inteiro rodar orgânico e veja qual Reel teve <strong>mais alcance e mais comentários</strong>.</li>
+      <li>Impulsione <strong>só esse</strong>, com R$ 10/dia por 5 dias.</li>
+      <li>Objetivo do anúncio: <strong>"Mais mensagens"</strong> (Direct). Nunca "mais curtidas" ou "mais visualizações" — visualização paga não vira pedido.</li>
+      <li>Público: 18 a 40 anos, raio da sua cidade + estados que você já enviou, interesses de <em>video games, e-sports, futebol, decoração de festas</em>.</li>
+      <li>No Bloco C da semana seguinte, meça: quantos Direct vieram do impulsionamento e quantos viraram pedido. Se der menos de 1 pedido, mude o público antes de mudar o vídeo.</li>
+    </ol>
+  </div>
+  <p>Um Reel que já provou funcionar organicamente e recebe R$ 50 rende muito mais que qualquer campanha montada do zero. Você está pagando para acelerar algo que o próprio público já validou.</p>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="s7">
+  <h2>Os 3 números que importam</h2>
+  <div class="lead">Ignore seguidor e curtida. Anote estes três toda quinta, no Bloco C. Cinco minutos.</div>
+  <div class="kpi">
+    <div><div class="v">1</div><div class="l">Contas alcançadas na semana<br><span style="color:var(--tx3);font-size:11px">Instagram → Painel profissional</span></div></div>
+    <div><div class="v">2</div><div class="l">Conversas iniciadas no Direct<br><span style="color:var(--tx3);font-size:11px">Conte na caixa de entrada</span></div></div>
+    <div><div class="v">3</div><div class="l">Pedidos fechados<br><span style="color:var(--tx3);font-size:11px">O único que paga a conta</span></div></div>
+  </div>
+
+  <h3>Metas realistas para os primeiros 90 dias</h3>
+  <table>
+    <tr><th>Período</th><th>Alcance/mês</th><th>Conversas/mês</th><th>Pedidos/mês</th></tr>
+    <tr><td><b>Mês 1</b></td><td>2.000 – 5.000</td><td>15 – 20</td><td>3 – 5</td></tr>
+    <tr><td><b>Mês 2</b></td><td>6.000 – 12.000</td><td>25 – 40</td><td>6 – 10</td></tr>
+    <tr><td><b>Mês 3</b></td><td>15.000 – 30.000</td><td>40 – 70</td><td>10 – 18</td></tr>
+  </table>
+  <p style="font-size:13.5px;color:var(--tx3)">Faixas para conta pequena e nicho de produto personalizado, com 4 publicações por semana. O mês 1 quase sempre parece fraco — a curva de conteúdo constante é exponencial, não linear. O erro clássico é desistir na semana 5.</p>
+
+  <h3>Como ler o resultado</h3>
+  <table>
+    <tr><th>O que você vê</th><th>O que significa</th><th>O que ajustar</th></tr>
+    <tr><td>Alcance baixo, poucos segundos de retenção</td><td>Gancho fraco</td><td>Refaça só os 3 primeiros segundos e reposte em outro dia</td></tr>
+    <tr><td>Alcance alto, nenhum Direct</td><td>Conteúdo entretém mas não vende</td><td>Aumente a chamada: fale a palavra em voz alta e escreva na tela</td></tr>
+    <tr><td>Muito Direct, poucos pedidos</td><td>Trava no preço ou no prazo</td><td>Mande a prévia em 3D antes de falar preço; crie o destaque "Preços"</td></tr>
+    <tr><td>Salvamento alto</td><td>Melhor sinal que existe</td><td>Esse é o tema do mês seguinte inteiro — faça 4 variações dele</td></tr>
+    <tr><td>Seguidores sobem, nada mais muda</td><td>Público errado</td><td>Volte para conteúdo de produto e personalização, corte o genérico</td></tr>
+  </table>
+
+  <div class="warn">
+    <b>Não olhe métrica todo dia.</b> Reel demora até 72h para ser distribuído por completo e Instagram tem entrega irregular por natureza. Olhar diariamente leva a mudar a estratégia por ruído. Uma vez por semana, sempre no mesmo dia.
+  </div>
+</section>
+
+<footer>
+  Painel montado para gltech3d · agosto de 2026 · dados de algoritmo e ferramentas conferidos nas fontes citadas na conversa.
+</footer>
+</div>
+
+<script>
+const CAL=[
+ {s:"Semana 1", t:"Tema: mostrar o que você faz", d:[
+  {dia:"Segunda",h:"—",k:"off",c:"<b>Bloco A</b> — gravar os 3 Reels e os clipes de Stories"},
+  {dia:"Terça",h:"19h",k:"reel",c:"<b>Roteiro 1 — Timelapse:</b> a impressora fazendo o suporte do zero até a peça pronta na mesa"},
+  {dia:"Quarta",h:"12h30",k:"sto",c:"3 Stories: bastidor da bancada + enquete \"qual cor fica melhor?\""},
+  {dia:"Quinta",h:"19h",k:"reel",c:"<b>Roteiro 2 — Escudo do time:</b> a peça girando com o escudo, chamada \"comenta seu time\""},
+  {dia:"Sexta",h:"—",k:"off",c:"<b>Bloco C</b> — Direct, comentários e reativação"},
+  {dia:"Sábado",h:"11h",k:"car",c:"<b>Carrossel:</b> 5 fotos — \"Antes e depois do meu setup\", última imagem com o preço"},
+  {dia:"Domingo",h:"19h",k:"reel",c:"<b>Roteiro 3 — Encaixe:</b> o som e o encaixe perfeito do fone no suporte, sem falar nada"}]},
+ {s:"Semana 2", t:"Tema: personalização", d:[
+  {dia:"Segunda",h:"—",k:"off",c:"<b>Bloco A</b> — gravar"},
+  {dia:"Terça",h:"19h",k:"reel",c:"<b>Roteiro 4 — Seu nick na peça:</b> digitar o nome no computador e a peça saindo pronta"},
+  {dia:"Quarta",h:"12h30",k:"sto",c:"Caixinha de pergunta: \"Qual tema você quer ver na próxima peça?\""},
+  {dia:"Quinta",h:"19h",k:"reel",c:"<b>Roteiro 5 — Letreiro 3D:</b> nome iluminado no quarto, chamada palavra NOME"},
+  {dia:"Sexta",h:"—",k:"off",c:"<b>Bloco C</b> — Direct e métricas"},
+  {dia:"Sábado",h:"11h",k:"car",c:"<b>Carrossel:</b> \"Escudos que já fiz\" — um time por foto, última convidando a pedir o dele"},
+  {dia:"Domingo",h:"19h",k:"reel",c:"<b>Roteiro 6 — Chaveiro Porsche:</b> o carro, o chaveiro e a pergunta \"qual carro eu faço?\""}]},
+ {s:"Semana 3", t:"Tema: prova social e confiança", d:[
+  {dia:"Segunda",h:"—",k:"off",c:"<b>Bloco A</b> — gravar"},
+  {dia:"Terça",h:"19h",k:"reel",c:"<b>Roteiro 7 — Pedido do início ao fim:</b> mensagem no Direct → modelagem → impressão → embalagem"},
+  {dia:"Quarta",h:"12h30",k:"sto",c:"Print de conversa de cliente satisfeito + foto da peça entregue"},
+  {dia:"Quinta",h:"19h",k:"reel",c:"<b>Roteiro 8 — Comparação:</b> suporte genérico de loja x o seu personalizado"},
+  {dia:"Sexta",h:"—",k:"off",c:"<b>Bloco C</b> — Direct e reativação"},
+  {dia:"Sábado",h:"11h",k:"car",c:"<b>Carrossel:</b> \"Como funciona o pedido em 4 passos\" — tira a insegurança de comprar"},
+  {dia:"Domingo",h:"19h",k:"reel",c:"<b>Roteiro 9 — A impressora nova:</b> o que muda pra quem compra (mais rápido, mais acabamento)"}]},
+ {s:"Semana 4", t:"Tema: desejo e fechamento", d:[
+  {dia:"Segunda",h:"—",k:"off",c:"<b>Bloco A</b> — gravar"},
+  {dia:"Terça",h:"19h",k:"reel",c:"<b>Roteiro 10 — Setup completo:</b> a mesa montada com suporte, letreiro e chaveiro juntos"},
+  {dia:"Quarta",h:"12h30",k:"sto",c:"Contagem: \"últimas peças dessa leva\" + link direto do Direct"},
+  {dia:"Quinta",h:"19h",k:"reel",c:"<b>Roteiro 11 — Erro de impressão:</b> o que dá errado e por que você refaz até ficar perfeito"},
+  {dia:"Sexta",h:"—",k:"off",c:"<b>Bloco C</b> + escolher o Reel do mês para impulsionar com os R$ 50"},
+  {dia:"Sábado",h:"11h",k:"car",c:"<b>Carrossel:</b> \"Presente pra quem tem setup\" — posicionamento de presente"},
+  {dia:"Domingo",h:"19h",k:"reel",c:"<b>Roteiro 12 — Pedido em 24h:</b> alguém pede hoje, recebe pronto; mostra a velocidade"}]}
+];
+const RT=[
+ {t:"Timelapse do zero à peça pronta",g:"Isso aqui começou como um rolo de plástico.",
+  c:["0–3s: close no filamento entrando no bico, texto grande na tela com o gancho","3–12s: timelapse da impressão acelerado (câmera fixa, luz constante)","12–18s: sua mão tirando a peça da mesa, ainda morna","18–22s: peça já montada na mesa com o fone em cima"],
+  l:"Isso aqui começou como um rolo de plástico e terminou segurando meu fone.\n\nSuporte de fone impresso em 3D, feito por mim, personalizado do jeito que você quiser — escudo do seu time, seu nick, sua logo, na cor que escolher.\n\nComenta QUERO que eu te chamo no Direct com os modelos.\n\n#impressao3d #setupgamer #suportedefone #gltech3d",p:"QUERO",
+  d:"O timelapse é o formato mais forte que você tem. Retenção alta porque a pessoa quer ver como termina. Grave sempre — mesmo quando não for postar."},
+ {t:"O escudo do seu time",g:"Me manda o seu time que eu faço.",
+  c:["0–3s: peça girando na mão com o escudo bem visível, gancho na tela","3–8s: close no detalhe do escudo, mostrando as cores separadas","8–14s: corte rápido em 3 escudos diferentes","14–20s: o suporte com o escudo já na mesa, com o fone"],
+  l:"Me manda o seu time que eu faço 🔥\n\nSuporte de fone e controle impresso em 3D com o escudo do seu time nas cores oficiais. Faço qualquer time — série A, B, estadual, time de várzea, o que você quiser.\n\nComenta aí o nome do seu time 👇\n\n#impressao3d #futebol #setupgamer #gltech3d",p:"nome do time",
+  d:"Esse é o seu Reel de maior potencial de compartilhamento. Torcedor marca amigo torcedor. Peça o time no comentário em voz alta E escrito na tela."},
+ {t:"O encaixe perfeito (sem falar nada)",g:"Sem narração — só o som.",
+  c:["0–3s: mão descendo o fone devagar em direção ao suporte","3–6s: o encaixe, com som limpo e nítido (grave em silêncio)","6–12s: câmera girando em volta do conjunto montado","12–16s: texto na tela: 'feito sob medida pro seu fone'"],
+  l:"Sem narração. Só o encaixe. 🎧\n\nCada suporte é dimensionado pra ficar firme e não marcar a espuma do fone. Personalizo cor, escudo e nome.\n\nComenta QUERO pra ver os modelos.\n\n#satisfying #impressao3d #setupgamer #gltech3d",p:"QUERO",
+  d:"Vídeo sensorial retém muito e é altamente reassistido — reassistir é sinal de peso alto no ranqueamento. Grave em ambiente silencioso."},
+ {t:"Seu nick virando peça física",g:"Escreve seu nick nos comentários.",
+  c:["0–3s: você digitando um nick no computador, tela visível","3–7s: o modelo 3D girando na tela do software","7–14s: timelapse da impressão desse nome","14–20s: a peça pronta na mão, com o nick legível"],
+  l:"Escreve seu nick nos comentários que eu modelo o próximo 👀\n\nTransformo qualquer nome, nick ou logo em peça 3D — suporte, letreiro ou chaveiro. Você escolhe cor, tamanho e acabamento.\n\n#impressao3d #personalizado #setupgamer #gltech3d",p:"nick",
+  d:"Chamada de altíssima conversão em comentário: pedir algo que a pessoa adora dar (o nome dela). Responda comentário por comentário com uma prévia — vira venda."},
+ {t:"Letreiro 3D no quarto",g:"Seu nome brilhando na parede em 3 dias.",
+  c:["0–3s: quarto no escuro, letreiro aceso, gancho na tela","3–8s: acender/apagar mostrando o efeito","8–14s: cortes em 3 letreiros diferentes (festa, quarto, vitrine)","14–20s: close nas letras e no acabamento"],
+  l:"Seu nome brilhando na parede em 3 dias ✨\n\nLetreiro 3D personalizado: qualquer nome ou palavra, tamanho sob medida, cores que você escolher. Fica perfeito em quarto, festa, chá revelação e vitrine de loja.\n\nComenta NOME que eu te mando os tamanhos e preços.\n\n#letreiro3d #decoracao #festapersonalizada #gltech3d",p:"NOME",
+  d:"O letreiro atinge um público totalmente diferente do gamer — decoração e festa. É o seu produto de maior alcance para mulheres e mães organizando festa."},
+ {t:"Chaveiro do carro dela",g:"Qual carro eu faço o próximo?",
+  c:["0–3s: chaveiro girando na mão, gancho na tela","3–8s: close no detalhe do logo/silhueta","8–13s: chaveiro ao lado de uma foto ou miniatura do carro","13–18s: texto: 'me fala o seu carro'"],
+  l:"Qual carro eu faço o próximo? 🏁\n\nChaveiro 3D personalizado do seu carro, do seu time ou da sua logo. Peça pequena, presente que acerta sempre.\n\nComenta o modelo do seu carro aí embaixo 👇\n\n#impressao3d #carros #chaveiropersonalizado #gltech3d",p:"carro",
+  d:"Produto de entrada: preço baixo, decisão rápida. Serve para trazer cliente novo que depois compra o suporte."},
+ {t:"Um pedido do começo ao fim",g:"Ele mandou uma mensagem. Três dias depois recebeu isso.",
+  c:["0–3s: print da conversa no Direct (borre o nome), gancho na tela","3–7s: o modelo sendo ajustado no computador","7–13s: timelapse da impressão","13–18s: peça embalada, etiqueta, pronta pro envio"],
+  l:"Ele mandou uma mensagem. Três dias depois recebeu isso 📦\n\nÉ assim que funciona: você me chama no Direct, me diz o tema, eu te mando a prévia em 3D, você aprova e eu imprimo. Envio pra todo o Brasil.\n\nComenta QUERO pra começar o seu.\n\n#impressao3d #feitosobencomenda #gltech3d",p:"QUERO",
+  d:"Esse Reel resolve a maior objeção de quem compra de perfil pequeno: 'será que chega?'. Prova social + processo transparente."},
+ {t:"O de loja x o meu",g:"R$ 30 na loja x feito sob medida.",
+  c:["0–3s: os dois lado a lado, gancho na tela","3–8s: o genérico, mostrando plástico fino e encaixe folgado","8–15s: o seu, mostrando espessura, acabamento e o escudo","15–20s: os dois na mesa, o seu com o fone encaixado"],
+  l:"R$ 30 na loja x feito sob medida pro seu setup.\n\nO genérico serve. O meu é do tamanho do seu fone, na sua cor, com o seu escudo. E dura.\n\nComenta QUERO que eu te mostro as opções.\n\n#impressao3d #setupgamer #comparativo #gltech3d",p:"QUERO",
+  d:"Comparação gera comentário polarizado, e comentário empurra alcance. Não fale mal de loja específica — compare categoria."},
+ {t:"Chegou impressora nova",g:"Comprei outra impressora. Isso muda o seu pedido assim:",
+  c:["0–3s: as duas impressoras rodando ao mesmo tempo, gancho na tela","3–9s: as duas imprimindo peças diferentes em paralelo","9–15s: pilha de peças prontas do dia","15–20s: texto: 'prazo menor, mais cores por peça'"],
+  l:"Comprei outra impressora — e isso é sobre você, não sobre mim.\n\nDuas rodando ao mesmo tempo = prazo menor, mais peças por semana e mais combinação de cores no mesmo pedido.\n\nQuem tava esperando pra pedir, agora é a hora. Comenta QUERO.\n\n#impressao3d #gltech3d #setupgamer",p:"QUERO",
+  d:"Notícia da marca só funciona quando você traduz em benefício pro cliente. Nunca poste 'comprei uma impressora' sozinho."},
+ {t:"Setup completo montado",g:"Tudo nessa mesa saiu da minha impressora.",
+  c:["0–3s: plano aberto da mesa completa, gancho na tela","3–8s: câmera passando lenta por cada peça","8–14s: close em cada uma: suporte, letreiro, chaveiro","14–20s: luz do setup ligando, mesa completa"],
+  l:"Tudo nessa mesa saiu da minha impressora 🖨️\n\nSuporte de fone, suporte de controle, letreiro 3D com o nick e chaveiro — tudo personalizado, mesma paleta de cor, mesmo tema.\n\nMonto o kit do seu setup inteiro. Comenta QUERO.\n\n#setupgamer #impressao3d #gamer #gltech3d",p:"QUERO",
+  d:"Vende ticket maior. Kit fecha mais caro que peça avulsa e o custo de impressão por peça cai. Poste sempre no fim do mês."},
+ {t:"O que dá errado (e por que eu refaço)",g:"Essa peça foi pro lixo. E foi bom.",
+  c:["0–3s: peça falhada na mão, gancho na tela","3–8s: close no defeito, explicando em uma frase","8–14s: você recomeçando a impressão","14–20s: a peça boa, lado a lado com a ruim"],
+  l:"Essa peça foi pro lixo. E foi bom.\n\nSe sai com falha, com camada solta ou com cor errada, não vai pra sua casa — eu imprimo de novo. É o que separa peça feita à mão de produto de esteira.\n\n#impressao3d #bastidores #gltech3d",p:"—",
+  d:"Bastidor de erro gera confiança e é o tipo de conteúdo que constrói marca. Não pede venda — é conteúdo de relacionamento. Um por mês."},
+ {t:"Pediu hoje, recebe pronto",g:"Ela pediu ontem à noite. Tá pronto.",
+  c:["0–3s: print da mensagem com horário visível, gancho na tela","3–8s: impressão rodando de madrugada","8–14s: peça pronta de manhã, com café do lado","14–20s: peça embalada e etiquetada"],
+  l:"Ela pediu ontem à noite. Tá pronto. ⚡\n\nPeça simples eu entrego em 24 a 48h. Personalizada com escudo ou nome, de 2 a 4 dias. Sem espera de mês.\n\nComenta QUERO e me diz o que você quer.\n\n#impressao3d #entregarapida #gltech3d",p:"QUERO",
+  d:"Velocidade é vantagem competitiva sua contra marketplace grande. Use isso o tempo todo — quem compra personalizado tem medo de demora."}
+];
+const KL={reel:["Reel","t-reel"],car:["Carrossel","t-car"],sto:["Stories","t-sto"],off:["Bloco","t-off"]};
+document.getElementById('cal').innerHTML=CAL.map(w=>
+ `<div class="week"><div class="wt"><span>${w.s}</span><em>${w.t}</em></div>`+
+ w.d.map(d=>{const k=KL[d.k];return `<div class="day"><div class="d">${d.dia} · ${d.h}</div><div><span class="tag ${k[1]}">${k[0]}</span></div><div class="c">${d.c}</div></div>`}).join('')+`</div>`).join('');
+document.getElementById('rots').innerHTML=RT.map((r,i)=>
+ `<div class="roteiro"><div class="rh"><span class="idx">${String(i+1).padStart(2,'0')}</span><span class="ti">${r.t}</span><span class="ar">▶</span></div>
+  <div class="rb">
+   <div class="lab">Gancho — primeiros 3 segundos, escrito na tela</div>
+   <div class="box hook">${r.g}<button class="cp">copiar</button></div>
+   <div class="lab">O que filmar</div>
+   <ul>${r.c.map(x=>`<li>${x}</li>`).join('')}</ul>
+   <div class="lab">Legenda pronta</div>
+   <div class="box">${r.l}<button class="cp">copiar</button></div>
+   <div class="lab">Palavra que dispara a automação</div>
+   <div class="box" style="color:var(--ac);font-weight:600">${r.p}</div>
+   <div class="lab">Por que esse funciona</div>
+   <p style="font-size:14px">${r.d}</p>
+  </div></div>`).join('');
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+ document.querySelectorAll('section').forEach(x=>x.classList.remove('on'));
+ t.classList.add('on');document.getElementById(t.dataset.s).classList.add('on');
+ window.scrollTo({top:0,behavior:'smooth'});});
+document.addEventListener('click',e=>{
+ const h=e.target.closest('.rh');
+ if(h){h.parentElement.classList.toggle('open');return;}
+ if(e.target.classList.contains('cp')){
+  e.stopPropagation();
+  const b=e.target,box=b.parentElement,t=box.innerText.replace(/copiar\s*$/,'').trim();
+  const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy')}catch(err){}
+  document.body.removeChild(ta);
+  const o=b.textContent;b.textContent='copiado ✓';b.style.color='#4ade80';
+  setTimeout(()=>{b.textContent=o;b.style.color=''},1400);
+ }});
+</script>
+</body>
+</html>

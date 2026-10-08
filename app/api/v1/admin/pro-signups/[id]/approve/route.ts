@@ -104,9 +104,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     case "ambiguous":
       return fail(
         "ambiguous_org",
-        "Este e-mail pertence a mais de uma organização. Escolha qual deve receber o PRO.",
+        result.reason === "account_newer_than_request"
+          ? "A conta com este e-mail foi criada DEPOIS do pedido (o cadastro não confirma o e-mail). Confirme com o comprador e escolha a organização explicitamente — ou recuse."
+          : "Este e-mail pertence a mais de uma organização. Escolha qual deve receber o PRO.",
         409,
-        { requestId, details: { candidates: result.candidates } },
+        { requestId, details: { candidates: result.candidates, reason: result.reason } },
       );
     case "error":
       return approveFailureResponse(result, requestId);

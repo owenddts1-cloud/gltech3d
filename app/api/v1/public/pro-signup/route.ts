@@ -28,7 +28,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { normalizeBrPhone } from "@/lib/schemas/public-leads";
 import { proSignupRequestSchema } from "@/lib/schemas/pro-signup";
-import { getProPlan, formatBRL } from "@/lib/pricing/pro-plans";
+import { formatBRL } from "@/lib/pricing/pro-plans";
+import { getProPlanLive } from "@/lib/pricing/settings";
 import { sendEmail } from "@/lib/email/send";
 import { buildProSignupNotifyEmail } from "@/lib/email/templates/pro-signup-notify";
 import { absoluteSiteUrl } from "@/lib/marketing/site-url";
@@ -80,8 +81,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // O preço é DERIVADO do plano, nunca aceito do corpo. É o que elimina a classe
-  // inteira de tampering de valor em vez de tentar detectá-la.
-  const plan = getProPlan(input.plan);
+  // inteira de tampering de valor em vez de tentar detectá-la. O valor vem de
+  // platform_settings (editável pelo platform admin), lido no servidor.
+  const plan = await getProPlanLive();
   const declaredPaidAt = new Date();
   const phoneE164 = normalizeBrPhone(input.buyer_phone);
 

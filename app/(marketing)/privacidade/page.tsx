@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, ShieldCheck, Lock, FileText, UserCheck } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Política de Privacidade | GLTech3D',
+  title: 'Política de Privacidade',
   description: 'Política de Privacidade e Proteção de Dados Pessoais da GLTech3D em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).',
 };
 

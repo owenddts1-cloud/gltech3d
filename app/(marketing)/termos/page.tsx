@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, Scale, Truck, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Termos de Uso e Condições | GLTech3D',
+  title: 'Termos de Uso e Condições',
   description: 'Termos de Uso, condições de fornecimento, prazos de garantia e política de envios da GLTech3D.',
 };
 

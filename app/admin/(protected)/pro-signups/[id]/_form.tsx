@@ -22,6 +22,7 @@ import { ApiError } from "@/lib/api/types";
 import {
   buildWhatsappUrl,
   buildActivationMessage,
+  maskEmail,
   buildUpgradeMessage,
 } from "@/lib/pro-signup/whatsapp-message";
 
@@ -86,7 +87,9 @@ export function ProSignupDetailClient({ id }: { id: string }) {
       );
     } catch (err) {
       toast.error(
-        err instanceof ApiError && err.code === "conflict"
+        // ambiguous_org: the API explains what the operator must decide
+        // (several orgs, or an account created after the request).
+        err instanceof ApiError && (err.code === "conflict" || err.code === "ambiguous_org")
           ? err.message
           : "Falha ao aprovar o pedido.",
       );
@@ -231,11 +234,12 @@ export function ProSignupDetailClient({ id }: { id: string }) {
                         <ManualActions
                           linkLabel="Link de ativação"
                           link={approved.activation_url}
+                          note="Envie este link SOMENTE para o e-mail do comprador. O aviso do WhatsApp não leva o link: ele cria a conta com o e-mail do pedido já verificado."
                           whatsappUrl={buildWhatsappUrl(
                             row.buyer_phone,
                             buildActivationMessage({
                               buyerName: row.buyer_name,
-                              activationUrl: approved.activation_url,
+                              maskedEmail: maskEmail(row.buyer_email),
                               expiresAt: approved.activation_expires_at
                                 ? new Date(approved.activation_expires_at)
                                 : null,

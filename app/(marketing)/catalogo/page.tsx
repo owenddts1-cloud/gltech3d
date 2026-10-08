@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { getLandingCatalog } from "@/lib/landing/repository";
-import WhatsAppFloat from "@/components/marketing/WhatsAppFloat";
 import { PublicCatalogClient } from "./PublicCatalogClient";
+import { getStoreWhatsapp } from "@/lib/landing/whatsapp";
+import { storeWhatsappUrl } from "@/lib/landing/whatsapp-number";
 
+/** Raw title: the (marketing) layout template appends "| GLTech3D". */
 export const metadata = {
-  title: "Catálogo de Produtos 3D — GLTECH3D",
+  title: "Presentes e Decoração em Impressão 3D",
+  alternates: { canonical: "/catalogo" },
   description: "Explore o catálogo completo de peças e produtos impressos em 3D da GLTECH3D. Envio para todo o Brasil.",
 };
 export const dynamic = "force-dynamic";
 
 export default async function PublicCatalogPage() {
-  const catalog = await getLandingCatalog();
+  const [catalog, storeWhatsapp] = await Promise.all([getLandingCatalog(), getStoreWhatsapp()]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-amber-500 selection:text-slate-950">
@@ -28,7 +31,7 @@ export default async function PublicCatalogPage() {
               Início
             </Link>
             <a
-              href="https://wa.me/5531999284834?text=Olá!%20Gostaria%20de%20tirar%20uma%20dúvida%20sobre%20o%20catálogo"
+              href={storeWhatsappUrl(storeWhatsapp, "Olá! Gostaria de tirar uma dúvida sobre o catálogo")}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-full bg-green-600 px-3.5 py-1.5 font-medium text-white hover:bg-green-500 transition-colors"
@@ -50,7 +53,7 @@ export default async function PublicCatalogPage() {
           </p>
         </div>
 
-        <PublicCatalogClient catalog={catalog} />
+        <PublicCatalogClient catalog={catalog} storeWhatsapp={storeWhatsapp} />
       </main>
 
       {/* Footer Público */}
@@ -58,7 +61,6 @@ export default async function PublicCatalogPage() {
         <p>© {new Date().getFullYear()} GLTECH3D · Todos os direitos reservados. Envio para todo o Brasil.</p>
       </footer>
 
-      <WhatsAppFloat />
     </div>
   );
 }

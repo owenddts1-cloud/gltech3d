@@ -215,10 +215,11 @@ function round(n: number, decimals = 2): number {
 
 // ─── Hook ───────────────────────────────────────────────────────
 export function useCalculator(initialInputs?: Partial<CalculatorInputs>) {
-  const [inputs, setInputs] = useState<CalculatorInputs>({
-    ...DEFAULT_INPUTS,
-    ...initialInputs,
-  });
+  // "Factory" values of this screen: DEFAULT_INPUTS overridden by what the page
+  // passed (platform_settings on /calc3d-pro). Frozen on mount; "Restaurar"
+  // goes back to them, not to the hard-coded constants.
+  const [factory] = useState<CalculatorInputs>(() => ({ ...DEFAULT_INPUTS, ...initialInputs }));
+  const [inputs, setInputs] = useState<CalculatorInputs>(factory);
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
   // Loaded after mount, not in the useState initializer: reading localStorage during render
@@ -270,14 +271,14 @@ export function useCalculator(initialInputs?: Partial<CalculatorInputs>) {
 
   /** Back to the factory values, discarding anything saved. */
   const resetAll = useCallback(() => {
-    setInputs(DEFAULT_INPUTS);
+    setInputs(factory);
     setActivePreset(null);
     try {
       window.localStorage.removeItem(SAVED_INPUTS_KEY);
     } catch {
       // Nothing to clean up if storage is unavailable.
     }
-  }, []);
+  }, [factory]);
 
   return {
     inputs,

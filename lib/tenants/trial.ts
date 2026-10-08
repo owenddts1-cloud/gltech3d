@@ -1,12 +1,13 @@
 /**
- * Duração do trial, em um lugar só — a rota de cadastro, a copy da landing e o
- * runbook têm que concordar.
+ * Duração PADRÃO do trial. O valor vivo vem de `platform_settings.trial_days`
+ * (`getTrialDaysLive()` em lib/pricing/settings.ts); esta constante é o default
+ * dele e o fallback quando a linha não pode ser lida.
  */
 export const TRIAL_DAYS = 7;
 
 /** Fim do trial a partir de agora, em ISO. */
-export function trialEndsAtFrom(now: Date = new Date()): string {
-  return new Date(now.getTime() + TRIAL_DAYS * 86_400_000).toISOString();
+export function trialEndsAtFrom(now: Date = new Date(), days: number = TRIAL_DAYS): string {
+  return new Date(now.getTime() + days * 86_400_000).toISOString();
 }
 
 /**

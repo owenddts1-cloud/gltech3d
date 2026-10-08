@@ -38,13 +38,16 @@ export function CatalogEditorClient({
       name: p.name,
       slug: p.slug,
       category: p.category,
-      price_cents: p.price_cents,
-      photo_url: p.photo_url,
-      filament_grams: p.filament_grams,
-      print_time_hours: p.print_time_hours,
+      sale_price_cents: p.sale_price_cents,
+      price_cents: p.sale_price_cents,
+      photo_url: p.images?.[0] || p.image_url || null,
+      image_url: p.images?.[0] || p.image_url || null,
+      filament_grams: p.filament_grams ?? null,
+      print_time_hours: p.print_time_hours ?? null,
       material: p.material,
       dimensions: p.dimensions,
-      is_top: p.is_top,
+      is_top: Boolean(p.is_bestseller),
+      is_bestseller: p.is_bestseller,
     }));
   }, [initialProducts]);
 
@@ -113,9 +116,9 @@ export function CatalogEditorClient({
         includeCover,
         includeManifesto,
         includeBackcover,
-        includeDimensions,
-        includeMaterial,
-        includeTolerances,
+        includeDimensions: showDimensions,
+        includeMaterial: showMaterial,
+        includeTolerances: showTolerances,
         storeName,
         onImageProgress: (done, total) => {
           toast.loading(`Carregando imagens (${done}/${total})...`, { id: toastId });
@@ -149,8 +152,8 @@ export function CatalogEditorClient({
       storeName,
       priceMode: priceMode === "sob_consulta" ? "varejo" : priceMode,
       wholesaleDiscountPct,
-      includeDimensions,
-      includeMaterial,
+      includeDimensions: showDimensions,
+      includeMaterial: showMaterial,
     });
 
     navigator.clipboard.writeText(text);

@@ -20,10 +20,16 @@ export function ManualActions({
   link,
   whatsappUrl,
   linkLabel,
+  note,
 }: {
   link: string;
   whatsappUrl: string | null;
   linkLabel: string;
+  /**
+   * Warning shown under the label. Used on the activation link: the WhatsApp
+   * notice no longer carries it (pendência 19), the link goes only by e-mail.
+   */
+  note?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -41,6 +47,7 @@ export function ManualActions({
   return (
     <div className="space-y-2">
       <Label className="text-xs">{linkLabel}</Label>
+      {note ? <p className="text-xs text-amber-700 dark:text-amber-400">{note}</p> : null}
       <Input readOnly value={link} className="font-mono text-xs" onFocus={(e) => e.target.select()} />
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="outline" onClick={() => void copy()}>

@@ -89,9 +89,12 @@ export interface SaleRow {
 /** Opção de produto p/ vincular a vendas (combobox) — custo unitário da engine. */
 export interface SaleProductOption {
   id: string;
+  /** Filaments come labeled "<name> (filamento)" so the picker tells them apart. */
   name: string;
   unitCostCents: number;
   suggestedPriceCents: number;
+  /** products.kind (0087). Both kinds are sellable; the UI may group by it. */
+  kind?: "peca" | "filamento";
 }
 
 export interface SalesKpis {

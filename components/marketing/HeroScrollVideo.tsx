@@ -15,8 +15,15 @@
  *   ...  <HeroScrollVideo />  (no lugar de <Hero />)
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LandingSettings } from '@/lib/landing/types';
+import {
+  HAVE_CURRENT_DATA,
+  HERO_VIDEO_POSTER,
+  HERO_VIDEO_TIMEOUT_MS,
+  heroImageCandidates,
+  shouldUseFallback,
+} from './hero-video-fallback';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -181,6 +188,20 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
   const [ready, setReady] = useState(false);
   const [reduced, setReduced] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  // The video never became playable (timeout / error / stall): show a still.
+  const [videoFailed, setVideoFailed] = useState(false);
+  // Index into `imageCandidates`; advanced by <img onError>.
+  const [imageIdx, setImageIdx] = useState(0);
+
+  // Static mode = a banner from the Landing Edit, or the video failed. The
+  // scroll captions keep working off scroll progress; nothing is seeked.
+  const isStatic = Boolean(banner?.trim()) || videoFailed;
+  const imageCandidates = useMemo(() => heroImageCandidates(banner), [banner]);
+  const staticSrc = imageCandidates[imageIdx] ?? null;
+
+  useEffect(() => {
+    setImageIdx(0);
+  }, [banner]);
 
   useDustParticles(canvasRef);
 
@@ -192,11 +213,50 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Loop de scrub: scroll → progress alvo → lerp → video.currentTime (com seek-throttling)
+  // Fallback watchdog: if the video is not paintable within the grace period,
+  // or it errors/stalls before that, switch to the static image for good (no
+  // flip-flopping back to the video if it shows up late).
   useEffect(() => {
+    if (isStatic) return;
     const video = videoRef.current;
+    if (!video) return;
+
+    const startedAt = performance.now();
+    let errored = video.error !== null;
+    const evaluate = () => {
+      if (shouldUseFallback(video.readyState, performance.now() - startedAt, errored)) {
+        setVideoFailed(true);
+      }
+    };
+    const onError = () => {
+      errored = true;
+      evaluate();
+    };
+    const onStalled = () => {
+      if (video.readyState < HAVE_CURRENT_DATA) onError();
+    };
+
+    video.addEventListener('error', onError);
+    video.addEventListener('stalled', onStalled);
+    const timer = window.setTimeout(evaluate, HERO_VIDEO_TIMEOUT_MS);
+    if (errored) evaluate();
+
+    return () => {
+      window.clearTimeout(timer);
+      video.removeEventListener('error', onError);
+      video.removeEventListener('stalled', onStalled);
+    };
+  }, [isStatic, isMobile]);
+
+  // Loop de scrub: scroll → progress alvo → lerp → video.currentTime (com seek-throttling).
+  // Em modo estático o mesmo loop só alimenta `progress` (legendas), sem vídeo.
+  useEffect(() => {
     const section = sectionRef.current;
-    if (!video || !section) return;
+    if (!section) return;
+    const video = isStatic ? null : videoRef.current;
+    if (!isStatic && !video) return;
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     let raf = 0;
     let target = 0;
@@ -204,23 +264,28 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
     let duration = 0;
     let lastUiUpdate = -1;
     let pendingTime: number | null = null;
-    let introPlaying = true; // inicia reproduzindo a animação de intro automaticamente
+    // Intro autoplay only with a video and when the user did not ask for less motion.
+    let introPlaying = video !== null && !reducedMotion;
 
     const onMeta = () => {
+      if (!video) return;
       duration = video.duration || 0;
       setReady(true);
     };
-    if (video.readyState >= 1) onMeta();
-    video.addEventListener('loadedmetadata', onMeta);
 
     // Seek throttling listener
     const onSeeked = () => {
-      if (pendingTime !== null && video.readyState >= 2) {
+      if (video && pendingTime !== null && video.readyState >= HAVE_CURRENT_DATA) {
         video.currentTime = pendingTime;
         pendingTime = null;
       }
     };
-    video.addEventListener('seeked', onSeeked);
+
+    if (video) {
+      if (video.readyState >= 1) onMeta();
+      video.addEventListener('loadedmetadata', onMeta);
+      video.addEventListener('seeked', onSeeked);
+    }
 
     const computeTarget = () => {
       const rect = section.getBoundingClientRect();
@@ -236,10 +301,18 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
         introPlaying = false;
       }
 
-      if (introPlaying) {
+      if (!video) {
+        // Static mode: captions follow the scroll; reduced motion skips the easing.
+        current = reducedMotion ? target : current + (target - current) * LERP;
+        if (Math.abs(target - current) < 0.0005) current = target;
+      } else if (introPlaying) {
         if (duration > 0) {
           if (video.paused) {
-            video.play().catch(() => {});
+            // Autoplay can be refused (power saver, policy). Not an error: the
+            // intro stops on the current frame and the scroll takes over.
+            video.play().catch(() => {
+              introPlaying = false;
+            });
           }
           current = video.currentTime / duration;
           // para a intro ligeiramente antes do fim do arquivo para não congelar
@@ -257,7 +330,7 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
         current += (target - current) * LERP;
         if (Math.abs(target - current) < 0.0005) current = target;
 
-        if (duration > 0 && video.readyState >= 2) {
+        if (duration > 0 && video.readyState >= HAVE_CURRENT_DATA) {
           const t = current * (duration - 0.05);
           if (Math.abs(video.currentTime - t) > 0.001) {
             if (!video.seeking) {
@@ -280,10 +353,12 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
 
     return () => {
       cancelAnimationFrame(raf);
-      video.removeEventListener('loadedmetadata', onMeta);
-      video.removeEventListener('seeked', onSeeked);
+      if (video) {
+        video.removeEventListener('loadedmetadata', onMeta);
+        video.removeEventListener('seeked', onSeeked);
+      }
     };
-  }, [isMobile]);
+  }, [isMobile, isStatic]);
 
   const scrollToProducts = () => {
     document.getElementById('produtos')?.scrollIntoView({ behavior: 'smooth' });
@@ -318,19 +393,23 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
             willChange: 'transform',
           }}
         >
-          {/* Banner do Landing Edit vence o vídeo. Também é a saída para o
-              vídeo do foguete estar ausente de /public — hoje ele dá 404 e o
-              topo fica só com o gradiente de fundo. */}
-          {banner ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={banner}
-              alt=""
-              className="h-full w-full object-cover"
-              // O topo é o LCP da página: carregar cedo e com prioridade.
-              fetchPriority="high"
-              decoding="async"
-            />
+          {/* Banner do Landing Edit vence o vídeo. Se o vídeo não carregar em
+              ~2.5s (404, rede travada, data saver) entra a imagem estática:
+              banner → poster → só o gradiente de fundo. */}
+          {isStatic ? (
+            staticSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={staticSrc}
+                src={staticSrc}
+                alt=""
+                className="h-full w-full object-cover"
+                // O topo é o LCP da página: carregar cedo e com prioridade.
+                fetchPriority="high"
+                decoding="async"
+                onError={() => setImageIdx((i) => i + 1)}
+              />
+            ) : null
           ) : (
             <video
               ref={videoRef}
@@ -341,7 +420,7 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
               playsInline
               autoPlay
               preload="auto"
-              poster="/videos/gl-rocket-poster.jpg"
+              poster={HERO_VIDEO_POSTER}
             />
           )}
         </div>
@@ -411,11 +490,11 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
         </div>
 
         {/* ~20%: engenharia */}
-        <Caption side="right" opacity={tiltOpacity} eyebrow="Engenharia" title="Precisão em cada camada"
+        <Caption side="right" opacity={tiltOpacity} reduced={reduced} eyebrow="Engenharia" title="Precisão em cada camada"
           text="Estrutura impressa em PLA/PETG com tolerâncias de encaixe reais — projetada, fatiada e testada aqui." />
 
         {/* ~55%: vista explodida */}
-        <Caption side="left" opacity={explodeOpacity} eyebrow="Impressão Premium" title="Fusão de Precisão"
+        <Caption side="left" opacity={explodeOpacity} reduced={reduced} eyebrow="Impressão Premium" title="Fusão de Precisão"
           text="Resolução milimétrica com filamentos importados. Modelos impressos camada por camada para alta resistência e acabamento liso impecável." />
 
         {/* ~95%: CTA final */}
@@ -457,8 +536,9 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
           </div>
         </div>
 
-        {/* Loading discreto enquanto o vídeo não tem metadata */}
-        {!ready && (
+        {/* Loading discreto enquanto o vídeo não tem metadata. Nunca em modo
+            estático; o watchdog acima limita isto a ~2.5s. */}
+        {!isStatic && !ready && (
           <div className="absolute inset-0 z-20 flex items-center justify-center" style={{ background: C.bg }}>
             <span className="text-xs uppercase tracking-widest" style={{ color: C.muted }}>Carregando…</span>
           </div>
@@ -481,8 +561,8 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
 
 // ---------------------------------------------------------------------------
 function Caption({
-  side, opacity, eyebrow, title, text,
-}: { side: 'left' | 'right'; opacity: number; eyebrow: string; title: string; text: string }) {
+  side, opacity, reduced, eyebrow, title, text,
+}: { side: 'left' | 'right'; opacity: number; reduced: boolean; eyebrow: string; title: string; text: string }) {
   // Outer box: vertical centering + margin from the screen edge (md:px-16 keeps
   // right captions clear of the progress bar at right-6). Max widths grew by the
   // panel padding so the text column keeps its previous measure.
@@ -496,8 +576,9 @@ function Caption({
         className={TEXT_PANEL}
         style={{
           opacity,
-          transform: `translateY(${(1 - opacity) * 24}px)`,
-          transition: 'opacity 150ms linear, transform 150ms linear',
+          // Reduced motion: fade only, no slide.
+          transform: reduced ? 'none' : `translateY(${(1 - opacity) * 24}px)`,
+          transition: reduced ? 'opacity 150ms linear' : 'opacity 150ms linear, transform 150ms linear',
         }}
       >
         <div className="text-[11px] sm:text-xs font-extrabold uppercase tracking-[0.3em]" style={{ color: '#7A5C3E' }}>

@@ -203,26 +203,42 @@ pedido **pendente** por e-mail. Qualquer pessoa pode enviar o formulário públi
 legítimo do cliente feito de dentro do CRM (`/api/v1/pro-signup/upgrade`) bate no índice e é
 tratado como duplicado (`duplicate: true`, sem aviso ao dono).
 
-**Severidade:** baixa — não concede acesso; só atrasa a liberação.
-**Contorno:** recusar o pedido público falso no painel (ou pelo botão Recusar do e-mail) e
-pedir ao cliente que reenvie.
-**Como fechar:** escopar a unicidade por origem (pedido com `organization_id` não colide com
-pedido anônimo) — exige migration nova.
+**Continua aberta (decisão de 2026-10-08).** Cancelar automaticamente o pedido público
+quando o "dono do e-mail" pede de dentro do CRM foi tentado e **revertido**: o cadastro não
+confirma posse do e-mail (`email_confirm: true` em `app/api/v1/public/signup/route.ts`), então
+a sessão não prova nada. Quem pagou de verdade é o autor do pedido público; quem se cadastrou
+depois com o e-mail dele poderia derrubar esse pedido e receber o PRO.
+
+Comportamento atual, não destrutivo:
+- o pedido de dentro do CRM bate no índice único e recebe **409** com "Já existe um pedido
+  pendente com este e-mail — fale com o suporte"; gera audit `pro_signup.blocked_by_pending`.
+  Nenhum pedido é cancelado ou alterado. Reenvio do PRÓPRIO pedido continua `duplicate: true`;
+- na aprovação de um pedido **público**, se a conta com aquele e-mail foi criada **depois** do
+  pedido (ou a data não pode ser lida), nada é deduzido: o link do e-mail recusa ("decida pelo
+  painel") e o painel exige escolha explícita da org (`reason: account_newer_than_request`).
+
+**Contorno:** confirmar com o comprador (WhatsApp/comprovante) e recusar o pedido que não for
+dele. **Como fechar de vez:** confirmação de e-mail no cadastro (pendência 5) ou unicidade por
+origem (migration nova).
 
 ---
 
 ## 19. Riscos residuais aceitos após a revisão de segurança (2026-10-07)
 
-- **Ativação por WhatsApp com e-mail alheio.** No caminho CRIAR, o link de ativação pode ir
-  pelo WhatsApp para o telefone informado no pedido. Quem pagar um Pix usando o e-mail de
-  outra pessoa (que ainda não tem conta) cria a conta com aquele e-mail já marcado como
-  verificado; convites futuros para esse e-mail cairiam nessa conta. Exige pagamento real e
-  conferido por você. **Como fechar:** só enviar o link de ativação por e-mail, ou ativar sem
-  `email_confirm` e exigir a confirmação do endereço no primeiro login.
-- **3MF só confere a assinatura de ZIP.** Qualquer `.zip` renomeado passa como `.3mf`.
-  **Como fechar:** ler o diretório central e exigir `[Content_Types].xml` e `3D/3dmodel.model`.
-- **Troca do arquivo depois da confirmação.** Não confirmado se o Storage aceita `x-upsert`
-  num upload por token assinado sem upsert; se aceitar, o arquivo pode ser trocado dentro da
-  janela de 2 h. **Como fechar:** após a checagem, copiar para `verified/` e assinar a cópia.
+- **Ativação por WhatsApp com e-mail alheio.** **Fechada em 2026-10-08.** A mensagem de
+  WhatsApp do caminho CRIAR (`buildActivationMessage` em
+  `lib/pro-signup/whatsapp-message.ts`) não leva mais o link: diz "Enviamos o link de
+  ativação para o seu e-mail m***@dominio". O painel e a página `/aprovar` ainda mostram o
+  link para copiar, com o aviso de enviá-lo **somente** para o e-mail do comprador.
+- **3MF só confere a assinatura de ZIP.** **Fechada em 2026-10-08.** A rota de confirm lê
+  o fim do arquivo (Range), localiza o EOCD e exige no diretório central
+  `[Content_Types].xml` e uma parte `3D/*.model` (o nome canônico é `3D/3dmodel.model`,
+  mas o caminho real é declarado em `_rels/.rels`, então qualquer `3D/*.model` vale). ZIP64
+  é recusado. Código em `lib/orcamento/file-check.ts` (`check3mfPackage`).
+- **Troca do arquivo depois da confirmação.** **Fechada em 2026-10-08.** A confirmação
+  copia o objeto para `verified/<mesmo caminho>`, apaga o original, faz a checagem de
+  conteúdo **na cópia** e assina a cópia (`lib/orcamento/verify-upload.ts`). Trocar o
+  arquivo no caminho do upload depois disso não muda o que o link serve. Repetir o confirm
+  do mesmo slot (dentro das 2 h) reassina a cópia já verificada.
 - **Self-host com Caddy:** o `Caddyfile` agora sobrescreve `X-Real-IP` com o IP da conexão
   (o app confia nesse cabeçalho para o rate limit). Quem usa outro proxy precisa fazer o mesmo.

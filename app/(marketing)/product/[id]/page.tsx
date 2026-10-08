@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Box, Ruler } from 'lucide-react';
 import { getLandingCatalog } from '@/lib/landing/repository';
+import { getStoreWhatsapp } from '@/lib/landing/whatsapp';
 import Navbar from '@/components/marketing/Navbar';
 import Footer from '@/components/marketing/Footer';
 import ProductGallery from '@/components/marketing/ProductGallery';
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
   if (!product) {
     return {
-      title: 'Produto não encontrado | GLTech3D',
+      title: 'Produto não encontrado',
     };
   }
 
@@ -142,7 +143,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               {product.variations.length > 0 && <VariationPicker groups={product.variations} />}
             </div>
 
-            <ProductActions product={product} />
+            <ProductActions product={product} storeWhatsapp={await getStoreWhatsapp()} />
           </div>
         </div>
 
@@ -172,7 +173,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         )}
       </div>
 
-      <Footer />
+      <Footer whatsapp={await getStoreWhatsapp()} />
     </main>
   );
 }

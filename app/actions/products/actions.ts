@@ -109,7 +109,14 @@ export async function fetchProductsData() {
 
   const supabase = await createClient();
   const [prodRes, filRes, prnRes, orgRes, catRes, setRes, modelRes] = await Promise.all([
-    supabase.from("products").select("*").order("created_at", { ascending: false }),
+    // Pieces only (kind 'peca', 0087): filaments for sale live in /app/filamentos.
+    // Explicit org filter on top of RLS (a user in two orgs must see one).
+    supabase
+      .from("products")
+      .select("*")
+      .eq("organization_id", activeOrg.orgId)
+      .eq("kind", "peca")
+      .order("created_at", { ascending: false }),
     supabase.from("filaments").select("client_id, name, cost_per_gram"),
     supabase.from("printers").select("client_id, name, power_draw, depreciation_per_hour"),
     supabase.from("organizations").select("settings").eq("id", activeOrg.orgId).single(),
@@ -333,6 +340,8 @@ export async function updateProduct(id: string, raw: unknown) {
     .from("products")
     .update(toProductRowPatch(d))
     .eq("organization_id", activeOrg.orgId)
+    // This form edits pieces; a filament is edited by its own actions (specs + title).
+    .eq("kind", "peca")
     .eq("id", id);
   if (error) return { ok: false as const, error: humanizeDbError(error) };
 
@@ -353,6 +362,7 @@ export async function deleteProduct(id: string) {
     .from("products")
     .delete()
     .eq("organization_id", activeOrg.orgId)
+    .eq("kind", "peca")
     .eq("id", id)
     .select("id");
   if (error) return { ok: false as const, error: error.message };

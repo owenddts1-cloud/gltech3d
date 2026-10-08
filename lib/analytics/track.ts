@@ -35,7 +35,15 @@ export type AnalyticsEvent =
   | "click_comprar"
   | "click_marketplace"
   | "submit_orcamento"
-  | "scroll_to_catalog";
+  | "scroll_to_catalog"
+  // Filament storefront + cart (docs/marketing/plano-de-vendas.md §8).
+  | "click_filamento"
+  | "add_to_cart"
+  | "start_checkout"
+  | "submit_filament_order"
+  // Calc3D PRO funnel.
+  | "start_trial"
+  | "submit_pix";
 
 /** Valores simples. Nada de objeto aninhado: os três destinos achatam mesmo. */
 export type AnalyticsProps = Record<string, string | number | boolean | null>;

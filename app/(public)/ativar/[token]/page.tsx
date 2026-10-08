@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { verifyInviteToken } from "@/lib/auth/invite-token";
 import { ActivateForm } from "./_form";
+import { getStoreWhatsapp } from "@/lib/landing/whatsapp";
+import { formatWhatsappDisplay, storeWhatsappUrl } from "@/lib/landing/whatsapp-number";
 
 export const metadata: Metadata = {
   title: "Ativar meu acesso — Calc3D PRO",
@@ -26,18 +28,19 @@ export default async function AtivarPage({
   const payload = verifyInviteToken(token);
 
   if (!payload) {
+    const storeWhatsapp = await getStoreWhatsapp();
     return (
       <div className="rounded-xl border border-border bg-card p-6 text-center">
         <h1 className="text-lg font-semibold text-foreground">Link inválido ou expirado</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Links de ativação valem por 7 dias. Fale no WhatsApp{" "}
           <a
-            href="https://wa.me/5531999284834"
+            href={storeWhatsappUrl(storeWhatsapp)}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium underline"
           >
-            (31) 99928-4834
+            {formatWhatsappDisplay(storeWhatsapp)}
           </a>{" "}
           que eu gero um novo.
         </p>

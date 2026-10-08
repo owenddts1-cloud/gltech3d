@@ -35,7 +35,8 @@ import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { signupSchema, MIN_SIGNUP_ELAPSED_MS } from "@/lib/schemas/signup";
 import { createTenant } from "@/lib/tenants/createTenant";
 import { slugify } from "@/lib/text/slugify";
-import { slugCandidates, trialEndsAtFrom, TRIAL_DAYS } from "@/lib/tenants/trial";
+import { slugCandidates, trialEndsAtFrom } from "@/lib/tenants/trial";
+import { getTrialDaysLive } from "@/lib/pricing/settings";
 import { sendEmail } from "@/lib/email/send";
 import { buildTrialStartedEmail } from "@/lib/email/templates/trial-started";
 
@@ -110,7 +111,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const userId = created.user.id;
-  const trialEndsAt = trialEndsAtFrom();
+  // Trial length from platform_settings (editable by the platform admin).
+  const trialDays = await getTrialDaysLive();
+  const trialEndsAt = trialEndsAtFrom(new Date(), trialDays);
 
   // 2) Organização. Tenta alguns slugs: o índice único do banco é a autoridade.
   let org: { id: string; slug: string; display_name: string } | null = null;
@@ -179,7 +182,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     bypassedRls: true,
     metadata: {
       plan: "standard",
-      trial_days: TRIAL_DAYS,
+      trial_days: trialDays,
       trial_ends_at: trialEndsAt,
       slug: org.slug,
       email_hash: emailDigest(input.email),
@@ -205,7 +208,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       displayName: org.display_name,
       email: input.email,
       trialEndsAt: new Date(trialEndsAt),
-      trialDays: TRIAL_DAYS,
+      trialDays,
     });
     try {
       const res = await sendEmail({

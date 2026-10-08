@@ -61,9 +61,18 @@ export function crc16(payload: string): string {
   return crc.toString(16).toUpperCase().padStart(4, "0");
 }
 
+/**
+ * Line breaks (anywhere) and spaces at the ends appear when copying from a bank
+ * app or pasting into an env var. Spaces INSIDE are kept: the receiver name and
+ * city legitimately contain them ("5916GUILHERME LANUCI") and the CRC covers
+ * them — stripping every space broke every code whose name had one.
+ */
+export function normalizeBrCodeInput(raw: string | null | undefined): string {
+  return (raw ?? "").replace(/[\r\n\t]+/g, "").trim();
+}
+
 export function parseBrCode(raw: string | null | undefined): BrCodeResult {
-  // Quebras de linha e espaços nas pontas aparecem ao copiar do app do banco.
-  const input = (raw ?? "").replace(/\s+/g, "");
+  const input = normalizeBrCodeInput(raw);
   if (!input) return { ok: false, reason: "empty" };
 
   // O CRC são os 4 últimos caracteres e cobre tudo antes deles, INCLUSIVE o
@@ -129,4 +138,85 @@ export function checkCopiaECola(
     return { usable: false, reason: "key_mismatch" };
   }
   return { usable: true, code };
+}
+
+// ---------------------------------------------------------------------------
+// Generation
+// ---------------------------------------------------------------------------
+
+export interface PixPayloadInput {
+  /** Pix key (e-mail, CPF/CNPJ digits, +55 phone or random key). */
+  key: string;
+  /** Receiver name. Sanitized to ASCII uppercase and cut to 25 chars. */
+  receiverName: string;
+  /** Receiver city. Sanitized to ASCII uppercase and cut to 15 chars. */
+  city: string;
+  /** Fixed amount in cents. `null`/`0` produces a code without amount (payer types it). */
+  amountCents: number | null;
+  /** Up to 25 alphanumeric chars. Default `***` (no identifier, per the BCB manual). */
+  txid?: string | null;
+}
+
+/** One EMV TLV field: 2-digit id, 2-digit length, value. */
+function tlv(id: string, value: string): string {
+  if (value.length > 99) throw new Error(`BR Code field ${id} longer than 99 chars`);
+  return `${id}${String(value.length).padStart(2, "0")}${value}`;
+}
+
+/** ASCII uppercase without accents, only letters/digits/space, trimmed and cut. */
+export function sanitizePixText(value: string, max: number): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max)
+    .trim();
+}
+
+function sanitizeTxid(value: string | null | undefined): string {
+  const clean = (value ?? "").replace(/[^A-Za-z0-9]/g, "").slice(0, 25);
+  return clean.length > 0 ? clean : "***";
+}
+
+/**
+ * Builds a STATIC Pix BR Code ("copia e cola") with the amount embedded.
+ *
+ * Replaces the hand-pasted `NEXT_PUBLIC_PIX_COPIA_E_COLA`: that code had the
+ * price frozen inside it, so every price change needed someone to regenerate it
+ * in the bank app. Generated here, the code always carries the current price
+ * (platform_settings) and `parseBrCode` validates it in the tests.
+ *
+ * Throws on input that cannot produce a payable code (empty key/name/city,
+ * negative amount) — the caller decides the fallback.
+ */
+export function buildPixPayload(input: PixPayloadInput): string {
+  const key = input.key.trim();
+  if (!key) throw new Error("Pix key is empty");
+  if (key.length > 77) throw new Error("Pix key too long");
+
+  const name = sanitizePixText(input.receiverName, 25);
+  const city = sanitizePixText(input.city, 15);
+  if (!name) throw new Error("Pix receiver name is empty after sanitizing");
+  if (!city) throw new Error("Pix city is empty after sanitizing");
+
+  const cents = input.amountCents ?? 0;
+  if (!Number.isInteger(cents) || cents < 0) throw new Error("Pix amount must be a non-negative integer of cents");
+
+  const merchantAccount = tlv("00", "br.gov.bcb.pix") + tlv("01", key);
+  const parts = [
+    tlv("00", "01"),
+    tlv("26", merchantAccount),
+    tlv("52", "0000"),
+    tlv("53", "986"),
+    cents > 0 ? tlv("54", (cents / 100).toFixed(2)) : "",
+    tlv("58", "BR"),
+    tlv("59", name),
+    tlv("60", city),
+    tlv("62", tlv("05", sanitizeTxid(input.txid))),
+  ];
+  const withoutCrc = `${parts.join("")}6304`;
+  return `${withoutCrc}${crc16(withoutCrc)}`;
 }

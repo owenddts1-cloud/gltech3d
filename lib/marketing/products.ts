@@ -1,3 +1,7 @@
+import { STORE_WHATSAPP_FALLBACK, storeWhatsappUrl } from "@/lib/landing/whatsapp-number";
+
+const STORE_WHATSAPP_URL = storeWhatsappUrl(STORE_WHATSAPP_FALLBACK);
+
 /**
  * NÃO É MAIS A FONTE DA LANDING. Desde a migration 0041 a landing lê a tabela
  * `products` do Postgres via `lib/landing/repository.ts`, e o Landing Edit
@@ -48,7 +52,7 @@ export interface Product {
 const STORE_LINKS: ProductLinks = {
   shopee: "https://shopee.com.br/gltech3d",
   mercadoLivre: "https://mercadolivre.com.br",
-  whatsapp: "https://wa.me/5531999284834",
+  whatsapp: STORE_WHATSAPP_URL,
   instagram: "https://www.instagram.com/gltech3d/",
 };
 
@@ -93,7 +97,7 @@ export const products: Product[] = [
     links: {
       shopee: "https://shopee.com.br/gltech3d",
       mercadoLivre: "https://mercadolivre.com.br",
-      whatsapp: "https://wa.me/5531999284834",
+      whatsapp: STORE_WHATSAPP_URL,
       instagram: "https://www.instagram.com/gltech3d/",
     },
   },
@@ -113,7 +117,7 @@ export const products: Product[] = [
     links: {
       shopee: "https://shopee.com.br/gltech3d",
       mercadoLivre: "https://mercadolivre.com.br",
-      whatsapp: "https://wa.me/5531999284834",
+      whatsapp: STORE_WHATSAPP_URL,
       instagram: "https://www.instagram.com/gltech3d/",
     },
   },
@@ -136,7 +140,7 @@ export const products: Product[] = [
     links: {
       shopee: "https://shopee.com.br/gltech3d",
       mercadoLivre: "https://mercadolivre.com.br",
-      whatsapp: "https://wa.me/5531999284834",
+      whatsapp: STORE_WHATSAPP_URL,
       instagram: "https://www.instagram.com/gltech3d/",
     },
   },
@@ -185,7 +189,7 @@ export const products: Product[] = [
       shopee:
         "https://shopee.com.br/Decora%C3%A7%C3%A3o-de-P%C3%A1scoa-3D-Personalizados-Coelhos-e-Ovos-Decorativos-Logo-Personaliz%C3%A1vel-i.438090824.23899360077?xptdk=7a7ca1ab-383e-4132-8bd4-383d5567b024",
       mercadoLivre: "https://mercadolivre.com.br",
-      whatsapp: "https://wa.me/5531999284834",
+      whatsapp: STORE_WHATSAPP_URL,
       instagram: "https://www.instagram.com/gltech3d/",
     },
   },
@@ -205,7 +209,7 @@ export const products: Product[] = [
     links: {
       shopee: "https://shopee.com.br/gltech3d",
       mercadoLivre: "https://mercadolivre.com.br",
-      whatsapp: "https://wa.me/5531999284834",
+      whatsapp: STORE_WHATSAPP_URL,
       instagram: "https://www.instagram.com/gltech3d/",
     },
   },
@@ -225,7 +229,7 @@ export const products: Product[] = [
     links: {
       shopee: "https://shopee.com.br/gltech3d",
       mercadoLivre: "https://mercadolivre.com.br",
-      whatsapp: "https://wa.me/5531999284834",
+      whatsapp: STORE_WHATSAPP_URL,
       instagram: "https://www.instagram.com/gltech3d/",
     },
   },
@@ -247,7 +251,7 @@ export const products: Product[] = [
     links: {
       shopee: "https://shopee.com.br/gltech3d",
       mercadoLivre: "https://mercadolivre.com.br",
-      whatsapp: "https://wa.me/5531999284834",
+      whatsapp: STORE_WHATSAPP_URL,
       instagram: "https://www.instagram.com/gltech3d/",
     },
   },

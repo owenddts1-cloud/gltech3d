@@ -25,7 +25,16 @@ export interface ResolveTargetInput {
   memberships: readonly Membership[];
   /** Org escolhida pelo admin ao desempatar um caso ambíguo. */
   chosenOrgId?: string | null;
+  /**
+   * A conta com este e-mail foi criada DEPOIS do pedido (ou a data não pôde
+   * ser lida). O cadastro não confirma posse do e-mail, então quem se cadastrou
+   * com o e-mail de um comprador que já pagou não pode herdar o PRO dele por
+   * dedução automática: só com escolha explícita do admin no painel.
+   */
+  accountNewerThanRequest?: boolean;
 }
+
+export type AmbiguityReason = "multiple_orgs" | "account_newer_than_request";
 
 export type ResolveTargetResult =
   /** Dar PRO a uma org existente. */
@@ -33,7 +42,7 @@ export type ResolveTargetResult =
   /** Criar tenant; `userId` não-nulo significa que a conta já existe. */
   | { mode: "create"; userId: string | null }
   /** Mais de uma candidata: o admin precisa escolher. NÃO adivinhar. */
-  | { mode: "ambiguous"; candidates: readonly Membership[]; userId: string };
+  | { mode: "ambiguous"; candidates: readonly Membership[]; userId: string; reason: AmbiguityReason };
 
 export function resolveTargetOrg(input: ResolveTargetInput): ResolveTargetResult {
   // 1. O pedido já diz a qual org pertence (nasceu dentro do CRM). É a fonte
@@ -48,6 +57,22 @@ export function resolveTargetOrg(input: ResolveTargetInput): ResolveTargetResult
   }
 
   const active = input.memberships;
+
+  // 2d. Conta mais nova que o pedido: nada é deduzido. Só a escolha explícita
+  //     do admin (entre as orgs dessa conta) libera; sem ela, decisão manual —
+  //     inclusive quando a conta não tem org (criar e vincular a conta seria
+  //     dar o tenant pago a quem só registrou o e-mail).
+  if (input.accountNewerThanRequest) {
+    if (input.chosenOrgId && active.some((m) => m.organizationId === input.chosenOrgId)) {
+      return { mode: "upgrade", organizationId: input.chosenOrgId, userId: input.existingUserId };
+    }
+    return {
+      mode: "ambiguous",
+      candidates: active,
+      userId: input.existingUserId,
+      reason: "account_newer_than_request",
+    };
+  }
 
   // 2c. Conta existe mas não pertence a org nenhuma.
   if (active.length === 0) {
@@ -68,5 +93,5 @@ export function resolveTargetOrg(input: ResolveTargetInput): ResolveTargetResult
 
   // 2b. Várias: não adivinhar. Escolher errado dá PRO para a org errada e deixa
   //     o cliente sem acesso onde ele trabalha.
-  return { mode: "ambiguous", candidates: active, userId: input.existingUserId };
+  return { mode: "ambiguous", candidates: active, userId: input.existingUserId, reason: "multiple_orgs" };
 }

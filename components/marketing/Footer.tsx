@@ -1,9 +1,10 @@
 import { MessageCircle, Instagram, ShoppingCart, Package, Clock, MapPin } from 'lucide-react';
 import type { LandingSettings } from '@/lib/landing/types';
+import { STORE_WHATSAPP_FALLBACK, formatWhatsappDisplay, storeWhatsappUrl, whatsappDigitsFrom } from '@/lib/landing/whatsapp-number';
 
 /** Fallbacks: os links que estavam cravados aqui antes do gerenciador existir. */
 const FALLBACK_LINKS = {
-  whatsapp: 'https://wa.me/5531999284834',
+  whatsapp: storeWhatsappUrl(STORE_WHATSAPP_FALLBACK),
   instagram: 'https://www.instagram.com/gltech3d/',
   shopee: 'https://shopee.com.br/gltech3d',
   mercadoLivre: 'https://www.mercadolivre.com.br',
@@ -14,9 +15,11 @@ const FALLBACK_LINKS = {
  * cravados aqui: você trocava a URL da Shopee no painel e o rodapé continuava
  * apontando para a antiga — inconsistência silenciosa dentro da mesma página.
  */
-export default function Footer({ settings }: { settings?: LandingSettings }) {
+export default function Footer({ settings, whatsapp }: { settings?: LandingSettings; whatsapp?: string }) {
   const copy = settings?.sections?.footer;
-  const links = { ...FALLBACK_LINKS, ...settings?.links };
+  // Precedence: explicit prop (server-resolved store number) > Links manager > fallback.
+  const waDigits = whatsapp ?? whatsappDigitsFrom(settings?.links?.whatsapp) ?? STORE_WHATSAPP_FALLBACK;
+  const links = { ...FALLBACK_LINKS, ...settings?.links, ...(whatsapp ? { whatsapp: storeWhatsappUrl(whatsapp) } : {}) };
   return (
     <footer id="contato" className="bg-[#2D241E] text-[#F9F7F2] py-16 px-6">
       <div className="max-w-7xl mx-auto">
@@ -42,7 +45,7 @@ export default function Footer({ settings }: { settings?: LandingSettings }) {
               <li>
                 <a href={links.whatsapp} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 transition-transform hover:translate-x-1">
                   <span className="w-6 h-6 rounded bg-white/5 flex items-center justify-center transition-colors group-hover:bg-[#A6815C]"><MessageCircle className="w-4 h-4" /></span>
-                  <span className="transition-colors group-hover:text-white">WhatsApp <br /><small className="text-white/40">(31) 99928-4834</small></span>
+                  <span className="transition-colors group-hover:text-white">WhatsApp <br /><small className="text-white/40">{formatWhatsappDisplay(waDigits)}</small></span>
                 </a>
               </li>
               <li>

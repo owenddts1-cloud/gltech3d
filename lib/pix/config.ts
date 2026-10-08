@@ -11,7 +11,7 @@
  * embutida no bundle em tempo de build — por isso mudar na Vercel exige redeploy.
  */
 import { PRO_PLANS } from "@/lib/pricing/pro-plans";
-import { checkCopiaECola, type CopiaEColaCheck } from "./brcode";
+import { checkCopiaECola, normalizeBrCodeInput, type CopiaEColaCheck } from "./brcode";
 
 export const PIX_KEY = (process.env.NEXT_PUBLIC_PIX_KEY ?? "").trim();
 export const PIX_RECEIVER_NAME = (process.env.NEXT_PUBLIC_PIX_RECEIVER_NAME ?? "").trim();
@@ -36,5 +36,5 @@ export const PIX_COPIA_E_COLA: CopiaEColaCheck = checkCopiaECola(
 
 /** O código pronto para exibir, ou `null` quando não deve aparecer. */
 export const PIX_COPIA_E_COLA_TEXT: string | null = PIX_COPIA_E_COLA.usable
-  ? (process.env.NEXT_PUBLIC_PIX_COPIA_E_COLA ?? "").replace(/\s+/g, "")
+  ? normalizeBrCodeInput(process.env.NEXT_PUBLIC_PIX_COPIA_E_COLA)
   : null;

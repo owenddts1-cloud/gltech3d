@@ -23,6 +23,12 @@ import { unstable_cache, revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { asLinks, mergeProductLinks } from "@/lib/landing/links";
 import { env } from "@/lib/env";
+import {
+  PUBLIC_SPEC_COLUMNS,
+  firstEmbed,
+  toSpecView,
+} from "@/lib/filament-catalog/mappers";
+import type { PublicFilament } from "@/lib/filament-catalog/types";
 import type {
   BestsellerRank,
   LandingCatalog,
@@ -205,6 +211,9 @@ async function fetchCatalog(): Promise<LandingCatalog> {
       .from("products")
       .select(PUBLIC_PRODUCT_COLUMNS)
       .eq("organization_id", organizationId)
+      // Pieces only: filaments for sale (0087) have their own catalog below and
+      // must not show up on the home, /catalogo, the sitemap or the Meta feed.
+      .eq("kind", "peca")
       .eq("is_published", true)
       .order("sort_order", { ascending: true, nullsFirst: false })
       .order("name", { ascending: true }),
@@ -242,4 +251,81 @@ export const getLandingCatalog = unstable_cache(fetchCatalog, ["landing-catalog"
 /** Chamado pelas Server Actions do Landing Edit após gravar. */
 export function revalidateLanding(): void {
   revalidateTag(LANDING_CACHE_TAG);
+}
+
+// ---------------------------------------------------------------------------
+// Filament catalog (products.kind = 'filamento', migration 0087)
+// ---------------------------------------------------------------------------
+
+/** Public columns of a filament product. Same rule as PUBLIC_PRODUCT_COLUMNS: explicit and closed. */
+const PUBLIC_FILAMENT_PRODUCT_COLUMNS = [
+  "id",
+  "slug",
+  "name",
+  "description",
+  "images",
+  "material",
+  "sale_price_cents",
+  "sort_order",
+].join(", ");
+
+interface FilamentProductRow {
+  id: string;
+  slug: string | null;
+  name: string;
+  description: string | null;
+  images: unknown;
+  material: string | null;
+  sale_price_cents: number | null;
+  sort_order: number | string | null;
+  product_filament_specs: unknown;
+}
+
+function toPublicFilament(row: FilamentProductRow): PublicFilament {
+  const images = asStringArray(row.images);
+  return {
+    id: row.id,
+    slug: row.slug ?? row.id,
+    name: row.name,
+    description: row.description ?? "",
+    priceCents: row.sale_price_cents == null ? null : Number(row.sale_price_cents),
+    image: images[0] ?? PHOTO_PENDING_IMAGE,
+    images,
+    sortOrder: row.sort_order == null ? null : Number(row.sort_order),
+    ...toSpecView(firstEmbed(row.product_filament_specs), row.material),
+  };
+}
+
+async function fetchFilamentCatalog(): Promise<PublicFilament[]> {
+  const db = createAdminClient();
+  const organizationId = await resolveLandingOrgId();
+
+  const { data, error } = await db
+    .from("products")
+    .select(`${PUBLIC_FILAMENT_PRODUCT_COLUMNS}, product_filament_specs(${PUBLIC_SPEC_COLUMNS})`)
+    .eq("organization_id", organizationId)
+    .eq("kind", "filamento")
+    .eq("is_published", true)
+    .order("sort_order", { ascending: true, nullsFirst: false })
+    .order("name", { ascending: true });
+
+  if (error) throw new Error(`Catálogo de filamentos: ${error.message}`);
+  return ((data ?? []) as unknown as FilamentProductRow[]).map(toPublicFilament);
+}
+
+/**
+ * Published filaments of the landing org, in the manual order. Cached under the
+ * same tag as the pieces catalog, so `revalidateLanding()` (called by every
+ * filament action) refreshes both.
+ */
+export const getFilamentCatalog: () => Promise<PublicFilament[]> = unstable_cache(
+  fetchFilamentCatalog,
+  ["landing-filament-catalog"],
+  { tags: [LANDING_CACHE_TAG] },
+);
+
+/** One published filament by slug (or id, for rows without slug). `null` = 404. */
+export async function getFilamentBySlug(slug: string): Promise<PublicFilament | null> {
+  const catalog = await getFilamentCatalog();
+  return catalog.find((f) => f.slug === slug || f.id === slug) ?? null;
 }

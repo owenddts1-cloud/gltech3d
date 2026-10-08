@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import {
+  isAllowedMediaUrl,
   mediaPath,
   linksSchema,
   extraCostItemSchema,
@@ -21,9 +22,20 @@ describe("mediaPath", () => {
     expect(mediaPath.safeParse("/images/placeholder-model.svg").success).toBe(true);
   });
 
-  it("aceita URL absoluta do Storage", () => {
-    expect(mediaPath.safeParse("https://abc.supabase.co/storage/v1/object/public/x.png").success).toBe(true);
-    expect(mediaPath.safeParse("http://localhost:54321/storage/x.png").success).toBe(true);
+  it("aceita URL absoluta do Storage do PRÓPRIO projeto (origem de NEXT_PUBLIC_SUPABASE_URL)", () => {
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    expect(mediaPath.safeParse(`${base}/storage/v1/object/public/landing-media/x.png`).success).toBe(true);
+    expect(isAllowedMediaUrl("https://abc.supabase.co/storage/v1/object/public/x.png", "https://abc.supabase.co")).toBe(true);
+  });
+
+  it("recusa outro host, http no lugar de https e caminho fora do Storage", () => {
+    const prod = "https://abc.supabase.co";
+    expect(isAllowedMediaUrl("https://evil.com/storage/v1/object/public/x.png", prod)).toBe(false);
+    expect(isAllowedMediaUrl("http://abc.supabase.co/storage/v1/object/public/x.png", prod)).toBe(false);
+    expect(isAllowedMediaUrl("https://abc.supabase.co.evil.com/storage/v1/object/x.png", prod)).toBe(false);
+    expect(isAllowedMediaUrl("https://abc.supabase.co/rest/v1/products", prod)).toBe(false);
+    expect(isAllowedMediaUrl("https://abc.supabase.co/storage/v1/object/x.png", undefined)).toBe(false);
+    expect(mediaPath.safeParse("https://cdn.exemplo.com/foto.png").success).toBe(false);
   });
 
   it("recusa protocol-relative disfarçado de caminho local", () => {

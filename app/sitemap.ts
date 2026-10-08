@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
-import { getLandingCatalog } from '@/lib/landing/repository';
+import { getFilamentCatalog, getLandingCatalog } from '@/lib/landing/repository';
+import { logger } from '@/lib/logger';
 import type { LandingProduct } from '@/lib/landing/types';
 import { siteUrl } from '@/lib/marketing/site-url';
 
@@ -24,6 +25,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/filamentos`,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/catalogo`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
     },
     {
       url: `${baseUrl}/criar-conta`,
@@ -51,16 +64,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  try {
-    const catalog = await getLandingCatalog();
-    const productRoutes: MetadataRoute.Sitemap = catalog.products.map((p: LandingProduct) => ({
-      url: `${baseUrl}/product/${p.slug}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    }));
-    return [...staticRoutes, ...productRoutes];
-  } catch {
-    return staticRoutes;
-  }
+  // Each list is independent: a failure in one (e.g. a clone without migration
+  // 0087) must not drop the other from the sitemap.
+  const [productRoutes, filamentRoutes] = await Promise.all([
+    getLandingCatalog()
+      .then((catalog): MetadataRoute.Sitemap =>
+        catalog.products.map((p: LandingProduct) => ({
+          url: `${baseUrl}/product/${p.slug}`,
+          lastModified: new Date(),
+          changeFrequency: 'weekly',
+          priority: 0.8,
+        })),
+      )
+      .catch((err: unknown): MetadataRoute.Sitemap => {
+        logger.warn('sitemap_products_failed', { details: err instanceof Error ? err.message : String(err) });
+        return [];
+      }),
+    getFilamentCatalog()
+      .then((filaments): MetadataRoute.Sitemap =>
+        filaments.map((f) => ({
+          url: `${baseUrl}/filamentos/${encodeURIComponent(f.slug)}`,
+          lastModified: new Date(),
+          changeFrequency: 'weekly',
+          priority: 0.7,
+        })),
+      )
+      .catch((err: unknown): MetadataRoute.Sitemap => {
+        logger.warn('sitemap_filaments_failed', { details: err instanceof Error ? err.message : String(err) });
+        return [];
+      }),
+  ]);
+  return [...staticRoutes, ...productRoutes, ...filamentRoutes];
 }

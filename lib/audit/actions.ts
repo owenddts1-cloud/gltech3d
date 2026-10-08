@@ -144,4 +144,18 @@ export type AuditAction =
   // Auto-cadastro com trial de 7 dias.
   | "signup.trial_started"
   | "auth.password_reset_requested"
-  | "auth.password_reset_completed";
+  | "auth.password_reset_completed"
+  // Catálogo de filamentos (0087). product_filament_specs não tem trigger de
+  // audit por linha (sem id/organization_id), então a action registra.
+  | "filament.created"
+  | "filament.updated"
+  | "filament.deleted"
+  // Carrinho público do site → WhatsApp (0087). A linha já tem trigger de audit;
+  // estes levam o contexto da requisição (IP, request id) e a conversão em vendas.
+  | "site_order.created"
+  | "site_order.converted"
+  // Preço/período/trial/benefícios do PRO editados pelo platform admin.
+  | "platform.pricing_changed"
+  // Pedido de dentro do CRM recusado porque já há OUTRO pedido pendente com o
+  // mesmo e-mail (pendência 18). Nada é cancelado: o dono decide no painel.
+  | "pro_signup.blocked_by_pending";

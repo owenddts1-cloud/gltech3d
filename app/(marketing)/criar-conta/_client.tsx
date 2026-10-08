@@ -7,7 +7,6 @@ import { Loader2, AlertTriangle, Check, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/marketing/Navbar';
 import Footer from '@/components/marketing/Footer';
 import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password';
-import { TRIAL_DAYS } from '@/lib/tenants/trial';
 import { PRO_MODULES } from '@/lib/plan/modules';
 
 type Status = 'idle' | 'sending' | 'error';
@@ -15,7 +14,8 @@ type Status = 'idle' | 'sending' | 'error';
 /** Mostrados na coluna de apoio — os primeiros da mesma lista que o gate usa. */
 const DESTAQUES = PRO_MODULES.slice(0, 8);
 
-export function SignupClient() {
+/** `trialDays` comes from platform_settings via the server page. */
+export function SignupClient({ trialDays }: { trialDays: number }) {
   const router = useRouter();
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState<string | null>(null);
@@ -93,13 +93,13 @@ export function SignupClient() {
           {/* Formulário */}
           <div className="rounded-3xl border border-[#E8E2D9] bg-white p-7 md:p-9">
             <span className="block text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#A6815C]">
-              {TRIAL_DAYS} dias grátis
+              {trialDays} dias grátis
             </span>
             <h1 className="mt-2 font-sora text-3xl font-black tracking-tight text-[#2D241E]">
               Criar minha conta
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-[#6B5E55]">
-              Sem cartão. No {TRIAL_DAYS + 1}º dia os módulos PRO pausam e seus dados ficam guardados.
+              Sem cartão. No {trialDays + 1}º dia os módulos PRO pausam e seus dados ficam guardados.
             </p>
 
             <form onSubmit={onSubmit} className="mt-7 space-y-5">
@@ -189,7 +189,7 @@ export function SignupClient() {
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#8E6D4D] to-[#A6815C] px-5 py-3.5 text-sm font-bold text-white transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {busy ? 'Criando seu espaço…' : `Começar os ${TRIAL_DAYS} dias grátis`}
+                {busy ? 'Criando seu espaço…' : `Começar os ${trialDays} dias grátis`}
                 {!busy ? <ArrowRight className="h-4 w-4" /> : null}
               </button>
 
@@ -203,7 +203,7 @@ export function SignupClient() {
           {/* O que entra no trial */}
           <aside className="rounded-3xl bg-[#2D241E] p-7 text-white md:p-9">
             <span className="block text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#A6815C]">
-              Liberado nos {TRIAL_DAYS} dias
+              Liberado nos {trialDays} dias
             </span>
             <h2 className="mt-2 font-sora text-xl font-black">O CRM inteiro, sem trava.</h2>
             <ul className="mt-6 space-y-3">
@@ -215,7 +215,7 @@ export function SignupClient() {
               ))}
             </ul>
             <p className="mt-6 rounded-xl border border-[#A6815C]/40 bg-[#A6815C]/15 px-4 py-3 text-xs leading-relaxed text-[#F9F7F2]">
-              Quando os {TRIAL_DAYS} dias acabam, a calculadora continua grátis e nada é apagado —
+              Quando os {trialDays} dias acabam, a calculadora continua grátis e nada é apagado —
               os módulos acima só ficam travados até você assinar.
             </p>
           </aside>

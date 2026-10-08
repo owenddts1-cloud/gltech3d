@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Link from 'next/link';
+import { storeWhatsappUrl } from '@/lib/landing/whatsapp-number';
+import { track } from '@/lib/analytics/track';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -215,7 +218,8 @@ function parseSTL(buffer: ArrayBuffer) {
   };
 }
 
-export function OrcamentoClient() {
+/** `storeWhatsapp`: store digits resolved on the server (lib/landing/whatsapp.ts). */
+export function OrcamentoClient({ storeWhatsapp }: { storeWhatsapp: string }) {
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
   const [material, setMaterial] = useState('pla');
   const [observacao, setObservacao] = useState('');
@@ -397,7 +401,7 @@ export function OrcamentoClient() {
       `- Complexidade do Modelo: ${metricas.complexidade}\n\n` +
       `Gostaria de obter o orçamento oficial para fabricação!`
     );
-    return `https://wa.me/5531999284834?text=${text}`;
+    return `${storeWhatsappUrl(storeWhatsapp)}?text=${text}`;
   };
 
   return (
@@ -699,12 +703,19 @@ export function OrcamentoClient() {
                 href={getWhatsAppLink()}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => track('submit_orcamento', { origem: 'orcamento_stl' })}
                 className={`w-full bg-[#8E6D4D] hover:bg-[#6F5439] text-white font-extrabold uppercase tracking-widest text-[11px] py-4 px-6 rounded-xl mt-6 flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-[#A6815C]/10 hover:shadow-[#A6815C]/25 duration-300 ${
                   !file || loading || uploading ? 'pointer-events-none opacity-40 grayscale' : 'hover:scale-[1.01]'
                 }`}
               >
                 SOLICITAR ORÇAMENTO
               </a>
+              <Link
+                href="/calc3d-pro#calculadora"
+                className="mt-4 block text-center text-xs font-semibold text-stone-300 underline-offset-4 hover:text-white hover:underline"
+              >
+                Prefere imprimir você mesmo? Calcule o custo grátis no Calc3D →
+              </Link>
             </div>
 
           </div>
@@ -712,7 +723,7 @@ export function OrcamentoClient() {
         </div>
       </div>
 
-      <Footer />
+      <Footer whatsapp={storeWhatsapp} />
     </main>
   );
 }

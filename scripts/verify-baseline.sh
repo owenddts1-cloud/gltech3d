@@ -573,4 +573,370 @@ rollback;
 SQL
 
 echo
+echo "== 0087: catalogo de filamentos, pedidos do site e platform_settings (RLS e integridade) =="
+# Mesma tecnica da 0084/0086: dados entram como postgres, checagens sob
+# `set local role authenticated|anon|service_role` com JWT simulado, tudo
+# desfeito no rollback. UPDATE/DELETE barrado por RLS apaga 0 linhas em
+# silencio (conta-se); INSERT sem GRANT/policy da 42501.
+psql_run -v ON_ERROR_STOP=1 -q -f - <<'SQL' || exit 1
+begin;
+create or replace function auth.uid() returns uuid language sql stable as $$
+  select (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')::uuid
+$$;
+grant usage on schema public, auth to authenticated, anon, service_role;
+
+do $$
+declare v_missing text;
+begin
+  select string_agg(t, ', ') into v_missing
+    from unnest(array['product_filament_specs','site_orders','site_order_items','platform_settings']) t
+   where not coalesce((select relrowsecurity from pg_class where oid = to_regclass('public.' || t)), false);
+  if v_missing is not null then raise exception 'FALHOU: RLS desligado/ausente em: %', v_missing; end if;
+  if (select count(*) from public.platform_settings) <> 1 then
+    raise exception 'FALHOU: platform_settings deveria ter exatamente 1 linha (seed)';
+  end if;
+  if exists (select 1 from pg_policies where schemaname = 'public'
+              and tablename in ('site_orders','site_order_items') and cmd in ('INSERT','ALL')) then
+    raise exception 'FALHOU: site_orders/site_order_items tem policy de INSERT';
+  end if;
+  raise notice 'OK: RLS ligado nas 4 tabelas, seed unico, sem policy de INSERT nos pedidos do site';
+end $$;
+
+insert into auth.users (id, email) values
+  ('00000000-0000-0000-0000-0000000087a1', 'a@teste'),
+  ('00000000-0000-0000-0000-0000000087b1', 'b@teste'),
+  ('00000000-0000-0000-0000-0000000087f1', 'pa@teste');
+insert into public.organizations (id, slug, legal_name, display_name) values
+  ('00000000-0000-0000-0000-00000000087a', 'org-a-0087', 'A', 'A'),
+  ('00000000-0000-0000-0000-00000000087b', 'org-b-0087', 'B', 'B');
+insert into public.user_organizations (user_id, organization_id, role) values
+  ('00000000-0000-0000-0000-0000000087a1', '00000000-0000-0000-0000-00000000087a', 'agent'),
+  ('00000000-0000-0000-0000-0000000087b1', '00000000-0000-0000-0000-00000000087b', 'agent');
+insert into public.platform_admins (user_id, granted_by, reason) values
+  ('00000000-0000-0000-0000-0000000087f1', '00000000-0000-0000-0000-0000000087f1', 'teste 0087');
+insert into public.products (id, organization_id, name, kind) values
+  ('00000000-0000-0000-0000-000000087d01', '00000000-0000-0000-0000-00000000087a', 'PLA A',  'filamento'),
+  ('00000000-0000-0000-0000-000000087d02', '00000000-0000-0000-0000-00000000087a', 'Peca A', 'peca'),
+  ('00000000-0000-0000-0000-000000087d03', '00000000-0000-0000-0000-00000000087b', 'PLA B',  'filamento');
+insert into public.materials (id, organization_id, name, slug) values
+  ('00000000-0000-0000-0000-000000087e01', '00000000-0000-0000-0000-00000000087b', 'PLA', 'pla');
+insert into public.product_filament_specs (product_id, organization_id, color_hex, availability) values
+  ('00000000-0000-0000-0000-000000087d03', '00000000-0000-0000-0000-00000000087b', '#FF00aa', 'esgotado');
+insert into public.site_orders (id, organization_id, customer_name, customer_whatsapp, total_cents) values
+  ('00000000-0000-0000-0000-000000087501', '00000000-0000-0000-0000-00000000087b', 'Cliente B', '5511999998888', 5000),
+  ('00000000-0000-0000-0000-000000087502', '00000000-0000-0000-0000-00000000087a', 'Cliente A', '11999998888',   2500);
+insert into public.site_orders (id, organization_id, customer_name, customer_whatsapp, total_cents, status, converted_at) values
+  ('00000000-0000-0000-0000-000000087503', '00000000-0000-0000-0000-00000000087a', 'Convertido A', '11977776666', 3000, 'confirmado', now());
+insert into public.site_order_items (organization_id, site_order_id, product_id, product_name, qty, unit_price_cents) values
+  ('00000000-0000-0000-0000-00000000087b', '00000000-0000-0000-0000-000000087501', '00000000-0000-0000-0000-000000087d03', 'PLA B', 2, 2500);
+
+-- default de products.kind e a CHECK
+do $$
+begin
+  if (select kind from public.products where id = '00000000-0000-0000-0000-000000087d02') <> 'peca' then
+    raise exception 'FALHOU: products.kind';
+  end if;
+  begin
+    insert into public.products (organization_id, name, kind) values ('00000000-0000-0000-0000-00000000087a', 'x', 'resina');
+    raise exception 'FALHOU: products.kind aceitou valor fora da lista';
+  exception when check_violation then null;
+  end;
+  raise notice 'OK: products.kind so aceita peca/filamento';
+end $$;
+
+-- products.kind imutavel para todos (aqui como dono da tabela, sem RLS)
+do $$
+begin
+  update public.products set kind = 'peca' where id = '00000000-0000-0000-0000-000000087d02';  -- mesmo valor: ok
+  begin
+    update public.products set kind = 'filamento' where id = '00000000-0000-0000-0000-000000087d02';
+    raise exception 'FALHOU: products.kind mudou de peca para filamento';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.products set kind = 'peca' where id = '00000000-0000-0000-0000-000000087d01';
+    raise exception 'FALHOU: products.kind mudou de filamento para peca';
+  exception when check_violation then null;
+  end;
+  raise notice 'OK: products.kind imutavel depois de criado (23514)';
+end $$;
+
+-- integridade das fichas e itens (como dono da tabela, sem RLS: vale tambem para o service role)
+do $$
+begin
+  begin
+    insert into public.product_filament_specs (product_id, organization_id)
+    values ('00000000-0000-0000-0000-000000087d02', '00000000-0000-0000-0000-00000000087a');
+    raise exception 'FALHOU: ficha aceita em produto kind=peca';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.product_filament_specs (product_id, organization_id)
+    values ('00000000-0000-0000-0000-000000087d03', '00000000-0000-0000-0000-00000000087a');
+    raise exception 'FALHOU: ficha aceita com org diferente da do produto';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.product_filament_specs (product_id, organization_id, material_id)
+    values ('00000000-0000-0000-0000-000000087d01', '00000000-0000-0000-0000-00000000087a', '00000000-0000-0000-0000-000000087e01');
+    raise exception 'FALHOU: ficha aceita material de outra org';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.product_filament_specs (product_id, organization_id, color_hex)
+    values ('00000000-0000-0000-0000-000000087d01', '00000000-0000-0000-0000-00000000087a', 'red');
+    raise exception 'FALHOU: color_hex aceitou valor invalido';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.product_filament_specs (product_id, organization_id, availability)
+    values ('00000000-0000-0000-0000-000000087d01', '00000000-0000-0000-0000-00000000087a', 'disponivel');
+    raise exception 'FALHOU: availability aceitou valor invalido';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.product_filament_specs (product_id, organization_id, nozzle_temp_min, nozzle_temp_max)
+    values ('00000000-0000-0000-0000-000000087d01', '00000000-0000-0000-0000-00000000087a', 230, 190);
+    raise exception 'FALHOU: aceitou temperatura minima > maxima';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.site_order_items (organization_id, site_order_id, product_name, qty, unit_price_cents)
+    values ('00000000-0000-0000-0000-00000000087a', '00000000-0000-0000-0000-000000087501', 'x', 1, 100);
+    raise exception 'FALHOU: item com org diferente da do pedido';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.site_order_items (organization_id, site_order_id, product_id, product_name, qty, unit_price_cents)
+    values ('00000000-0000-0000-0000-00000000087b', '00000000-0000-0000-0000-000000087501',
+            '00000000-0000-0000-0000-000000087d01', 'x', 1, 100);
+    raise exception 'FALHOU: item aceitou produto de outra org';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.site_orders (organization_id, customer_name, customer_whatsapp)
+    values ('00000000-0000-0000-0000-00000000087a', 'Cliente', '+55 11 99999-8888');
+    raise exception 'FALHOU: customer_whatsapp aceitou formatacao';
+  exception when check_violation then null;
+  end;
+  raise notice 'OK: fichas/itens recusam kind=peca, org cruzada, material/produto alheio, hex/availability/temperatura/whatsapp invalidos';
+end $$;
+
+-- service role grava pedido do site (caminho da API publica)
+set local role service_role;
+insert into public.site_orders (organization_id, customer_name, customer_whatsapp, source)
+values ('00000000-0000-0000-0000-00000000087a', 'Via API', '11988887777', 'site_produtos');
+reset role;
+
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"00000000-0000-0000-0000-0000000087a1"}';
+
+do $$
+declare v_specs int; v_orders int; v_items int;
+begin
+  select count(*) into v_specs  from public.product_filament_specs where organization_id = '00000000-0000-0000-0000-00000000087b';
+  select count(*) into v_orders from public.site_orders            where organization_id = '00000000-0000-0000-0000-00000000087b';
+  select count(*) into v_items  from public.site_order_items       where organization_id = '00000000-0000-0000-0000-00000000087b';
+  if v_specs + v_orders + v_items <> 0 then
+    raise exception 'FALHOU: membro de A le dados de B (specs %, pedidos %, itens %)', v_specs, v_orders, v_items;
+  end if;
+  if (select count(*) from public.site_orders where organization_id = '00000000-0000-0000-0000-00000000087a') <> 3 then
+    raise exception 'FALHOU: membro de A deveria ver os 3 pedidos da propria org';
+  end if;
+  raise notice 'OK: membro de A nao le fichas, pedidos nem itens de B';
+end $$;
+
+do $$
+begin
+  insert into public.site_orders (organization_id, customer_name, customer_whatsapp)
+  values ('00000000-0000-0000-0000-00000000087a', 'Forjado', '11999998888');
+  raise exception 'FALHOU: authenticated inseriu site_orders';
+exception when insufficient_privilege then
+  raise notice 'OK: authenticated nao insere site_orders (so a API com service role)';
+end $$;
+
+do $$
+begin
+  insert into public.site_order_items (organization_id, site_order_id, product_name, qty, unit_price_cents)
+  values ('00000000-0000-0000-0000-00000000087a', '00000000-0000-0000-0000-000000087502', 'x', 1, 100);
+  raise exception 'FALHOU: authenticated inseriu site_order_items';
+exception when insufficient_privilege then
+  raise notice 'OK: authenticated nao insere site_order_items';
+end $$;
+
+do $$
+declare v_changed int; v_deleted int;
+begin
+  with u as (update public.site_orders set status = 'confirmado' where id = '00000000-0000-0000-0000-000000087502' returning 1)
+  select count(*) into v_changed from u;
+  if v_changed <> 1 then raise exception 'FALHOU: agent nao confirmou pedido da propria org'; end if;
+  with u as (update public.site_orders set status = 'cancelado' where id = '00000000-0000-0000-0000-000000087501' returning 1)
+  select count(*) into v_changed from u;
+  if v_changed <> 0 then raise exception 'FALHOU: agent de A alterou pedido de B'; end if;
+  with d as (delete from public.site_orders where id = '00000000-0000-0000-0000-000000087502' returning 1)
+  select count(*) into v_deleted from d;
+  if v_deleted <> 0 then raise exception 'FALHOU: agent apagou pedido (DELETE e manager+)'; end if;
+  raise notice 'OK: agent confirma pedido da propria org, nao toca o de B e nao apaga';
+end $$;
+
+-- UPDATE so em (status, notes): converted_at / total_cents / cliente fora do alcance do usuario
+do $$
+declare v_changed int;
+begin
+  with u as (update public.site_orders set notes = 'ligar amanha' where id = '00000000-0000-0000-0000-000000087503' returning 1)
+  select count(*) into v_changed from u;
+  if v_changed <> 1 then raise exception 'FALHOU: agent nao editou notes'; end if;
+  begin
+    update public.site_orders set converted_at = null where id = '00000000-0000-0000-0000-000000087503';
+    raise exception 'FALHOU: agent limpou converted_at (reconversao = venda duplicada)';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.site_orders set total_cents = 1 where id = '00000000-0000-0000-0000-000000087503';
+    raise exception 'FALHOU: agent alterou total_cents';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.site_orders set customer_whatsapp = '11900000000' where id = '00000000-0000-0000-0000-000000087503';
+    raise exception 'FALHOU: agent alterou customer_whatsapp';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    update public.site_orders set converted_at = now() where id = '00000000-0000-0000-0000-000000087502';
+    raise exception 'FALHOU: agent marcou converted_at pelo client do usuario';
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'OK: agent edita status/notes; converted_at, total_cents e cliente recusados (42501)';
+end $$;
+
+-- o gatilho segura mesmo sem depender do GRANT por coluna (JWT authenticated, sessao privilegiada)
+reset role;
+do $$
+begin
+  begin
+    update public.site_orders set converted_at = null where id = '00000000-0000-0000-0000-000000087503';
+    raise exception 'FALHOU: gatilho deixou JWT authenticated limpar converted_at';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.site_orders set total_cents = 1 where id = '00000000-0000-0000-0000-000000087503';
+    raise exception 'FALHOU: gatilho deixou JWT authenticated alterar total_cents';
+  exception when check_violation then null;
+  end;
+  raise notice 'OK: gatilho de site_orders recusa converted_at/total com JWT authenticated (23514)';
+end $$;
+
+-- service role (servidor) desfaz e marca a conversao
+set local role service_role;
+set local request.jwt.claims = '{"role":"service_role"}';
+do $$
+declare v_changed int;
+begin
+  with u as (update public.site_orders set converted_at = null, status = 'novo'
+              where id = '00000000-0000-0000-0000-000000087503' returning 1)
+  select count(*) into v_changed from u;
+  if v_changed <> 1 then raise exception 'FALHOU: service role nao desfez a conversao'; end if;
+  with u as (update public.site_orders set converted_at = now(), status = 'confirmado'
+              where id = '00000000-0000-0000-0000-000000087503' and converted_at is null returning 1)
+  select count(*) into v_changed from u;
+  if v_changed <> 1 then raise exception 'FALHOU: service role nao marcou a conversao'; end if;
+  raise notice 'OK: service role marca e desfaz converted_at';
+end $$;
+reset role;
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"00000000-0000-0000-0000-0000000087a1"}';
+
+do $$
+begin
+  insert into public.product_filament_specs (product_id, organization_id, color_hex, availability, diameter_mm)
+  values ('00000000-0000-0000-0000-000000087d01', '00000000-0000-0000-0000-00000000087a', '#112233', 'sob_encomenda', 2.85);
+  begin
+    insert into public.product_filament_specs (product_id, organization_id)
+    values ('00000000-0000-0000-0000-000000087d02', '00000000-0000-0000-0000-00000000087a');
+    raise exception 'FALHOU: membro pendurou ficha em produto kind=peca';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.product_filament_specs (product_id, organization_id)
+    values ('00000000-0000-0000-0000-000000087d03', '00000000-0000-0000-0000-00000000087a');
+    raise exception 'FALHOU: membro de A pendurou ficha no produto de B';
+  exception when check_violation then null;
+  end;
+  raise notice 'OK: membro cria ficha do proprio filamento; peca e produto de B recusados';
+end $$;
+
+do $$
+begin
+  update public.platform_settings set pro_price_cents = 100 where id = 1;
+  raise exception 'FALHOU: authenticated comum alterou platform_settings';
+exception when insufficient_privilege then
+  raise notice 'OK: authenticated comum nao altera platform_settings (42501)';
+end $$;
+
+-- nem platform admin pelo PostgREST: fn_is_platform_admin() ignora MFA; quem grava e a rota admin (service role)
+set local request.jwt.claims = '{"role":"authenticated","sub":"00000000-0000-0000-0000-0000000087f1"}';
+do $$
+begin
+  if not public.fn_is_platform_admin() then raise exception 'FALHOU: stub de platform admin nao reconhecido'; end if;
+  begin
+    update public.platform_settings set pro_price_cents = 100 where id = 1;
+    raise exception 'FALHOU: platform admin alterou platform_settings pelo client do usuario';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.platform_settings (id) values (1) on conflict (id) do nothing;
+    raise exception 'FALHOU: platform admin inseriu em platform_settings pelo client do usuario';
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'OK: platform admin nao grava platform_settings pelo client do usuario (42501)';
+end $$;
+
+reset role;
+set local role service_role;
+set local request.jwt.claims = '{"role":"service_role"}';
+do $$
+declare v_changed int;
+begin
+  with u as (update public.platform_settings
+                set pro_price_cents = 9900, updated_by = '00000000-0000-0000-0000-0000000087f1'
+              where id = 1 returning 1)
+  select count(*) into v_changed from u;
+  if v_changed <> 1 then raise exception 'FALHOU: service role nao alterou platform_settings'; end if;
+  begin
+    insert into public.platform_settings (id) values (2);
+    raise exception 'FALHOU: platform_settings aceitou segunda linha';
+  exception when check_violation then null;
+  end;
+  raise notice 'OK: service role altera platform_settings; segunda linha recusada';
+end $$;
+
+reset role;
+set local role anon;
+set local request.jwt.claims = '{"role":"anon"}';
+do $$
+begin
+  if (select pro_price_cents from public.platform_settings where id = 1) is distinct from 9900 then
+    raise exception 'FALHOU: anon nao le platform_settings';
+  end if;
+  begin
+    update public.platform_settings set trial_days = 0 where id = 1;
+    raise exception 'FALHOU: anon alterou platform_settings';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform 1 from public.site_orders limit 1;
+    raise exception 'FALHOU: anon le site_orders';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform 1 from public.product_filament_specs limit 1;
+    raise exception 'FALHOU: anon le product_filament_specs';
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'OK: anon le platform_settings, nao altera; nao le fichas nem pedidos';
+end $$;
+rollback;
+SQL
+
+echo
 echo "TUDO PASSOU"

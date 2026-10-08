@@ -4,6 +4,7 @@ import {
   buildActivationMessage,
   buildUpgradeMessage,
   buildWhatsappUrl,
+  maskEmail,
 } from "./whatsapp-message";
 
 describe("toWhatsappNumber", () => {
@@ -54,19 +55,29 @@ describe("buildWhatsappUrl", () => {
   });
 });
 
+describe("maskEmail", () => {
+  it("mantém a primeira letra e o domínio", () => {
+    expect(maskEmail("maria.souza@gmail.com")).toBe("m***@gmail.com");
+    expect(maskEmail("  a@b.co ")).toBe("a***@b.co");
+    expect(maskEmail("sem-arroba")).toBe("***");
+  });
+});
+
 describe("buildActivationMessage", () => {
-  it("usa o primeiro nome e inclui o link", () => {
+  it("usa o primeiro nome e diz para onde o link foi — SEM o link (pendência 19)", () => {
     const msg = buildActivationMessage({
       buyerName: "João Carlos Silva",
-      activationUrl: "https://exemplo.com/ativar/xyz",
+      maskedEmail: "j***@gmail.com",
     });
     expect(msg).toContain("Oi, João!");
-    expect(msg).toContain("https://exemplo.com/ativar/xyz");
+    expect(msg).toContain("Enviamos o link de ativação para o seu e-mail j***@gmail.com");
+    expect(msg).not.toMatch(/https?:\/\//);
+    expect(msg).not.toContain("/ativar/");
     expect(msg).not.toContain("Carlos");
   });
 
   it("funciona sem nome, sem deixar saudação quebrada", () => {
-    const msg = buildActivationMessage({ buyerName: "   ", activationUrl: "https://x.com/a" });
+    const msg = buildActivationMessage({ buyerName: "   ", maskedEmail: "a***@x.com" });
     expect(msg.startsWith("Oi!")).toBe(true);
     expect(msg).not.toContain("Oi, !");
   });
@@ -74,14 +85,14 @@ describe("buildActivationMessage", () => {
   it("inclui a validade quando há data", () => {
     const msg = buildActivationMessage({
       buyerName: "Ana",
-      activationUrl: "https://x.com/a",
+      maskedEmail: "a***@x.com",
       expiresAt: new Date("2026-10-12T12:00:00.000Z"),
     });
     expect(msg).toMatch(/vale até \d{2}\/\d{2}\/\d{4}/);
   });
 
   it("omite a validade quando não há data", () => {
-    const msg = buildActivationMessage({ buyerName: "Ana", activationUrl: "https://x.com/a" });
+    const msg = buildActivationMessage({ buyerName: "Ana", maskedEmail: "a***@x.com" });
     expect(msg).not.toContain("vale até");
   });
 });
