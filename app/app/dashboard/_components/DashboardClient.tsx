@@ -11,6 +11,7 @@ import {
   Info,
   ArrowsClockwise,
   Plus,
+  Minus,
   Play,
   Trash,
   CheckCircle,
@@ -27,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { calculateRealCost } from "@/lib/pricing/engine";
 import { saveEnergyTariff, savePrintersAndFilaments } from "@/app/actions/printers/actions";
+import { normalizeSimpleSpool } from "@/lib/schemas/printers";
 import { PrintingDetails } from "@/app/app/(pro)/printers/_components/PrintingDetails";
 
 type PrinterStatus = "idle" | "printing" | "error" | "offline" | "maintenance";
@@ -67,8 +69,10 @@ export interface ServiceOrderLite {
 interface FilamentItem {
   id: string;
   name: string;
+  brand?: string;
   color: string;
   material: string;
+  quantity?: number;
   weightGrams: number;
   initialWeightGrams: number;
   costPerGram: number;
@@ -183,16 +187,12 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
     pollMode: "browser" as "browser" | "server" | "off",
   });
 
-  // New filament state
-  const [newFilament, setNewFilament] = useState({
-    name: "",
-    color: "#ff0000",
+  // Estado do cadastro simplificado de carretel (Quantidade, Cor, Marca, Material)
+  const [newSpool, setNewSpool] = useState({
+    brand: "",
+    color: "#3b82f6",
     material: "PLA",
-    weightGrams: 1000,
-    initialWeightGrams: 1000,
-    costPerGram: 0.12,
-    minWeightAlert: 150,
-    supplier: ""
+    quantity: 1,
   });
 
   // Simulation form states
@@ -350,25 +350,43 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   };
 
   const addFilament = () => {
-    if (!newFilament.name) return toast.error("Insira o nome do filamento.");
-    const filament = {
-      ...newFilament,
-      id: "fil_" + Math.random().toString(36).substr(2, 9),
-      weightGrams: Number(newFilament.weightGrams)
-    };
-    const updated = [...filaments, filament];
+    if (!newSpool.brand.trim()) return toast.error("Informe a marca do filamento.");
+    if (newSpool.quantity <= 0) return toast.error("A quantidade deve ser de pelo menos 1 carretel.");
+
+    const normalized = normalizeSimpleSpool({
+      brand: newSpool.brand,
+      color: newSpool.color,
+      material: newSpool.material,
+      quantity: Number(newSpool.quantity),
+    });
+
+    const updated = [...filaments, normalized];
     setFilaments(updated);
     setShowAddFilament(false);
-    setNewFilament({
-      name: "",
-      color: "#ff0000",
+    setNewSpool({
+      brand: "",
+      color: "#3b82f6",
       material: "PLA",
-      weightGrams: 1000,
-      initialWeightGrams: 1000,
-      costPerGram: 0.12,
-      minWeightAlert: 150,
-      supplier: ""
+      quantity: 1,
     });
+    handleSave(printers, updated);
+    toast.success("Carretel adicionado ao estoque!");
+  };
+
+  const adjustSpoolQuantity = (id: string, delta: number) => {
+    const updated = filaments.map((f) => {
+      if (f.id !== id) return f;
+      const currentQty = f.quantity ?? Math.max(1, Math.round(f.weightGrams / 1000));
+      const newQty = Math.max(0, currentQty + delta);
+      const newGrams = newQty * 1000;
+      return {
+        ...f,
+        quantity: newQty,
+        weightGrams: newGrams,
+        initialWeightGrams: Math.max(f.initialWeightGrams, newGrams),
+      };
+    });
+    setFilaments(updated);
     handleSave(printers, updated);
   };
 
@@ -537,7 +555,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           </Button>
           <Button onClick={() => setShowAddFilament(true)} variant="outline" className="gap-2 border-border bg-surface-elevated hover:bg-surface text-text">
             <Plus className="h-4 w-4" />
-            Novo Filamento
+            Nova Bobina
           </Button>
         </div>
       </header>
@@ -732,21 +750,28 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           </div>
         </Card>
 
-        {/* Estoque de filamentos — por marca, com quantidade e soma por material */}
+        {/* Estoque de filamentos — Marca, Cor, Material e Quantidade */}
         <Card className="p-6 border-border bg-surface backdrop-blur-md flex flex-col gap-4 shadow-sm rounded-2xl">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-bold text-text flex items-center gap-2">
               <Package className="text-accent" />
               Estoque de Filamentos
             </h2>
-            <Badge variant="outline" className="border-emerald-500/20 text-emerald-400 bg-emerald-500/5 font-semibold">{(filamentTotalGrams / 1000).toFixed(1)} kg</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="border-emerald-500/20 text-emerald-400 bg-emerald-500/5 font-semibold">
+                {filaments.reduce((acc, f) => acc + (f.quantity ?? Math.max(1, Math.round(f.weightGrams / 1000))), 0)} bobinas
+              </Badge>
+              <Button size="sm" onClick={() => setShowAddFilament(true)} className="h-8 gap-1.5 bg-accent hover:bg-accent-hover text-white text-xs font-semibold">
+                <Plus size={14} weight="bold" /> Nova Bobina
+              </Button>
+            </div>
           </div>
 
           {filaments.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded-xl text-center">
               <Package className="h-10 w-10 text-muted-foreground mb-2" />
               <p className="text-sm font-semibold text-text">Estoque vazio</p>
-              <p className="text-xs text-muted-foreground">Adicione rolos de filamento para começar.</p>
+              <p className="text-xs text-muted-foreground">Cadastre carretéis para gerenciar seus insumos.</p>
             </div>
           ) : (
             <>
@@ -755,35 +780,67 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   <thead className="text-muted-foreground uppercase tracking-wider text-[9px]">
                     <tr className="border-b border-border">
                       <th className="py-2 pr-2">Marca</th>
+                      <th className="py-2 px-2">Cor</th>
                       <th className="py-2 px-2">Material</th>
-                      <th className="py-2 px-2 text-right">Quantidade</th>
-                      <th className="py-2 px-2 text-right">Custo/g</th>
+                      <th className="py-2 px-2 text-center">Quantidade</th>
                       <th className="py-2 pl-2 text-right"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {filaments.map((f) => {
-                      const pct = f.initialWeightGrams > 0 ? (f.weightGrams / f.initialWeightGrams) * 100 : 0;
-                      const isLow = f.weightGrams < f.minWeightAlert;
+                      const qty = f.quantity ?? Math.max(1, Math.round(f.weightGrams / 1000));
+                      const brandName = f.brand || f.supplier || f.name.split(" ")[0] || "Filamento";
+                      const isLow = qty <= 1;
                       return (
                         <tr key={f.id} className="border-b border-border hover:bg-surface-elevated transition-colors">
-                          <td className="py-2 pr-2">
-                            <div className="flex items-center gap-2">
-                              <span className="h-3 w-3 shrink-0 rounded-full border border-border" style={{ backgroundColor: f.color }} />
-                              <span className="font-semibold text-text truncate max-w-[130px]" title={f.name}>{f.name}</span>
+                          <td className="py-2.5 pr-2">
+                            <span className="font-semibold text-text truncate max-w-[140px] block" title={brandName}>
+                              {brandName}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="h-3 w-3 shrink-0 rounded-full border border-border shadow-xs" style={{ backgroundColor: f.color }} />
+                              <span className="text-muted-foreground font-mono text-[10px]">{f.color}</span>
                             </div>
                           </td>
-                          <td className="py-2 px-2 text-muted-foreground">{f.material || "—"}</td>
-                          <td className="py-2 px-2 text-right">
-                            <div className={`font-bold tabular-nums ${isLow ? "text-red-400" : "text-text"}`}>{f.weightGrams} g</div>
-                            <div className="ml-auto mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-surface-elevated">
-                              <div className={`h-full ${isLow ? "bg-red-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                          <td className="py-2.5 px-2">
+                            <span className="rounded-md bg-surface-elevated border border-border px-1.5 py-0.5 text-[10px] font-medium text-text">
+                              {f.material || "PLA"}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-2 text-center">
+                            <div className="inline-flex items-center gap-1.5 bg-surface-elevated border border-border rounded-lg px-2 py-0.5">
+                              <button
+                                type="button"
+                                onClick={() => adjustSpoolQuantity(f.id, -1)}
+                                disabled={qty <= 0}
+                                className="text-muted-foreground hover:text-red-400 disabled:opacity-30 p-0.5 transition-colors"
+                                title="Reduzir 1 carretel"
+                              >
+                                <Minus size={11} weight="bold" />
+                              </button>
+                              <span className={`font-bold tabular-nums text-xs px-1 ${isLow ? "text-amber-400" : "text-text"}`}>
+                                {qty} {qty === 1 ? "bobina" : "bobinas"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => adjustSpoolQuantity(f.id, 1)}
+                                className="text-muted-foreground hover:text-emerald-400 p-0.5 transition-colors"
+                                title="Adicionar 1 carretel"
+                              >
+                                <Plus size={11} weight="bold" />
+                              </button>
                             </div>
                           </td>
-                          <td className="py-2 px-2 text-right text-muted-foreground tabular-nums">R$ {f.costPerGram}</td>
-                          <td className="py-2 pl-2 text-right whitespace-nowrap">
-                            {isLow && <span className="mr-1 inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-red-500"><Warning size={9} />Baixo</span>}
-                            <button onClick={() => deleteFilament(f.id)} className="text-muted-foreground hover:text-red-500 transition-colors" title="Remover filamento"><Trash size={11} /></button>
+                          <td className="py-2.5 pl-2 text-right whitespace-nowrap">
+                            <button
+                              onClick={() => deleteFilament(f.id)}
+                              className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                              title="Remover carretel"
+                            >
+                              <Trash size={12} />
+                            </button>
                           </td>
                         </tr>
                       );
@@ -791,11 +848,18 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   </tbody>
                 </table>
               </div>
-              {/* Soma por material (total PLA, PETG, ...) */}
+              {/* Soma por material (total bobinas por material) */}
               <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                {Object.entries(stockByMaterial).sort((a, b) => b[1] - a[1]).map(([mat, g]) => (
+                {Object.entries(
+                  filaments.reduce<Record<string, number>>((acc, f) => {
+                    const key = (f.material || "Outro").toUpperCase();
+                    const qty = f.quantity ?? Math.max(1, Math.round(f.weightGrams / 1000));
+                    acc[key] = (acc[key] ?? 0) + qty;
+                    return acc;
+                  }, {})
+                ).sort((a, b) => b[1] - a[1]).map(([mat, count]) => (
                   <span key={mat} className="rounded-lg border border-border bg-surface-elevated px-2 py-1 text-[10px] text-text">
-                    <span className="font-bold text-text">{mat}</span> · {(g / 1000).toFixed(g >= 1000 ? 1 : 2)} kg
+                    <span className="font-bold text-text">{mat}</span> · {count} {count === 1 ? "bobina" : "bobinas"}
                   </span>
                 ))}
               </div>
@@ -1079,99 +1143,102 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         </div>
       )}
 
-      {/* Add Filament Modal */}
+      {/* Add Filament Modal - Simplified: Quantidade, Cor, Marca, Material */}
       {showAddFilament && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <Card className="max-w-md w-full p-6 space-y-4 bg-surface border border-border shadow-2xl rounded-2xl">
-            <h3 className="font-bold text-lg text-text">Adicionar Carretel de Filamento</h3>
+          <Card className="max-w-md w-full p-6 space-y-4 bg-surface border border-border shadow-2xl rounded-2xl animate-in zoom-in-95 duration-150">
+            <div>
+              <h3 className="font-bold text-lg text-text">Adicionar Carretel de Filamento</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Informe a marca, cor, material e quantidade de bobinas para o estoque.
+              </p>
+            </div>
             
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="fil_name">Nome do Insumo</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="spool_brand" className="text-xs font-semibold">Marca do Filamento</Label>
                 <Input 
-                  id="fil_name"
-                  placeholder="ex: PLA Premium Red" 
-                  value={newFilament.name}
-                  onChange={(e) => setNewFilament({...newFilament, name: e.target.value})}
-                  className="bg-surface-elevated border-border text-text"
+                  id="spool_brand"
+                  placeholder="ex: Voolt3D, eSun, Creality, 3D Fila" 
+                  value={newSpool.brand}
+                  onChange={(e) => setNewSpool({ ...newSpool, brand: e.target.value })}
+                  className="bg-surface-elevated border-border text-text text-sm"
+                  autoFocus
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-2">
-                  <Label htmlFor="fil_mat">Material</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="spool_mat" className="text-xs font-semibold">Material</Label>
                   <select 
-                    id="fil_mat"
-                    value={newFilament.material}
-                    onChange={(e) => setNewFilament({...newFilament, material: e.target.value})}
+                    id="spool_mat"
+                    value={newSpool.material}
+                    onChange={(e) => setNewSpool({ ...newSpool, material: e.target.value })}
                     className="w-full text-xs p-2.5 rounded-md border border-border bg-surface-elevated text-text focus:outline-none focus:ring-1 focus:ring-accent"
                   >
                     <option value="PLA" className="bg-surface">PLA</option>
-                    <option value="ABS" className="bg-surface">ABS</option>
                     <option value="PETG" className="bg-surface">PETG</option>
-                    <option value="FLEX" className="bg-surface">FLEX</option>
+                    <option value="ABS" className="bg-surface">ABS</option>
+                    <option value="TPU" className="bg-surface">TPU / Flex</option>
+                    <option value="Resina" className="bg-surface">Resina</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fil_color">Cor</Label>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="spool_qty" className="text-xs font-semibold">Quantidade (Bobinas)</Label>
                   <Input 
-                    id="fil_color"
-                    type="color" 
-                    value={newFilament.color}
-                    onChange={(e) => setNewFilament({...newFilament, color: e.target.value})}
-                    className="h-10 p-1 cursor-pointer bg-surface-elevated border-border"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fil_supplier">Fornecedor</Label>
-                  <Input 
-                    id="fil_supplier"
-                    placeholder="GLTech"
-                    value={newFilament.supplier}
-                    onChange={(e) => setNewFilament({...newFilament, supplier: e.target.value})}
-                    className="bg-surface-elevated border-border text-text"
+                    id="spool_qty"
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={newSpool.quantity}
+                    onChange={(e) => setNewSpool({ ...newSpool, quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                    className="bg-surface-elevated border-border text-text text-sm"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-2">
-                  <Label htmlFor="fil_weight">Peso Inicial (g)</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="spool_color" className="text-xs font-semibold">Cor do Filamento</Label>
+                <div className="flex items-center gap-3">
                   <Input 
-                    id="fil_weight"
-                    type="number" 
-                    value={newFilament.initialWeightGrams}
-                    onChange={(e) => setNewFilament({...newFilament, initialWeightGrams: Number(e.target.value), weightGrams: Number(e.target.value)})}
-                    className="bg-surface-elevated border-border text-text"
+                    id="spool_color"
+                    type="color" 
+                    value={newSpool.color}
+                    onChange={(e) => setNewSpool({ ...newSpool, color: e.target.value })}
+                    className="h-10 w-16 p-1 cursor-pointer bg-surface-elevated border-border shrink-0"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fil_cost">Preço (R$/g)</Label>
-                  <Input 
-                    id="fil_cost"
-                    type="number" 
-                    step="0.01"
-                    value={newFilament.costPerGram}
-                    onChange={(e) => setNewFilament({...newFilament, costPerGram: Number(e.target.value)})}
-                    className="bg-surface-elevated border-border text-text"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fil_min">Alerta Estoque (g)</Label>
-                  <Input 
-                    id="fil_min"
-                    type="number" 
-                    value={newFilament.minWeightAlert}
-                    onChange={(e) => setNewFilament({...newFilament, minWeightAlert: Number(e.target.value)})}
-                    className="bg-surface-elevated border-border text-text"
-                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { hex: "#000000", label: "Preto" },
+                      { hex: "#ffffff", label: "Branco" },
+                      { hex: "#6b7280", label: "Cinza" },
+                      { hex: "#ef4444", label: "Vermelho" },
+                      { hex: "#3b82f6", label: "Azul" },
+                      { hex: "#10b981", label: "Verde" },
+                      { hex: "#f59e0b", label: "Amarelo" },
+                    ].map((c) => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        onClick={() => setNewSpool({ ...newSpool, color: c.hex })}
+                        title={c.label}
+                        className={`h-6 w-6 rounded-full border transition-transform ${newSpool.color.toLowerCase() === c.hex.toLowerCase() ? "scale-110 ring-2 ring-accent border-transparent" : "border-border hover:scale-105"}`}
+                        style={{ backgroundColor: c.hex }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="ghost" onClick={() => setShowAddFilament(false)} className="text-muted-foreground hover:text-text hover:bg-surface-elevated">Cancelar</Button>
-              <Button onClick={addFilament} className="bg-accent hover:bg-accent-hover text-white">Adicionar Insumo</Button>
+            <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <Button variant="ghost" onClick={() => setShowAddFilament(false)} className="text-muted-foreground hover:text-text hover:bg-surface-elevated">
+                Cancelar
+              </Button>
+              <Button onClick={addFilament} className="bg-accent hover:bg-accent-hover text-white font-semibold">
+                Cadastrar Carretel
+              </Button>
             </div>
           </Card>
         </div>

@@ -11,16 +11,69 @@ const clientId = z
   .max(64)
   .regex(/^[a-zA-Z0-9_-]+$/, "id inválido");
 
+export const simpleSpoolFormSchema = z.object({
+  brand: z.string().trim().min(1, "Marca é obrigatória").max(100),
+  color: z.string().trim().min(1, "Cor é obrigatória").max(50),
+  material: z.string().trim().max(64).optional().default("PLA"),
+  quantity: z.coerce.number().int("Quantidade deve ser inteira").positive("Quantidade deve ser maior que zero").max(10_000),
+});
+
+export type SimpleSpoolFormInput = z.infer<typeof simpleSpoolFormSchema>;
+
+export function normalizeSimpleSpool(input: {
+  brand: string;
+  color: string;
+  material?: string;
+  quantity: number;
+}) {
+  const brand = input.brand.trim();
+  const color = input.color.trim();
+  const material = (input.material || "PLA").trim();
+  const quantity = Math.max(1, Math.floor(input.quantity));
+  const id = `fil_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const name = `${brand} ${material} (${color})`;
+  const weightGrams = quantity * 1000;
+
+  return {
+    id,
+    name,
+    brand,
+    material,
+    color,
+    quantity,
+    weightGrams,
+    initialWeightGrams: weightGrams,
+    costPerGram: 0.12,
+    minWeightAlert: 200,
+    supplier: brand,
+  };
+}
+
 export const filamentInputSchema = z.object({
-  id: clientId,
+  id: clientId.optional(),
   name: z.string().trim().min(1).max(200),
-  material: z.string().trim().max(64).optional().default(""),
+  brand: z.string().trim().max(100).optional().default(""),
+  material: z.string().trim().max(64).optional().default("PLA"),
   color: z.string().trim().max(32).optional().default(""),
-  weightGrams: z.coerce.number().nonnegative().max(1_000_000),
-  initialWeightGrams: z.coerce.number().nonnegative().max(1_000_000),
-  costPerGram: z.coerce.number().nonnegative().max(100_000),
+  quantity: z.coerce.number().int().nonnegative().optional().default(1),
+  weightGrams: z.coerce.number().nonnegative().max(1_000_000).optional(),
+  initialWeightGrams: z.coerce.number().nonnegative().max(1_000_000).optional(),
+  costPerGram: z.coerce.number().nonnegative().max(100_000).optional().default(0.12),
   minWeightAlert: z.coerce.number().nonnegative().max(1_000_000).optional().default(0),
   supplier: z.string().trim().max(200).optional().default(""),
+}).transform((data) => {
+  const quantity = data.quantity ?? 1;
+  const defaultWeight = quantity * 1000;
+  const weightGrams = data.weightGrams ?? defaultWeight;
+  const initialWeightGrams = data.initialWeightGrams ?? weightGrams;
+  const id = data.id ?? `fil_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  return {
+    ...data,
+    id,
+    weightGrams,
+    initialWeightGrams,
+    quantity,
+  };
 });
 
 export const PRINTER_STATUSES = ["idle", "printing", "error", "offline", "maintenance"] as const;

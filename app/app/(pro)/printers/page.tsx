@@ -39,7 +39,7 @@ export default async function PrintersPage() {
       networkUrl?: string; apiKey?: string; pollMode?: "browser" | "server" | "off";
     }>,
     filaments: result.filaments as Array<{
-      id: string; name: string; color: string; material: string; weightGrams: number;
+      id: string; name: string; brand?: string; color: string; material: string; quantity?: number; weightGrams: number;
       initialWeightGrams: number; costPerGram: number; minWeightAlert: number; supplier: string;
     }>,
     printJobs: result.printJobs as Array<{

@@ -206,7 +206,7 @@ export const GUIDES: GuideEntry[] = [
       },
       {
         title: "Adicione os carretéis",
-        detail: "Use “Adicionar Carretel” com material, cor, peso e preço pago.",
+        detail: "Use “Nova Bobina” informando apenas marca, cor, material e quantidade.",
       },
       {
         title: "Acompanhe a produção",

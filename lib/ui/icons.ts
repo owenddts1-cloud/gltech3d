@@ -42,6 +42,7 @@ export {
   Checks,
   X,
   Plus,
+  Minus,
   Trash,
   FloppyDisk,
   PencilSimple,

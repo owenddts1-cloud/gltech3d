@@ -47,12 +47,16 @@ function mapPrinter(r: PrinterRow) {
   };
 }
 function mapFilament(r: FilamentRow) {
+  const weightGrams = num(r.weight_grams);
+  const quantity = Math.max(1, Math.round(weightGrams / 1000));
   return {
     id: r.client_id,
     name: r.name,
+    brand: r.supplier || r.name.split(" ")[0] || "GLTech",
     material: r.material ?? "",
     color: r.color ?? "",
-    weightGrams: num(r.weight_grams),
+    quantity,
+    weightGrams,
     initialWeightGrams: num(r.initial_weight_grams),
     costPerGram: num(r.cost_per_gram),
     minWeightAlert: num(r.min_weight_alert),
@@ -170,7 +174,7 @@ export async function savePrintersAndFilaments(
     initial_weight_grams: f.initialWeightGrams,
     cost_per_gram: f.costPerGram,
     min_weight_alert: f.minWeightAlert,
-    supplier: f.supplier,
+    supplier: f.brand || f.supplier,
     created_by: authUser.id,
     updated_at: nowIso,
   }));
