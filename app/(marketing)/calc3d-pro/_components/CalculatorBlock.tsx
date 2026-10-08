@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { RotateCcw, Save, Check, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { motion } from 'motion/react';
 import {
   useCalculator,
   PRESETS,
@@ -16,6 +17,13 @@ import {
   marginTone,
 } from '@/lib/calculator/public-view-model';
 import { formatBRL } from '@/lib/pricing/pro-plans';
+import { track } from '@/lib/analytics/track';
+import { LaserDropzone } from '@/components/calc3d/LaserDropzone';
+import { NumberTicker } from '@/components/calc3d/NumberTicker';
+import { MotionTabs } from '@/components/calc3d/MotionTabs';
+import { LeadProposalModal } from './LeadProposalModal';
+import type { Parsed3DFile } from '@/lib/slicer/3d-file-parser';
+import { toast } from 'sonner';
 
 /** Campo numérico com rótulo, unidade e dica. */
 function Field(props: {
@@ -26,8 +34,10 @@ function Field(props: {
   step?: number;
   min?: number;
   onChange: (v: number) => void;
+  /** Extra line under the input (e.g. the filament cross-sell link). */
+  footer?: React.ReactNode;
 }) {
-  const { label, hint, unit, value, step = 1, min = 0, onChange } = props;
+  const { label, hint, unit, value, step = 1, min = 0, onChange, footer } = props;
   return (
     <label className="block">
       <span className="flex items-baseline justify-between gap-2">
@@ -47,6 +57,7 @@ function Field(props: {
         }}
         className="mt-2 w-full rounded-xl border border-[#E8E2D9] bg-white px-3 py-2.5 text-sm font-semibold text-[#2D241E] outline-none transition-colors focus:border-[#A6815C] focus:ring-2 focus:ring-[#A6815C]/25"
       />
+      {footer}
     </label>
   );
 }
@@ -76,13 +87,37 @@ function Stat(props: { label: string; value: string; strong?: boolean }) {
   );
 }
 
-export function CalculatorBlock() {
+/**
+ * defaults = calculator defaults from platform_settings (server page prop).
+ * A value saved in this browser still wins over them (useCalculator).
+ */
+export function CalculatorBlock({
+  defaults,
+  filamentFromCentsPerKg = null,
+}: {
+  defaults?: Partial<CalculatorInputs>;
+  /** Lowest R$/kg of the filament storefront (cents); null = link without price. */
+  filamentFromCentsPerKg?: number | null;
+}) {
   const { inputs, outputs, updateInput, activePreset, applyPreset, resetAll, saveDefaults } =
-    useCalculator();
+    useCalculator(defaults);
   const [saved, setSaved] = useState(false);
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
 
   const set = <K extends keyof CalculatorInputs>(key: K) => (v: CalculatorInputs[K]) =>
     updateInput(key, v);
+
+  const handleFileParsed = (data: Parsed3DFile) => {
+    if (data.totalWeightGrams > 0) {
+      updateInput('pesoPeca', Math.round(data.totalWeightGrams * 10) / 10);
+    }
+    if (data.totalTimeSeconds > 0) {
+      updateInput('tempoImpressao', Math.round((data.totalTimeSeconds / 3600) * 100) / 100);
+    }
+    toast.success(
+      `Arquivo fatiado identificado: ${data.filename} (${data.totalWeightGrams}g · ${(data.totalTimeSeconds / 3600).toFixed(1)}h)`
+    );
+  };
 
   const roi = roiSentence(outputs);
   const anatomy = costAnatomy(outputs);
@@ -113,29 +148,17 @@ export function CalculatorBlock() {
           </p>
         </header>
 
-        {/* Presets */}
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          {PRESETS.map((p) => {
-            const active = activePreset === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => applyPreset(p)}
-                className={`rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
-                  active
-                    ? 'border-[#7A5C3E] bg-[#7A5C3E] text-white'
-                    : 'border-[#E8E2D9] bg-white text-[#6B5E55] hover:border-[#A6815C] hover:text-[#2D241E]'
-                }`}
-              >
-                {p.label}
-                <span className={`ml-2 text-[11px] font-medium ${active ? 'text-white/70' : 'text-[#A6815C]'}`}>
-                  {p.description}
-                </span>
-              </button>
-            );
-          })}
-          <div className="ml-auto flex items-center gap-2">
+        {/* Presets com MotionTabs */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <MotionTabs
+            tabs={PRESETS.map((p) => ({ id: p.id, label: p.label, description: p.description }))}
+            activeTab={activePreset ?? ''}
+            onSelect={(id) => {
+              const p = PRESETS.find((preset) => preset.id === id);
+              if (p) applyPreset(p);
+            }}
+          />
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onSave}
@@ -158,6 +181,9 @@ export function CalculatorBlock() {
         <div className="grid gap-6 lg:grid-cols-5">
           {/* Entradas */}
           <div className="space-y-5 lg:col-span-3">
+            {/* Scanner Laser 3D Dropzone */}
+            <LaserDropzone onFileParsed={handleFileParsed} className="mb-2" />
+
             <Fieldset legend="Material e tempo">
               <Field
                 label="Peso da peça"
@@ -172,6 +198,16 @@ export function CalculatorBlock() {
                 unit="R$/kg"
                 value={inputs.precoFilamento}
                 onChange={set('precoFilamento')}
+                footer={
+                  <Link
+                    href="/filamentos?origem=calculadora"
+                    onClick={() => track('click_filamento', { origem: 'calculadora_campo' })}
+                    className="mt-1.5 block text-[11px] font-bold text-[#7A5C3E] underline-offset-4 hover:text-[#2D241E] hover:underline"
+                  >
+                    Sem filamento ou pagando caro? Ver PLA, PETG e PLA+
+                    {filamentFromCentsPerKg ? ` a partir de ${formatBRL(filamentFromCentsPerKg)}/kg` : ''} →
+                  </Link>
+                }
               />
               <Field
                 label="Tempo de impressão"
@@ -281,26 +317,28 @@ export function CalculatorBlock() {
           {/* Resultado */}
           <div className="lg:col-span-2">
             <div className="lg:sticky lg:top-28 rounded-3xl bg-[#2D241E] p-6 text-white shadow-[0_24px_60px_-20px_rgba(43,38,34,0.55)]">
-              <span className="block text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#A6815C]">
+              <span className="block text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#C89666]">
                 Preço sugerido
               </span>
-              <p className="mt-1 font-sora text-5xl font-black leading-none">
-                {formatBRL(Math.round(outputs.precoSugerido * 100))}
-              </p>
+              <div className="mt-1 font-sora text-5xl font-black leading-none text-white">
+                <NumberTicker value={outputs.precoSugerido} prefix="R$ " />
+              </div>
               <p className="mt-2 text-xs text-[#D5CBBF]">
                 por peça · lote {formatBRL(Math.round(outputs.precoLote * 100))}
               </p>
 
-              {/* Custo vs lucro */}
+              {/* Custo vs lucro com física spring */}
               <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
                 <div className="flex items-center justify-between text-[11px] font-bold">
                   <span className="text-[#D5CBBF]">Custo vs lucro no preço</span>
-                  <span className="text-[#A6815C]">{Math.round(profitShare)}% lucro</span>
+                  <span className="text-[#C89666]">{Math.round(profitShare)}% lucro</span>
                 </div>
                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#4F433A]">
-                  <div
-                    className="h-full rounded-full bg-[#A6815C] transition-all"
-                    style={{ width: `${Math.min(100, Math.max(0, profitShare))}%` }}
+                  <motion.div
+                    className="h-full rounded-full bg-[#A6815C]"
+                    initial={false}
+                    animate={{ width: `${Math.min(100, Math.max(0, profitShare))}%` }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 25 }}
                   />
                 </div>
               </div>
@@ -313,7 +351,7 @@ export function CalculatorBlock() {
               </div>
 
               <div className="mt-6">
-                <span className="block text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#A6815C]">
+                <span className="block text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#C89666]">
                   Anatomia do custo
                 </span>
                 <ul className="mt-3 space-y-2.5">
@@ -324,9 +362,11 @@ export function CalculatorBlock() {
                         <span className="font-bold text-white">{formatBRL(Math.round(row.value * 100))}</span>
                       </div>
                       <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[#4F433A]">
-                        <div
-                          className="h-full rounded-full bg-[#A6815C] transition-all"
-                          style={{ width: `${Math.min(100, Math.max(0, row.pct))}%` }}
+                        <motion.div
+                          className="h-full rounded-full bg-[#A6815C]"
+                          initial={false}
+                          animate={{ width: `${Math.min(100, Math.max(0, row.pct))}%` }}
+                          transition={{ type: 'spring', stiffness: 260, damping: 25 }}
                         />
                       </div>
                     </li>
@@ -334,7 +374,11 @@ export function CalculatorBlock() {
                 </ul>
               </div>
 
-              <p
+              <motion.p
+                key={roi.text}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
                 className={`mt-6 rounded-xl border px-4 py-3 text-xs font-semibold leading-relaxed ${
                   roi.healthy
                     ? 'border-[#A6815C]/40 bg-[#A6815C]/15 text-[#F9F7F2]'
@@ -342,14 +386,22 @@ export function CalculatorBlock() {
                 }`}
               >
                 {roi.text}
-              </p>
+              </motion.p>
 
-              <Link
-                href="#planos"
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#8E6D4D] to-[#A6815C] px-5 py-3.5 text-sm font-bold text-white transition-transform hover:scale-[1.02]"
+              <button
+                type="button"
+                onClick={() => setLeadModalOpen(true)}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#8E6D4D] to-[#A6815C] px-5 py-3.5 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98]"
               >
                 Transformar isso em venda no PRO
                 <ArrowRight className="h-4 w-4" />
+              </button>
+              <Link
+                href="/filamentos?origem=calculadora"
+                onClick={() => track('click_filamento', { origem: 'calculadora', peso_g: Math.round(inputs.pesoPeca) })}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 px-5 py-3 text-sm font-bold text-[#F9F7F2] transition-colors hover:border-[#A6815C] hover:bg-white/5"
+              >
+                Comprar o filamento desta peça
               </Link>
               <p className="mt-3 text-center text-[11px] text-[#D5CBBF]">
                 Calcular é grátis e não pede cadastro. O PRO registra a venda, a produção e o estoque.
@@ -358,6 +410,16 @@ export function CalculatorBlock() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Proposta & Captura de Lead */}
+      <LeadProposalModal
+        isOpen={leadModalOpen}
+        onClose={() => setLeadModalOpen(false)}
+        pesoPeca={inputs.pesoPeca}
+        tempoImpressao={inputs.tempoImpressao}
+        precoSugerido={outputs.precoSugerido}
+        quantidade={inputs.quantidade}
+      />
     </section>
   );
 }

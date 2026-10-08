@@ -2,29 +2,16 @@
 
 import Link from 'next/link';
 import { Check, X, ArrowRight } from 'lucide-react';
-import { TRIAL_DAYS } from '@/lib/tenants/trial';
-import { PRO_PLANS, formatBRL, monthlyEquivalentCents } from '@/lib/pricing/pro-plans';
+import { formatBRL, monthlyEquivalentCents, periodSuffix, proPlanWith } from '@/lib/pricing/pro-plans';
+import { splitBenefit, type PublicProPricing } from '@/lib/pricing/settings-schema';
+import { track } from '@/lib/analytics/track';
 
 /**
- * Funcionalidades conferidas contra o código antes de entrar na lista. O que
- * depende de credencial que ainda não existe (Shopee automática, Nuvemshop) ou
- * de infra do próprio usuário (número de WhatsApp) vem qualificado, não como
- * promessa seca.
+ * The PRO benefit lines come from platform_settings (`pricing.benefits`,
+ * editable by the platform admin; defaults in lib/pricing/settings-schema.ts,
+ * checked against the code before entering the list). `"Título — detalhe"`
+ * renders the title in bold.
  */
-const PRO_FEATURES: ReadonlyArray<{ title: string; detail: string }> = [
-  { title: 'Vendas e funil', detail: 'Pedido do orçamento ao pago, em quadro Kanban com histórico.' },
-  { title: 'Produção e ordens de serviço', detail: 'Fila de impressão, projetos e OS com documento para o cliente.' },
-  { title: 'Impressoras e filamentos', detail: 'Cadastro de máquinas e estoque de material puxado direto para o custo.' },
-  { title: 'Produtos com custo real', detail: 'Ficha do produto calculada pelo mesmo motor desta calculadora.' },
-  { title: 'Dinheiro a receber e a pagar', detail: 'Lançamentos, despesas e relatório do mês.' },
-  { title: 'Marketplaces', detail: 'Lançamento de pedidos de Mercado Livre, Shopee e Facebook num painel só.' },
-  { title: 'Inbox de WhatsApp e Instagram', detail: 'Atendimento unificado — você conecta o seu número.' },
-  { title: 'PDF com a sua marca', detail: 'Orçamento e ordem de serviço com logo e dados da sua empresa.' },
-  { title: 'Modelos 3D e fatiador', detail: 'Repositório de peças, estimativa de peso e tempo a partir do STL/3MF.' },
-  { title: 'Estoque e fornecedores', detail: 'Insumos, consumíveis e compras.' },
-  { title: 'Vitrine pública editável', detail: 'Sua própria landing de catálogo, editada no painel.' },
-  { title: 'Equipe, auditoria e LGPD', detail: 'Convite por papel, trilha de auditoria e pedidos de titular.' },
-];
 
 const FREE_FEATURES: ReadonlyArray<{ title: string; included: boolean }> = [
   { title: 'Calculadora de custo completa, sem limite de uso', included: true },
@@ -34,11 +21,12 @@ const FREE_FEATURES: ReadonlyArray<{ title: string; included: boolean }> = [
   { title: 'Registrar venda, cliente e pedido', included: false },
   { title: 'Produção, estoque e financeiro', included: false },
   { title: 'PDF com a sua marca', included: false },
-  { title: 'Marketplaces e WhatsApp', included: false },
+  { title: 'Vendas de marketplaces e Inbox do WhatsApp', included: false },
 ];
 
-export function PlansBlock() {
-  const plan = PRO_PLANS.pro;
+export function PlansBlock({ pricing }: { pricing: PublicProPricing }) {
+  const plan = proPlanWith(pricing);
+  const isYearly = periodSuffix(plan.periodDays) === 'ano';
 
   return (
     <section id="planos" className="border-y border-[#E8E2D9] bg-[#FDFCFA] px-6 py-16 md:py-24">
@@ -52,7 +40,8 @@ export function PlansBlock() {
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-[#6B5E55]">
             A calculadora acima é gratuita para sempre e não pede conta. O PRO é o CRM inteiro:
-            venda, produção, estoque, dinheiro e marketplaces no mesmo lugar.
+            vendas (inclusive as que você fecha nos marketplaces), produção, estoque e dinheiro no
+            mesmo lugar.
           </p>
         </header>
 
@@ -87,26 +76,28 @@ export function PlansBlock() {
           {/* PRO */}
           <div className="relative overflow-hidden rounded-3xl bg-[#2D241E] p-7 text-white shadow-[0_24px_60px_-20px_rgba(43,38,34,0.55)]">
             <span className="inline-block rounded-full bg-[#A6815C]/25 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#D9C7A8]">
-              Pagamento anual por Pix
+              {isYearly ? 'Pagamento anual por Pix' : 'Pagamento por Pix'}
             </span>
             <h3 className="mt-4 font-sora text-xl font-black">{plan.label}</h3>
             <p className="mt-1 text-sm text-[#D5CBBF]">{plan.tagline}</p>
 
             <div className="mt-5 flex items-end gap-3">
               <p className="font-sora text-5xl font-black leading-none">{formatBRL(plan.amountCents)}</p>
-              <span className="pb-1 text-sm text-[#D5CBBF]">/ano</span>
+              <span className="pb-1 text-sm text-[#D5CBBF]">/{periodSuffix(plan.periodDays)}</span>
             </div>
             <p className="mt-1 text-xs text-[#A6815C]">
               Equivale a {formatBRL(monthlyEquivalentCents(plan))} por mês.
             </p>
 
             <ul className="mt-6 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-              {PRO_FEATURES.map((f) => (
+              {pricing.benefits.map(splitBenefit).map((f) => (
                 <li key={f.title} className="flex items-start gap-2.5">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#A6815C]" />
                   <span className="text-sm">
                     <span className="block font-semibold text-[#F9F7F2]">{f.title}</span>
-                    <span className="block text-xs leading-relaxed text-[#D5CBBF]">{f.detail}</span>
+                    {f.detail ? (
+                      <span className="block text-xs leading-relaxed text-[#D5CBBF]">{f.detail}</span>
+                    ) : null}
                   </span>
                 </li>
               ))}
@@ -114,9 +105,10 @@ export function PlansBlock() {
 
             <Link
               href="/criar-conta"
+              onClick={() => track('start_trial', { origem: 'calc3d_planos' })}
               className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#8E6D4D] to-[#A6815C] px-5 py-3.5 text-sm font-bold text-white transition-transform hover:scale-[1.02]"
             >
-              Começar {TRIAL_DAYS} dias grátis
+              Começar {pricing.trialDays} dias grátis
               <ArrowRight className="h-4 w-4" />
             </Link>
             <a

@@ -3,16 +3,11 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Copy, Check, MessageCircle } from 'lucide-react';
-import { PRO_PLANS, formatBRL } from '@/lib/pricing/pro-plans';
-import {
-  PIX_KEY,
-  PIX_RECEIVER_NAME as PIX_RECEIVER,
-  PIX_QR_SRC,
-  PIX_COPIA_E_COLA_TEXT,
-} from '@/lib/pix/config';
+import { formatBRL, proPlanWith } from '@/lib/pricing/pro-plans';
+import type { PublicProPricing } from '@/lib/pricing/settings-schema';
+import type { ProPixCheckout } from '@/lib/pix/qr';
+import { storeWhatsappUrl } from '@/lib/landing/whatsapp-number';
 import { ProRequestForm } from './ProRequestForm';
-
-const WHATSAPP_URL = 'https://wa.me/5531999284834';
 
 const STEPS = [
   'Escaneie o QR, use o copia e cola ou a chave Pix no app do seu banco.',
@@ -21,10 +16,25 @@ const STEPS = [
   'Você recebe um e-mail com o link para criar sua senha.',
 ];
 
-export function PixCheckoutBlock() {
-  const plan = PRO_PLANS.pro;
-  // Cópia local: o TypeScript não estreita um import dentro de callback.
-  const copiaECola = PIX_COPIA_E_COLA_TEXT;
+/**
+ * Pix data built on the SERVER (lib/pix/qr.ts): copia-e-cola and QR carry the
+ * live price from platform_settings. This component only renders them.
+ */
+export function PixCheckoutBlock({
+  pricing,
+  pix,
+  storeWhatsapp,
+}: {
+  pricing: PublicProPricing;
+  pix: ProPixCheckout;
+  storeWhatsapp: string;
+}) {
+  const plan = proPlanWith(pricing);
+  const copiaECola = pix.copiaECola;
+  const PIX_KEY = pix.key ?? '';
+  const PIX_RECEIVER = pix.receiverName;
+  const qrImage = pix.qrDataUrl ?? pix.qrSrc;
+  const WHATSAPP_URL = storeWhatsappUrl(storeWhatsapp);
   // Qual dos dois foi copiado por último — o feedback aparece só no botão certo.
   const [copied, setCopied] = useState<'key' | 'code' | null>(null);
   // O QR é um arquivo que o dono precisa colocar em public/pix/. Enquanto não
@@ -75,13 +85,15 @@ export function PixCheckoutBlock() {
             {PIX_KEY ? (
               <>
                 {/*
-                  QR estático versionado em public/pix/. Some sozinho se o arquivo
+                  QR gerado no servidor com o preço vigente (ou, sem chave, o estático de
+                  public/pix/ — só se o valor bater). Some sozinho se o arquivo
                   não existir — a chave e o copia-e-cola bastam para pagar.
                 */}
-                {qrAvailable ? (
+                {qrImage && qrAvailable ? (
                   <div className="mt-6 flex flex-col items-center gap-2">
                     <Image
-                      src={PIX_QR_SRC}
+                      src={qrImage}
+                      unoptimized={qrImage.startsWith('data:')}
                       alt="QR Code do Pix para o Calc3D PRO"
                       width={200}
                       height={200}
@@ -178,7 +190,7 @@ export function PixCheckoutBlock() {
             <p className="mt-1 mb-6 text-xs text-[#6B5E55]">
               Preencha depois de pagar. Seus dados servem só para criar e liberar o seu acesso.
             </p>
-            <ProRequestForm />
+            <ProRequestForm storeWhatsapp={storeWhatsapp} />
           </div>
         </div>
       </div>

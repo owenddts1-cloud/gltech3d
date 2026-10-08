@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
-import { TRIAL_DAYS } from '@/lib/tenants/trial';
+import { track } from '@/lib/analytics/track';
 
 /**
  * CTA principal: o botão que inicia o trial.
@@ -16,7 +16,7 @@ import { TRIAL_DAYS } from '@/lib/tenants/trial';
  * aplica no avatar), não `box-shadow` pulsante: o gradiente anima o `transform`
  * de um elemento próprio, sem repaint do botão a cada frame.
  */
-export function TrialCta({ className = '' }: { className?: string }) {
+export function TrialCta({ className = '', trialDays }: { className?: string; trialDays: number }) {
   const reduced = useReducedMotion();
 
   return (
@@ -35,11 +35,12 @@ export function TrialCta({ className = '' }: { className?: string }) {
         />
         <Link
           href="/criar-conta"
+          onClick={() => track('start_trial', { origem: 'calc3d_hero' })}
           className="relative flex items-center gap-2.5 rounded-[14px] bg-[#2D241E] px-7 py-4 text-sm font-bold text-white transition-colors hover:bg-[#3E342C]"
         >
           Ver o que o PRO faz
           <span className="rounded bg-[#A6815C]/25 px-2 py-0.5 text-[10px] font-black tracking-[0.12em] text-[#D9C7A8]">
-            {TRIAL_DAYS} DIAS GRÁTIS
+            {trialDays} DIAS GRÁTIS
           </span>
           <ArrowRight className="h-4 w-4" />
         </Link>

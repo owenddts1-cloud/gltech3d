@@ -6,7 +6,8 @@ import { ArrowRight, ShieldCheck, TrendingDown, Zap, AlertTriangle } from 'lucid
 import Navbar from '@/components/marketing/Navbar';
 import Footer from '@/components/marketing/Footer';
 import { SmoothScroll } from '@/components/marketing/cinematic/SmoothScroll';
-import { TRIAL_DAYS } from '@/lib/tenants/trial';
+import type { CalculatorDefaults, PublicProPricing } from '@/lib/pricing/settings-schema';
+import type { ProPixCheckout } from '@/lib/pix/qr';
 import { HeroStage } from './_components/HeroStage';
 import { TrialCta } from './_components/TrialCta';
 import { CrmPreview } from './_components/CrmPreview';
@@ -36,7 +37,23 @@ const PROBLEMAS = [
   },
 ];
 
-export function Calc3dProClient() {
+export interface Calc3dProClientProps {
+  pricing: PublicProPricing;
+  calculatorDefaults: CalculatorDefaults;
+  pix: ProPixCheckout;
+  /** Store WhatsApp digits (lib/landing/whatsapp.ts). */
+  storeWhatsapp: string;
+  /** Lowest published filament price per kg (cents), or null. */
+  filamentFromCentsPerKg?: number | null;
+}
+
+export function Calc3dProClient({
+  pricing,
+  calculatorDefaults,
+  pix,
+  storeWhatsapp,
+  filamentFromCentsPerKg = null,
+}: Calc3dProClientProps) {
   const reduced = useReducedMotion();
   const reveal = reduced
     ? {}
@@ -57,7 +74,7 @@ export function Calc3dProClient() {
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-[#E8E2D9] bg-white px-4 py-1.5 text-[11px] font-bold text-[#6B5E55]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#6F7F52]" />
-                Calculadora grátis · {TRIAL_DAYS} dias de CRM
+                Calculadora grátis · {pricing.trialDays} dias de CRM
               </span>
 
               <h1 className="mt-5 font-sora text-4xl font-black leading-[1.06] tracking-tight text-[#2D241E] md:text-6xl">
@@ -70,7 +87,7 @@ export function Calc3dProClient() {
               </p>
 
               <div className="mt-8 flex flex-wrap items-start gap-4">
-                <TrialCta />
+                <TrialCta trialDays={pricing.trialDays} />
                 <a
                   href="#calculadora"
                   className="inline-flex items-center gap-2 rounded-2xl border border-[#E8E2D9] bg-white px-6 py-4 text-sm font-bold text-[#2D241E] transition-colors hover:bg-[#E8E2D9]/60"
@@ -119,11 +136,11 @@ export function Calc3dProClient() {
           </div>
         </section>
 
-        <CalculatorBlock />
-        <CrmPreview />
-        <PlansBlock />
-        <PixCheckoutBlock />
-        <FaqBlock />
+        <CalculatorBlock defaults={calculatorDefaults} filamentFromCentsPerKg={filamentFromCentsPerKg} />
+        <CrmPreview trialDays={pricing.trialDays} />
+        <PlansBlock pricing={pricing} />
+        <PixCheckoutBlock pricing={pricing} pix={pix} storeWhatsapp={storeWhatsapp} />
+        <FaqBlock pricing={pricing} />
 
         <section className="px-6 py-12">
           <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-3 text-center">
@@ -138,7 +155,7 @@ export function Calc3dProClient() {
           </div>
         </section>
 
-        <Footer />
+        <Footer whatsapp={storeWhatsapp} />
       </main>
     </SmoothScroll>
   );

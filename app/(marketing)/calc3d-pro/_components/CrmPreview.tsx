@@ -4,7 +4,6 @@ import { useRef } from 'react';
 import { motion, useScroll, useTransform, useReducedMotion } from 'motion/react';
 import { Lock, LockOpen, Gauge, Calculator } from 'lucide-react';
 import { PRO_MODULES } from '@/lib/plan/modules';
-import { TRIAL_DAYS } from '@/lib/tenants/trial';
 
 /**
  * Amostra do CRM com os cadeados destravando conforme a página rola.
@@ -27,7 +26,7 @@ const LIVRES = [
   { label: 'Calculadora 3D', Icon: Calculator },
 ];
 
-export function CrmPreview() {
+export function CrmPreview({ trialDays }: { trialDays: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
 
@@ -51,7 +50,7 @@ export function CrmPreview() {
             É este o sistema que abre no seu login.
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-[#6B5E55]">
-            Nos {TRIAL_DAYS} dias de teste, tudo abaixo fica destravado. Role para ver.
+            Nos {trialDays} dias de teste, tudo abaixo fica destravado. Role para ver.
           </p>
         </header>
 

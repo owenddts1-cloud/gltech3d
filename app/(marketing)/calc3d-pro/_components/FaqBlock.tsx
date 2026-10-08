@@ -1,17 +1,20 @@
 'use client';
 
 import { Plus } from 'lucide-react';
-import { PRO_PLANS, formatBRL } from '@/lib/pricing/pro-plans';
+import { formatBRL, periodSuffix } from '@/lib/pricing/pro-plans';
+import type { PublicProPricing } from '@/lib/pricing/settings-schema';
 
-const plan = PRO_PLANS.pro;
-
-const FAQ: ReadonlyArray<{ q: string; a: string }> = [
+/** Price and trial length come from platform_settings via the page (props). */
+function buildFaq(pricing: PublicProPricing): ReadonlyArray<{ q: string; a: string }> {
+  const price = formatBRL(pricing.amountCents);
+  const per = periodSuffix(pricing.periodDays);
+  return [
   {
     q: 'Preciso de cartão para testar?',
-    a: 'Não. O teste de 7 dias pede só e-mail e senha. Não existe cobrança automática: se você não pagar, nada é debitado — os módulos apenas pausam.',
+    a: `Não. O teste de ${pricing.trialDays} dias pede só e-mail e senha. Não existe cobrança automática: se você não pagar, nada é debitado — os módulos apenas pausam.`,
   },
   {
-    q: 'O que acontece no 8º dia?',
+    q: `O que acontece no ${pricing.trialDays + 1}º dia?`,
     a: 'Os módulos PRO ficam com cadeado e seus dados continuam guardados, intactos. A calculadora e o painel seguem abertos. Pagar o Pix destrava tudo de volta, exatamente como estava.',
   },
   {
@@ -20,7 +23,7 @@ const FAQ: ReadonlyArray<{ q: string; a: string }> = [
   },
   {
     q: 'Por que pagar por ano e não por mês?',
-    a: `O pagamento é por Pix, conferido e liberado à mão. Cobrar mensalidade assim significaria eu mandar cobrança e você pagar todo mês — inviável para os dois. Por isso é um Pix de ${formatBRL(plan.amountCents)} por ano, sem renovação automática e sem cartão.`,
+    a: `O pagamento é por Pix, conferido e liberado à mão. Cobrar mensalidade assim significaria eu mandar cobrança e você pagar todo mês — inviável para os dois. Por isso é um Pix de ${price} por ${per}, sem renovação automática e sem cartão.`,
   },
   {
     q: 'Quanto tempo leva para liberar meu acesso?',
@@ -46,9 +49,11 @@ const FAQ: ReadonlyArray<{ q: string; a: string }> = [
     q: 'Posso testar antes de pagar?',
     a: 'A calculadora desta página é exatamente o motor de custo que o sistema usa por dentro — ela já mostra a qualidade da conta. Para ver o CRM por dentro antes de assinar, chama no WhatsApp que eu mostro.',
   },
-];
+  ];
+}
 
-export function FaqBlock() {
+export function FaqBlock({ pricing }: { pricing: PublicProPricing }) {
+  const faq = buildFaq(pricing);
   return (
     <section
       id="faq"
@@ -65,7 +70,7 @@ export function FaqBlock() {
         </header>
 
         <div className="divide-y divide-[#E8E2D9] overflow-hidden rounded-3xl border border-[#E8E2D9] bg-white">
-          {FAQ.map((item) => (
+          {faq.map((item) => (
             <details key={item.q} className="group px-6 py-5 [&_summary::-webkit-details-marker]:hidden">
               <summary className="flex cursor-pointer items-start justify-between gap-4 text-sm font-bold text-[#2D241E]">
                 {item.q}

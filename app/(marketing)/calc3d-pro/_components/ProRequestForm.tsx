@@ -9,6 +9,8 @@ import {
   type ProSignupRequestInput,
 } from '@/lib/schemas/pro-signup';
 import { RECEIPT_BUCKET } from '@/lib/pro-signup/constants';
+import { formatWhatsappDisplay, storeWhatsappUrl } from '@/lib/landing/whatsapp-number';
+import { track } from '@/lib/analytics/track';
 
 type Status = 'idle' | 'uploading' | 'sending' | 'done' | 'error';
 
@@ -38,7 +40,7 @@ function TextField(props: {
   );
 }
 
-export function ProRequestForm() {
+export function ProRequestForm({ storeWhatsapp }: { storeWhatsapp: string }) {
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const [receiptName, setReceiptName] = useState<string | null>(null);
@@ -133,6 +135,7 @@ export function ProRequestForm() {
         return;
       }
 
+      track('submit_pix', { com_comprovante: Boolean(receiptPath) });
       setStatus('done');
     } catch (err) {
       setStatus('error');
@@ -151,12 +154,12 @@ export function ProRequestForm() {
               Vou conferir o Pix e liberar seu acesso. Assim que aprovar, chega no seu e-mail um link
               para você criar a senha e entrar. Se precisar adiantar, chama no WhatsApp{' '}
               <a
-                href="https://wa.me/5531999284834"
+                href={storeWhatsappUrl(storeWhatsapp)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-bold underline"
               >
-                (31) 99928-4834
+                {formatWhatsappDisplay(storeWhatsapp)}
               </a>
               .
             </p>
