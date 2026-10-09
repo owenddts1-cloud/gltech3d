@@ -6,7 +6,8 @@ import { useState } from 'react';
 import type { PublicFilament } from '@/lib/filament-catalog/types';
 import { formatBRL } from '@/lib/pricing/pro-plans';
 import { storeWhatsappUrl } from '@/lib/landing/whatsapp-number';
-import { filamentSpecLine, notifyBackMessage, swatchLabel } from '@/lib/storefront/filaments';
+import { notifyBackMessage, swatchLabel } from '@/lib/storefront/filaments';
+import { formatNetWeight } from '@/lib/filament-catalog/title';
 import { track } from '@/lib/analytics/track';
 import { useOptionalCart } from '@/components/marketing/cart/CartProvider';
 import { AvailabilityBadge, SpoolSwatch } from './FilamentVisuals';
@@ -31,7 +32,7 @@ export function FilamentMedia({ f, sizes = 'card' }: { f: PublicFilament; sizes?
       // Storage photos of variable size: plain <img> (next/image optimizer is off in this app).
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={photo}
+        src={encodeURI(photo)}
         alt={f.name}
         loading="lazy"
         decoding="async"
@@ -113,7 +114,7 @@ export function FilamentCard({
         </h3>
         <p className="text-xs text-brand-taupe">
           {f.brand ? <span className="font-semibold text-[#4E443C]">{f.brand} · </span> : null}
-          {filamentSpecLine(f)}
+          <span>{formatNetWeight(f.netWeightG) || '1 kg'}</span>
         </p>
 
         <div className="mt-auto flex items-end justify-between gap-3 pt-4">

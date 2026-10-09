@@ -14,7 +14,7 @@
 export const HAVE_CURRENT_DATA = 2;
 
 /** Grace period before giving up on the video. */
-export const HERO_VIDEO_TIMEOUT_MS = 2500;
+export const HERO_VIDEO_TIMEOUT_MS = 6000;
 
 /** Poster shipped in /public — first frame of the desktop scrub video. */
 export const HERO_VIDEO_POSTER = "/videos/gl-rocket-poster.jpg";

@@ -31,14 +31,14 @@ import {
 const SCROLL_LENGTH_VH = 400; // altura total da seção (4x viewport) = duração do scrub
 const LERP = 0.09;            // suavização do currentTime (menor = mais "pesado")
 
-// Momentos-chave do vídeo (0..1) para sincronizar os textos
+// Momentos-chave do vídeo (0..1) para sincronizar os textos com a animação real do foguete
 const BEATS = {
-  introOut: 0.15,   // título hero some (dá mais tempo de leitura no topo)
-  tiltIn: 0.22,     // "Precisão em cada camada"
-  tiltOut: 0.44,
-  explodeIn: 0.52,  // "Vista explodida — aviônica & eletrônica"
-  explodeOut: 0.80,
-  finalIn: 0.86,    // CTA final (aparece antes do fim, alcançável)
+  introOut: 0.16,   // título hero some suavemente no início do scroll
+  tiltIn: 0.20,     // "Precisão em cada camada" — foguete inclinando (20% a 65%)
+  tiltOut: 0.65,
+  explodeIn: 0.70,  // "Fusão de Precisão / Vista explodida" — separação das partes e aviônica (70% a 92%)
+  explodeOut: 0.94,
+  finalIn: 0.90,    // CTA final ("Explorar a Coleção ↓")
 };
 
 // Paleta (mesma do site)
@@ -213,9 +213,8 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Fallback watchdog: if the video is not paintable within the grace period,
-  // or it errors/stalls before that, switch to the static image for good (no
-  // flip-flopping back to the video if it shows up late).
+  // Fallback watchdog: ativa fallback estático somente se houver erro fatal de reprodução
+  // ou se exceder a tolerância sem carregar os metadados.
   useEffect(() => {
     if (isStatic) return;
     const video = videoRef.current;
@@ -232,19 +231,14 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
       errored = true;
       evaluate();
     };
-    const onStalled = () => {
-      if (video.readyState < HAVE_CURRENT_DATA) onError();
-    };
 
     video.addEventListener('error', onError);
-    video.addEventListener('stalled', onStalled);
     const timer = window.setTimeout(evaluate, HERO_VIDEO_TIMEOUT_MS);
     if (errored) evaluate();
 
     return () => {
       window.clearTimeout(timer);
       video.removeEventListener('error', onError);
-      video.removeEventListener('stalled', onStalled);
     };
   }, [isStatic, isMobile]);
 
@@ -264,8 +258,6 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
     let duration = 0;
     let lastUiUpdate = -1;
     let pendingTime: number | null = null;
-    // Intro autoplay only with a video and when the user did not ask for less motion.
-    let introPlaying = video !== null && !reducedMotion;
 
     const onMeta = () => {
       if (!video) return;
@@ -273,17 +265,25 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
       setReady(true);
     };
 
-    // Seek throttling listener
+    // Seek throttling listener para todos os navegadores (Edge, Chrome, Safari, Firefox)
     const onSeeked = () => {
-      if (video && pendingTime !== null && video.readyState >= HAVE_CURRENT_DATA) {
-        video.currentTime = pendingTime;
+      if (video && pendingTime !== null && video.readyState >= 1) {
+        const next = pendingTime;
         pendingTime = null;
+        try {
+          video.currentTime = next;
+        } catch {
+          // ignore seek race conditions
+        }
       }
     };
 
     if (video) {
+      if (!video.paused) video.pause();
       if (video.readyState >= 1) onMeta();
       video.addEventListener('loadedmetadata', onMeta);
+      video.addEventListener('loadeddata', onMeta);
+      video.addEventListener('canplay', onMeta);
       video.addEventListener('seeked', onSeeked);
     }
 
@@ -296,33 +296,12 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
     const tick = () => {
       computeTarget();
 
-      // se o usuário rolar a tela, cancela a intro e assume o controle manual
-      if (target > 0.01) {
-        introPlaying = false;
-      }
-
       if (!video) {
         // Static mode: captions follow the scroll; reduced motion skips the easing.
         current = reducedMotion ? target : current + (target - current) * LERP;
         if (Math.abs(target - current) < 0.0005) current = target;
-      } else if (introPlaying) {
-        if (duration > 0) {
-          if (video.paused) {
-            // Autoplay can be refused (power saver, policy). Not an error: the
-            // intro stops on the current frame and the scroll takes over.
-            video.play().catch(() => {
-              introPlaying = false;
-            });
-          }
-          current = video.currentTime / duration;
-          // para a intro ligeiramente antes do fim do arquivo para não congelar
-          if (video.currentTime >= duration - 0.1) {
-            introPlaying = false;
-            video.pause();
-          }
-        }
       } else {
-        // garante que o vídeo pare de rodar nativamente ao interagir com o scroll
+        // garante que o vídeo fique pausado e seja controlado 100% pelo scroll
         if (!video.paused && !video.seeking) {
           video.pause();
         }
@@ -330,11 +309,24 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
         current += (target - current) * LERP;
         if (Math.abs(target - current) < 0.0005) current = target;
 
-        if (duration > 0 && video.readyState >= HAVE_CURRENT_DATA) {
+        // readyState >= 1 (HAVE_METADATA) é suficiente para executar seek em todos os browsers
+        if (duration > 0 && video.readyState >= 1) {
           const t = current * (duration - 0.05);
-          if (Math.abs(video.currentTime - t) > 0.001) {
+          if (!video.seeking && pendingTime !== null) {
+            const next = pendingTime;
+            pendingTime = null;
+            try {
+              video.currentTime = next;
+            } catch {
+              // ignore
+            }
+          } else if (Math.abs(video.currentTime - t) > 0.001) {
             if (!video.seeking) {
-              video.currentTime = t;
+              try {
+                video.currentTime = t;
+              } catch {
+                pendingTime = t;
+              }
             } else {
               pendingTime = t;
             }
@@ -355,6 +347,8 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
       cancelAnimationFrame(raf);
       if (video) {
         video.removeEventListener('loadedmetadata', onMeta);
+        video.removeEventListener('loadeddata', onMeta);
+        video.removeEventListener('canplay', onMeta);
         video.removeEventListener('seeked', onSeeked);
       }
     };
@@ -418,7 +412,6 @@ export default function HeroScrollVideo({ settings }: { settings?: LandingSettin
               className="h-full w-full object-cover transition-transform"
               muted
               playsInline
-              autoPlay
               preload="auto"
               poster={HERO_VIDEO_POSTER}
             />

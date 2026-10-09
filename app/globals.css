@@ -745,6 +745,19 @@
   animation: gltech-text-gradient 4s ease infinite;
 }
 
+/* Ocultação total e garantida de scrollbars nativas */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
  * Defesa de impressão.
  *

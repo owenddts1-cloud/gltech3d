@@ -90,4 +90,5 @@ resend-records.json
 # Superpowers scratch & graphify
 .superpowers/
 graphify-out/
+scratch/
 

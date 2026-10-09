@@ -78,38 +78,37 @@ export function FilamentCarousel({ filaments, storeWhatsapp }: FilamentCarouselP
 
   return (
     <div className="relative group/carousel">
-      {/* Controles de Navegação no topo / canto */}
-      <div className="flex items-center justify-end gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => scrollByAmount('left')}
-          disabled={!canScrollLeft}
-          aria-label="Rolar filamentos para a esquerda"
-          className={`w-10 h-10 rounded-full border border-brand-sand flex items-center justify-center transition-all duration-200 ${
-            canScrollLeft
-              ? 'bg-white text-brand-espresso shadow-sm hover:border-brand-bronze hover:bg-brand-bone/50 hover:scale-105 active:scale-95'
-              : 'bg-white/40 text-brand-taupe/40 cursor-not-allowed border-brand-sand/50'
-          }`}
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+      {/* Botão Flutuante Esquerdo */}
+      <button
+        type="button"
+        onClick={() => scrollByAmount('left')}
+        disabled={!canScrollLeft}
+        aria-label="Rolar filamentos para a esquerda"
+        className={`absolute -left-3 sm:-left-5 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full border flex items-center justify-center transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A6815C] ${
+          canScrollLeft
+            ? 'border-[#E8E2D9] bg-white text-[#2B2622] shadow-[0_8px_24px_rgba(43,38,34,0.18)] hover:scale-110 hover:border-[#A6815C] hover:bg-[#FAF9F6] active:scale-95 cursor-pointer opacity-100'
+            : 'border-transparent bg-transparent text-transparent opacity-0 pointer-events-none'
+        }`}
+      >
+        <ChevronLeft className="w-6 h-6 text-[#2B2622]" />
+      </button>
 
-        <button
-          type="button"
-          onClick={() => scrollByAmount('right')}
-          disabled={!canScrollRight}
-          aria-label="Rolar filamentos para a direita"
-          className={`w-10 h-10 rounded-full border border-brand-sand flex items-center justify-center transition-all duration-200 ${
-            canScrollRight
-              ? 'bg-white text-brand-espresso shadow-sm hover:border-brand-bronze hover:bg-brand-bone/50 hover:scale-105 active:scale-95'
-              : 'bg-white/40 text-brand-taupe/40 cursor-not-allowed border-brand-sand/50'
-          }`}
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
+      {/* Botão Flutuante Direito */}
+      <button
+        type="button"
+        onClick={() => scrollByAmount('right')}
+        disabled={!canScrollRight}
+        aria-label="Rolar filamentos para a direita"
+        className={`absolute -right-3 sm:-right-5 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full border flex items-center justify-center transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A6815C] ${
+          canScrollRight
+            ? 'border-[#E8E2D9] bg-white text-[#2B2622] shadow-[0_8px_24px_rgba(43,38,34,0.18)] hover:scale-110 hover:border-[#A6815C] hover:bg-[#FAF9F6] active:scale-95 cursor-pointer opacity-100'
+            : 'border-transparent bg-transparent text-transparent opacity-0 pointer-events-none'
+        }`}
+      >
+        <ChevronRight className="w-6 h-6 text-[#2B2622]" />
+      </button>
 
-      {/* Container de Scroll Horizontal */}
+      {/* Container de Scroll Horizontal (sem barra de rolagem visível) */}
       <div
         ref={containerRef}
         onScroll={checkScroll}
@@ -117,10 +116,14 @@ export function FilamentCarousel({ filaments, storeWhatsapp }: FilamentCarouselP
         onMouseMove={handleMouseMove}
         onMouseUp={stopDragging}
         onMouseLeave={stopDragging}
-        className={`flex gap-5 overflow-x-auto pb-4 pt-1 scrollbar-none snap-x snap-mandatory ${
+        className={`flex gap-5 overflow-x-auto pb-4 pt-1 no-scrollbar scrollbar-none snap-x snap-mandatory ${
           isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'
         }`}
-        style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
+        style={{
+          scrollBehavior: isDragging ? 'auto' : 'smooth',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
       >
         {filaments.map((f) => (
           <div

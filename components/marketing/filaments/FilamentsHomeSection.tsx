@@ -8,8 +8,9 @@ import { FALLBACK_FILAMENTS } from '@/lib/filament-catalog/fallback-filaments';
 import { filamentFilterOptions } from '@/lib/storefront/filaments';
 import { track } from '@/lib/analytics/track';
 import { FilamentCarousel } from './FilamentCarousel';
+import { FilamentBrandsMarquee } from './FilamentBrandsMarquee';
 
-const MAX_CARDS = 8;
+const MAX_CARDS = 24;
 
 /**
  * `#filamentos` on the home, right below the products and above the slicer reveal.
@@ -61,6 +62,9 @@ export default function FilamentsHomeSection({
             antes de qualquer pagamento.
           </p>
         </header>
+
+        {/* Faixa Animada e Vívida de Marcas Parceiras e Testadas */}
+        <FilamentBrandsMarquee />
 
         {materials.length > 1 ? (
           <div className="mb-8 flex flex-wrap gap-2" role="group" aria-label="Filtrar por material">
