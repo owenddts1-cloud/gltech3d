@@ -31,6 +31,15 @@ export const metadata: Metadata = {
   },
   description:
     "Manufatura aditiva, prototipagem técnica e produtos exclusivos em impressão 3D de alta qualidade com acabamento premium.",
+  keywords: [
+    "impressão 3d",
+    "manufatura aditiva",
+    "peças sob demanda",
+    "filamentos 3d",
+    "prototipagem 3d rápida",
+    "impressão 3d brasil",
+    "GLTech3D",
+  ],
   robots: { index: true, follow: true },
   alternates: { canonical: "/" },
   openGraph: {

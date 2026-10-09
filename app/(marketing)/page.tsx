@@ -19,16 +19,57 @@ async function filamentsOrEmpty(): Promise<PublicFilament[]> {
   }
 }
 
-/**
- * Server Component: o catálogo vem do Postgres (migration 0041), não mais do
- * arquivo estático. A leitura é cacheada por tag; o Landing Edit invalida a tag
- * ao gravar, e a mudança vai ao ar sem redeploy.
- */
+import { siteUrl } from '@/lib/marketing/site-url';
+
 export default async function Home() {
   const [catalog, filaments, storeWhatsapp] = await Promise.all([
     getLandingCatalog(),
     filamentsOrEmpty(),
     getStoreWhatsapp(),
   ]);
-  return <HomeClient catalog={catalog} filaments={filaments} storeWhatsapp={storeWhatsapp} />;
+
+  const baseUrl = siteUrl();
+  const jsonLd = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'GLTech3D',
+      url: baseUrl,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${baseUrl}/catalogo?q={search_term_string}`,
+        'query-input': 'required name=search_term_string',
+      },
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      '@id': `${baseUrl}/#organization`,
+      name: 'GLTech3D',
+      url: baseUrl,
+      description:
+        'Manufatura aditiva, prototipagem técnica, catálogo de filamentos e produtos exclusivos em impressão 3D de alta qualidade com acabamento premium.',
+      telephone: storeWhatsapp ? `+${storeWhatsapp.replace(/\D/g, '')}` : undefined,
+      priceRange: '$$',
+      address: {
+        '@type': 'PostalAddress',
+        addressCountry: 'BR',
+      },
+      sameAs: [
+        catalog.settings.links?.instagram,
+        catalog.settings.links?.shopee,
+        catalog.settings.links?.mercadoLivre,
+      ].filter(Boolean),
+    },
+  ];
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <HomeClient catalog={catalog} filaments={filaments} storeWhatsapp={storeWhatsapp} />
+    </>
+  );
 }
