@@ -28,6 +28,7 @@ import {
   firstEmbed,
   toSpecView,
 } from "@/lib/filament-catalog/mappers";
+import { FALLBACK_FILAMENTS } from "@/lib/filament-catalog/fallback-filaments";
 import type { PublicFilament } from "@/lib/filament-catalog/types";
 import type {
   BestsellerRank,
@@ -297,20 +298,29 @@ function toPublicFilament(row: FilamentProductRow): PublicFilament {
 }
 
 async function fetchFilamentCatalog(): Promise<PublicFilament[]> {
-  const db = createAdminClient();
-  const organizationId = await resolveLandingOrgId();
+  try {
+    const db = createAdminClient();
+    const organizationId = await resolveLandingOrgId();
 
-  const { data, error } = await db
-    .from("products")
-    .select(`${PUBLIC_FILAMENT_PRODUCT_COLUMNS}, product_filament_specs(${PUBLIC_SPEC_COLUMNS})`)
-    .eq("organization_id", organizationId)
-    .eq("kind", "filamento")
-    .eq("is_published", true)
-    .order("sort_order", { ascending: true, nullsFirst: false })
-    .order("name", { ascending: true });
+    const { data, error } = await db
+      .from("products")
+      .select(`${PUBLIC_FILAMENT_PRODUCT_COLUMNS}, product_filament_specs(${PUBLIC_SPEC_COLUMNS})`)
+      .eq("organization_id", organizationId)
+      .eq("kind", "filamento")
+      .eq("is_published", true)
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("name", { ascending: true });
 
-  if (error) throw new Error(`Catálogo de filamentos: ${error.message}`);
-  return ((data ?? []) as unknown as FilamentProductRow[]).map(toPublicFilament);
+    if (error) {
+      console.warn("fetchFilamentCatalog db error, using fallback:", error.message);
+      return FALLBACK_FILAMENTS;
+    }
+    const items = ((data ?? []) as unknown as FilamentProductRow[]).map(toPublicFilament);
+    return items.length > 0 ? items : FALLBACK_FILAMENTS;
+  } catch (err) {
+    console.warn("fetchFilamentCatalog exception, using fallback:", err);
+    return FALLBACK_FILAMENTS;
+  }
 }
 
 /**
