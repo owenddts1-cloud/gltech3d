@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { isDirectorateEmail } from "@/lib/auth/landing-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logger } from "@/lib/logger";
 import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
@@ -84,12 +85,26 @@ export async function requirePro(lockedPath?: string): Promise<ProContext> {
   if (!activeOrg) redirect("/portal/switcher");
 
   const plan = await loadPlanState(activeOrg.orgId);
-  if (!plan || !plan.hasProAccess) {
+  const isSuperOrDirector = Boolean(user.is_platform_admin || isDirectorateEmail(user.email));
+  if (!isSuperOrDirector && (!plan || !plan.hasProAccess)) {
     const qs = lockedPath ? `?locked=${encodeURIComponent(lockedPath)}` : "";
     redirect(`/app/settings/billing${qs}`);
   }
 
-  return { user, activeOrg, plan };
+  return {
+    user,
+    activeOrg,
+    plan:
+      plan ??
+      ({
+        tier: "pro",
+        status: "active",
+        hasProAccess: true,
+        trialDaysLeft: null,
+        trialEndsAt: null,
+        planExpiresAt: null,
+      } as PlanState),
+  };
 }
 
 /**

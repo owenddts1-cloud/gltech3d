@@ -2,9 +2,14 @@
 
 import Link from "next/link";
 import { APPS } from "@/lib/apps/registry";
-import { ArrowRight, PlugsConnected, Sparkle } from "@/lib/ui/icons";
+import { ArrowRight, PlugsConnected, Sparkle, ShieldCheck } from "@/lib/ui/icons";
+import { useUser } from "@/hooks/auth/AuthProvider";
+import { isDirectorateEmail } from "@/lib/auth/landing-admin";
 
 export default function AppSwitcherDashboard() {
+  const user = useUser();
+  const isAdmin = Boolean(user?.is_platform_admin || isDirectorateEmail(user?.email));
+
   return (
     <div className="min-h-screen w-full bg-zinc-950 text-white flex flex-col justify-between p-6 md:p-12">
       {/* Header */}
@@ -18,9 +23,17 @@ export default function AppSwitcherDashboard() {
           </h1>
           <p className="text-xs text-zinc-400">Selecione uma aplicação interconectada para iniciar</p>
         </div>
-        <div className="flex items-center gap-2 text-xs bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full text-zinc-300">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Sessão Ativa</span>
+        <div className="flex items-center gap-3">
+          {isAdmin && (
+            <div className="flex items-center gap-1.5 text-xs bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full text-amber-300 font-medium">
+              <ShieldCheck size={14} weight="fill" className="text-amber-400" />
+              <span>Acesso Diretoria</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-xs bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full text-zinc-300">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Sessão Ativa</span>
+          </div>
         </div>
       </header>
 
@@ -29,13 +42,23 @@ export default function AppSwitcherDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {APPS.map((app) => {
             const Icon = app.icon;
-            // O status existia no registry e a UI ignorava: renderizava a string
-            // crua num badge verde, anunciando como pronto o que é protótipo.
-            const soon = app.status === "coming-soon";
+            // Para diretoria e admins de plataforma, todos os workspaces são liberados
+            const soon = isAdmin ? false : app.status === "coming-soon";
+
+            // Se for diretoria, direciona direto para os workspaces funcionais
+            let targetHref = app.href;
+            if (isAdmin) {
+              if (app.id === "automations") {
+                targetHref = "/app/automations";
+              } else if (app.id === "content-studio") {
+                targetHref = "/content-studio/timeline";
+              }
+            }
+
             return (
               <Link
                 key={app.id}
-                href={app.href}
+                href={targetHref}
                 className="group relative flex flex-col justify-between rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 transition-all duration-300 hover:border-orange-500/50 hover:bg-zinc-900 hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-1"
               >
                 <div className="space-y-4">

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { loadAuthUser, resolveSelectedOrgForShell, isMfaEnrolled, requiresMfa } from "@/lib/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { planStateFromRow } from "@/lib/plan/server";
+import { isDirectorateEmail } from "@/lib/auth/landing-admin";
 import type { AuthUser, ActiveOrg } from "@/lib/auth/types";
 import type { PlanState } from "@/lib/plan/types";
 
@@ -53,6 +54,9 @@ export async function loadAppShellContext(): Promise<AppShellContext> {
     }
 
     plan = planStateFromRow(orgRow);
+    if ((user.is_platform_admin || isDirectorateEmail(user.email)) && plan) {
+      plan = { ...plan, hasProAccess: true };
+    }
 
     // MFA é exigido de plano PAGO, não de trial. A política existe para proteger
     // PII de clientes reais; forçar um authenticator antes de a pessoa ver uma

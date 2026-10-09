@@ -7,15 +7,21 @@ import type { AuthUser, ActiveOrg } from "./types";
 export const DIRECTORATE_EMAILS = [
   "diretoria@gltech3d.com.br",
   "diretoria.gltech@gmail.com",
+  "owenddts1@gmail.com",
+  "owendds1@gmail.com",
 ] as const;
 
 /**
- * Checa se um e-mail pertence ao rol oficial da diretoria.
+ * Checa se um e-mail pertence ao rol oficial da diretoria (suporta sub-endereçamento +tag).
  */
 export function isDirectorateEmail(email?: string | null): boolean {
   if (!email) return false;
   const normalized = email.trim().toLowerCase();
-  return DIRECTORATE_EMAILS.some((dir) => dir.toLowerCase() === normalized);
+  const baseEmail = normalized.replace(/\+[^@]+@/, "@");
+  return DIRECTORATE_EMAILS.some((dir) => {
+    const d = dir.toLowerCase();
+    return normalized === d || baseEmail === d;
+  });
 }
 
 export interface LandingAdminCheckOptions {
