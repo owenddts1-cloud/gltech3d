@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, LogIn, X, Calculator } from 'lucide-react';
+import { Menu, LogIn, X, Calculator, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useOptionalCart } from '@/components/marketing/cart/CartProvider';
 
 const LINKS = [
   { id: 'home', label: 'Início' },
@@ -102,6 +103,7 @@ export default function Navbar() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
+  const cart = useOptionalCart();
 
   const isHome = pathname === '/';
   const activeSection = useActiveSection(isHome);
@@ -233,6 +235,22 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-auto pr-1 sm:pr-2">
+          {/* Botão Carrinho ao lado do Calc3D PRO */}
+          {cart !== null ? (
+            <button
+              type="button"
+              onClick={() => cart.setOpen(true)}
+              aria-label={`Abrir carrinho (${cart.count} itens)`}
+              className="inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-full text-xs sm:text-sm font-bold text-[#2D241E] border border-[#E8E2D9] bg-white/70 shadow-sm transition-all duration-300 hover:bg-white hover:border-[#A6815C] hover:shadow hover:scale-105 shrink-0"
+            >
+              <ShoppingBag className="h-4 w-4 text-[#A6815C] shrink-0" />
+              <span className="hidden md:inline">Carrinho</span>
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#A6815C] px-1 text-[10px] font-black text-white">
+                {cart.count}
+              </span>
+            </button>
+          ) : null}
+
           {/*
             Calc3D PRO vem antes de "Entrar" e sólido; "Entrar" foi rebaixado a
             ghost. Hierarquia aqui é contraste relativo — é o que dá primazia ao
@@ -305,10 +323,26 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            {cart !== null ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  cart.setOpen(true);
+                }}
+                className="flex items-center justify-center gap-2 w-full py-3 mt-3 rounded-xl font-bold text-[#2D241E] border border-[#E8E2D9] bg-white/80 transition-colors hover:bg-white"
+              >
+                <ShoppingBag className="h-4 w-4 text-[#A6815C]" />
+                <span>Carrinho</span>
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#A6815C] px-1.5 text-[10px] font-black text-white">
+                  {cart.count}
+                </span>
+              </button>
+            ) : null}
             <Link
               href="/calc3d-pro"
               onClick={() => setIsOpen(false)}
-              className="flex items-center justify-center gap-2 w-full py-3 mt-3 rounded-xl font-bold text-white bg-gradient-to-r from-[#8E6D4D] to-[#A6815C] shadow-lg shadow-[#A6815C]/35 transition-colors"
+              className="flex items-center justify-center gap-2 w-full py-3 mt-2 rounded-xl font-bold text-white bg-gradient-to-r from-[#8E6D4D] to-[#A6815C] shadow-lg shadow-[#A6815C]/35 transition-colors"
             >
               <Calculator className="h-4 w-4" />
               Calc3D

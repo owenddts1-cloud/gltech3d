@@ -9,7 +9,6 @@
  * Prices shown here are a preview; the server never reads them.
  */
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ShoppingBag, X, Minus, Plus, Trash2, Loader2, CheckCircle2, MessageCircle, QrCode, CreditCard, Copy, Check } from 'lucide-react';
@@ -34,7 +33,6 @@ const INPUT =
 
 export default function CartDrawer() {
   const cart = useCart();
-  const pathname = usePathname();
   const reduced = useReducedMotion();
   const [phase, setPhase] = useState<Phase>('cart');
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +48,7 @@ export default function CartDrawer() {
 
   const { isOpen, setOpen, state, count } = cart;
   const subtotal = cartSubtotal(state);
-  const onFilamentPages = pathname?.startsWith('/filamentos') ?? false;
-  const showButton = count > 0 || onFilamentPages;
+
 
   // Opening the drawer with items = the checkout started (fill time starts here).
   useEffect(() => {
@@ -134,26 +131,7 @@ export default function CartDrawer() {
 
   return (
     <>
-      <AnimatePresence>
-        {showButton && !isOpen ? (
-          <motion.button
-            key="cart-fab"
-            type="button"
-            onClick={() => setOpen(true)}
-            initial={reduced ? false : { opacity: 0, y: 16, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reduced ? undefined : { opacity: 0, y: 16, scale: 0.9 }}
-            aria-label={`Abrir carrinho (${count} ${count === 1 ? 'item' : 'itens'})`}
-            className="fixed bottom-6 left-6 z-50 flex items-center gap-2 rounded-full bg-[#2B2622] px-4 py-3 text-xs font-bold text-white shadow-[0_10px_30px_-8px_rgba(43,38,34,0.6)] transition-transform hover:scale-105"
-          >
-            <ShoppingBag className="h-5 w-5" />
-            <span className="hidden sm:inline">Carrinho</span>
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#A6815C] px-1.5 text-[11px] font-black">
-              {count}
-            </span>
-          </motion.button>
-        ) : null}
-      </AnimatePresence>
+
 
       <AnimatePresence>
         {isOpen ? (
