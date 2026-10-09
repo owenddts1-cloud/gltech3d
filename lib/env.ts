@@ -232,11 +232,12 @@ const schema = z.object({
 
 let parsed = schema.safeParse(process.env);
 
-// Na fase de build da imagem Docker, semeia placeholders pras vars que faltam
+const isBrowser = typeof window !== "undefined";
+
+// Na fase de build da imagem Docker ou no navegador, semeia placeholders pras vars que faltam
 // (URL válida, passa .url()/.min(1)) e revalida — permite `next build` sem os
-// segredos de runtime. NUNCA acontece em runtime: lá process.env está completo
-// e este bloco não roda, então o boot real continua cobrando tudo.
-if (!parsed.success && isBuildPhase) {
+// segredos de runtime.
+if (!parsed.success && (isBuildPhase || isBrowser)) {
   const seeded: Record<string, string | undefined> = { ...process.env };
   for (const key of Object.keys(parsed.error.flatten().fieldErrors)) {
     if (!seeded[key]) seeded[key] = "https://build-placeholder.invalid";
@@ -245,32 +246,40 @@ if (!parsed.success && isBuildPhase) {
 }
 
 if (!parsed.success) {
-  // Log estruturado pra debug. Sentry capturaria via uncaught.
-  console.error("[env] Falha de validação de variáveis de ambiente:");
-  console.error(parsed.error.flatten().fieldErrors);
-  throw new Error(
-    "Variáveis de ambiente inválidas. Veja o erro acima e ajuste .env.local / Vercel.",
-  );
+  if (isBrowser) {
+    // No navegador, variáveis de servidor propositalmente não existem.
+    // Não lança exceção para não derrubar a interface do usuário.
+    parsed = { success: true, data: (process.env as unknown as z.infer<typeof schema>) };
+  } else {
+    // Log estruturado pra debug. Sentry capturaria via uncaught.
+    console.error("[env] Falha de validação de variáveis de ambiente:");
+    console.error(parsed.error.flatten().fieldErrors);
+    throw new Error(
+      "Variáveis de ambiente inválidas. Veja o erro acima e ajuste .env.local / Vercel.",
+    );
+  }
 }
 
 export const env = parsed.data;
 
-// Soft warning for env-gated AI keys (worker degrades gracefully but operators
-// should know when the bot is silent for config reasons).
-if (!env.AI_GATEWAY_API_KEY && !env.ANTHROPIC_API_KEY) {
-  console.warn(
-    "[env] No AI_GATEWAY_API_KEY or ANTHROPIC_API_KEY set — ai-response-worker will skip with reason='ai_gateway_key_missing'.",
-  );
-}
-if (!env.OPENAI_API_KEY) {
-  console.warn(
-    "[env] No OPENAI_API_KEY set — RAG embedding will be unavailable; bot answers without retrieved context.",
-  );
-}
-if (!env.IMPERSONATE_COOKIE_SECRET || env.IMPERSONATE_COOKIE_SECRET.length < 32) {
-  console.warn(
-    "[env] IMPERSONATE_COOKIE_SECRET not set or shorter than 32 chars — impersonate flow will return 503 at runtime.",
-  );
+if (!isBrowser) {
+  // Soft warning for env-gated AI keys (worker degrades gracefully but operators
+  // should know when the bot is silent for config reasons).
+  if (!env.AI_GATEWAY_API_KEY && !env.ANTHROPIC_API_KEY) {
+    console.warn(
+      "[env] No AI_GATEWAY_API_KEY or ANTHROPIC_API_KEY set — ai-response-worker will skip with reason='ai_gateway_key_missing'.",
+    );
+  }
+  if (!env.OPENAI_API_KEY) {
+    console.warn(
+      "[env] No OPENAI_API_KEY set — RAG embedding will be unavailable; bot answers without retrieved context.",
+    );
+  }
+  if (!env.IMPERSONATE_COOKIE_SECRET || env.IMPERSONATE_COOKIE_SECRET.length < 32) {
+    console.warn(
+      "[env] IMPERSONATE_COOKIE_SECRET not set or shorter than 32 chars — impersonate flow will return 503 at runtime.",
+    );
+  }
 }
 
 export type Env = typeof env;

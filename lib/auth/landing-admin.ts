@@ -1,4 +1,3 @@
-import { env } from "@/lib/env";
 import type { AuthUser, ActiveOrg } from "./types";
 
 /**
@@ -52,7 +51,10 @@ export function isLandingAdmin({
     return true;
   }
 
-  const landingSlug = env.LANDING_ORG_SLUG || "gltech3d";
+  const landingSlug =
+    process.env.LANDING_ORG_SLUG ||
+    process.env.NEXT_PUBLIC_LANDING_ORG_SLUG ||
+    "gltech3d";
   if (activeOrgSlug && activeOrgSlug === landingSlug && activeOrg?.role === "admin") {
     return true;
   }
