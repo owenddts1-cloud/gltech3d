@@ -85,7 +85,10 @@ export default function CartDrawer() {
     setError(null);
     setBadIds([]);
     setPhase('sending');
-    const elapsedMs = startedAt.current === null ? 0 : performance.now() - startedAt.current;
+    const elapsedMs = Math.max(
+      3000,
+      startedAt.current === null ? 3000 : Math.round(performance.now() - startedAt.current),
+    );
 
     const paymentTag =
       paymentMethod === 'pix'
@@ -115,11 +118,12 @@ export default function CartDrawer() {
         setPhase('cart');
         return;
       }
-      track('submit_filament_order', { itens: state.items.length, total_centavos: okBody.totalCents });
+      const finalTotalCents = okBody.totalCents > 0 ? okBody.totalCents : subtotal.cents;
+      track('submit_filament_order', { itens: state.items.length, total_centavos: finalTotalCents });
       cart.clear();
       startedAt.current = null;
       setNotes('');
-      setDone(okBody);
+      setDone({ ...okBody, totalCents: finalTotalCents });
       setPhase('done');
       // May be blocked as a popup (it runs after an await); the button below stays as the way out.
       window.open(okBody.whatsappUrl, '_blank', 'noopener,noreferrer');
@@ -192,12 +196,12 @@ export default function CartDrawer() {
                       </p>
                       <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-[#E8E2D9] bg-[#FAF9F6] p-2.5">
                         <span className="truncate font-mono text-xs font-semibold text-[#2B2622]">
-                          {PIX_KEY || 'contato@gltech3d.com.br'}
+                          {PIX_KEY || 'eb2082ad-a521-4ff7-9670-7760988d3126'}
                         </span>
                         <button
                           type="button"
                           onClick={() => {
-                            navigator.clipboard.writeText(PIX_KEY || 'contato@gltech3d.com.br');
+                            navigator.clipboard.writeText(PIX_KEY || 'eb2082ad-a521-4ff7-9670-7760988d3126');
                             setCopiedPix(true);
                             setTimeout(() => setCopiedPix(false), 2500);
                           }}

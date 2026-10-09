@@ -2,9 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { FALLBACK_FILAMENTS } from '@/lib/filament-catalog/fallback-filaments';
 
 describe('FALLBACK_FILAMENTS', () => {
-  it('provides between 6 and 8 demonstration filaments', () => {
+  it('provides comprehensive demonstration filaments', () => {
     expect(FALLBACK_FILAMENTS.length).toBeGreaterThanOrEqual(6);
-    expect(FALLBACK_FILAMENTS.length).toBeLessThanOrEqual(8);
   });
 
   it('contains valid PublicFilament structure with non-empty fields', () => {

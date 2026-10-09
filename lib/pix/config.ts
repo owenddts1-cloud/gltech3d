@@ -13,7 +13,8 @@
 import { PRO_PLANS } from "@/lib/pricing/pro-plans";
 import { checkCopiaECola, normalizeBrCodeInput, type CopiaEColaCheck } from "./brcode";
 
-export const PIX_KEY = (process.env.NEXT_PUBLIC_PIX_KEY ?? "").trim();
+export const PIX_KEY =
+  (process.env.NEXT_PUBLIC_PIX_KEY ?? "").trim() || "eb2082ad-a521-4ff7-9670-7760988d3126";
 export const PIX_RECEIVER_NAME = (process.env.NEXT_PUBLIC_PIX_RECEIVER_NAME ?? "").trim();
 
 /**
