@@ -28,6 +28,7 @@ import { resolveLandingOrgId } from "@/lib/landing/repository";
 import { getStoreWhatsapp } from "@/lib/landing/whatsapp";
 import { storeWhatsappUrl } from "@/lib/landing/whatsapp-number";
 import { asAvailability, firstEmbed } from "@/lib/filament-catalog/mappers";
+import { FALLBACK_FILAMENTS } from "@/lib/filament-catalog/fallback-filaments";
 import {
   SITE_ORDER_REFUSAL_MESSAGE,
   buildSiteOrderMessage,
@@ -123,32 +124,55 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const admin = createAdminClient();
   const productIds = input.items.map((i) => i.product_id);
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const uuidProductIds = productIds.filter((id) => UUID_REGEX.test(id));
 
-  const { data: productRows, error: readErr } = await admin
-    .from("products")
-    .select("id, name, sale_price_cents, product_filament_specs(availability)")
-    .eq("organization_id", organizationId)
-    .eq("kind", "filamento")
-    .eq("is_published", true)
-    .in("id", productIds);
-  if (readErr) {
-    logger.error("filament_order_read_failed", { requestId, code: readErr.code, details: readErr.message });
-    return fail("internal_error", "falha ao registrar o pedido", 500, { requestId });
+  let dbRows: OrderableProductRow[] = [];
+  if (uuidProductIds.length > 0) {
+    const { data: productRows, error: readErr } = await admin
+      .from("products")
+      .select("id, name, sale_price_cents, product_filament_specs(availability)")
+      .eq("organization_id", organizationId)
+      .eq("kind", "filamento")
+      .eq("is_published", true)
+      .in("id", uuidProductIds);
+    if (readErr) {
+      logger.error("filament_order_read_failed", { requestId, code: readErr.code, details: readErr.message });
+      return fail("internal_error", "falha ao registrar o pedido", 500, { requestId });
+    }
+    dbRows = (
+      (productRows ?? []) as Array<{
+        id: string;
+        name: string;
+        sale_price_cents: number | string | null;
+        product_filament_specs: unknown;
+      }>
+    ).map((r) => ({
+      id: r.id,
+      name: r.name,
+      salePriceCents: r.sale_price_cents == null ? null : Number(r.sale_price_cents),
+      availability: asAvailability(firstEmbed(r.product_filament_specs)?.availability),
+    }));
   }
 
-  const rows: OrderableProductRow[] = (
-    (productRows ?? []) as Array<{
-      id: string;
-      name: string;
-      sale_price_cents: number | string | null;
-      product_filament_specs: unknown;
-    }>
-  ).map((r) => ({
-    id: r.id,
-    name: r.name,
-    salePriceCents: r.sale_price_cents == null ? null : Number(r.sale_price_cents),
-    availability: asAvailability(firstEmbed(r.product_filament_specs)?.availability),
-  }));
+  // Resolve items from fallback catalog (when not in DB)
+  const fallbackRows: OrderableProductRow[] = input.items
+    .filter((item) => !dbRows.some((r) => r.id === item.product_id))
+    .map((item) => {
+      const fb = FALLBACK_FILAMENTS.find(
+        (f) => f.id === item.product_id || f.slug === item.product_id,
+      );
+      if (!fb) return null;
+      return {
+        id: item.product_id,
+        name: fb.name,
+        salePriceCents: fb.priceCents,
+        availability: fb.availability,
+      };
+    })
+    .filter((r): r is OrderableProductRow => r !== null);
+
+  const rows: OrderableProductRow[] = [...dbRows, ...fallbackRows];
 
   const priced = priceSiteOrder(input.items, rows);
   if (!priced.ok) {
@@ -186,7 +210,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     priced.lines.map((l) => ({
       organization_id: organizationId,
       site_order_id: orderId,
-      product_id: l.productId,
+      product_id: UUID_REGEX.test(l.productId) ? l.productId : null,
       product_name: l.productName,
       qty: l.qty,
       unit_price_cents: l.unitPriceCents,

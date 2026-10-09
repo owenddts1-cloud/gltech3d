@@ -151,4 +151,17 @@ describe("POST /api/v1/public/filament-orders", () => {
     expect(tables.site_orders).toHaveLength(0);
     expect(auditMock).not.toHaveBeenCalled();
   });
+
+  it("processes orders with fallback catalog filament IDs cleanly", async () => {
+    const res = await POST(
+      request({ ...base, items: [{ product_id: "pla-premium-marmore", qty: 1 }] }),
+    );
+    expect(res.status).toBe(201);
+    const json = (await res.json()) as { data: { total_cents: number; whatsapp_url: string; short_id: string } };
+    expect(json.data.total_cents).toBe(9200);
+    expect(decodeURIComponent(json.data.whatsapp_url)).toContain("PLA Premium Mármore");
+    expect(tables.site_orders).toHaveLength(1);
+    expect(tables.site_orders![0]).toMatchObject({ total_cents: 9200, status: "novo" });
+    expect(tables.site_order_items![0]).toMatchObject({ product_id: null, product_name: "PLA Premium Mármore", qty: 1, unit_price_cents: 9200 });
+  });
 });

@@ -53,7 +53,7 @@ export const siteOrderRequestSchema = z
       .array(
         z
           .object({
-            product_id: z.string().uuid(),
+            product_id: z.string().trim().min(1, "ID do produto inválido.").max(120),
             qty: z.coerce.number().int().min(1).max(MAX_ITEM_QTY),
           })
           .strict(),
