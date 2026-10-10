@@ -130,6 +130,38 @@ async function initWhatsApp(forceReconnect = false) {
       }
     });
 
+    // Boas-vindas automáticas para novos membros no grupo
+    sock.ev.on('group-participants.update', async ({ id, participants, action }) => {
+      if (action === 'add' && participants && participants.length > 0) {
+        try {
+          const storage = require('./storage');
+          const formatter = require('./formatter');
+          const config = storage.getConfig();
+
+          if (config.welcomeMessageEnabled !== false) {
+            const isTargetGroup =
+              (id === config.whatsappTargetGroupId) ||
+              Object.values(config.nicheGroups || {}).some((g) => g && g.whatsappJid === id);
+
+            if (isTargetGroup) {
+              const groupName = config.welcomeGroupName || config.whatsappTargetGroupName || 'GLTech Ofertas - Impressão 3D';
+              for (const participant of participants) {
+                const phone = participant.split('@')[0] || participant;
+                const welcomeText = formatter.formatWelcomeMessage(phone, groupName);
+                await sock.sendMessage(id, {
+                  text: welcomeText,
+                  mentions: [participant]
+                });
+                console.log(`[WhatsApp] 🖨️ Boas-vindas enviadas para novo membro @${phone} no grupo ${id}`);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[WhatsApp] Erro ao processar boas-vindas de participante:', err.message);
+        }
+      }
+    });
+
     isStarting = false;
     return sock;
   } catch (error) {

@@ -5,12 +5,17 @@ const telegram = require('./telegram');
 
 let schedulerTimer = null;
 let lastDispatchTime = 0;
-let currentJitterMinutes = 0;
+let currentTargetIntervalMs = 5 * 60 * 1000; // default inicial de 5 min
 
-function getRandomJitter(maxJitterMinutes = 5) {
-  // Gera variação entre -jitter e +jitter minutos
-  const max = Math.max(1, maxJitterMinutes);
-  return (Math.random() * (max * 2) - max);
+/**
+ * Calcula próximo intervalo orgânico em milissegundos dentro do range configurável (ex: 2 a 15 min).
+ */
+function calculateNextIntervalMs(minMinutes = 2, maxMinutes = 15) {
+  const min = Math.max(1, parseInt(minMinutes, 10) || 2);
+  const max = Math.max(min, parseInt(maxMinutes, 10) || 15);
+  // Distribuição aleatória contínua para simular ação humana
+  const randomMinutes = min + Math.random() * (max - min);
+  return Math.round(randomMinutes * 60 * 1000);
 }
 
 /**
@@ -24,6 +29,17 @@ async function dispatchOffer(offer, options = {}) {
   const sendWpp = options.sendWhatsapp ?? true;
   const sendTg = options.sendTelegram ?? Boolean(config.telegramBotToken && config.telegramChatId);
 
+  // Mapeamento multi-nicho: seleciona o grupo de destino com base no nicho da oferta
+  let targetJid = options.targetGroupJid;
+  let targetGroupName = config.whatsappTargetGroupName;
+  if (!targetJid && offer.niche && config.nicheGroups && config.nicheGroups[offer.niche]?.whatsappJid) {
+    targetJid = config.nicheGroups[offer.niche].whatsappJid;
+    targetGroupName = config.nicheGroups[offer.niche].whatsappName || targetGroupName;
+  }
+  if (!targetJid) {
+    targetJid = config.whatsappTargetGroupId;
+  }
+
   const formattedMessage = formatter.formatOfferMessage(offer, {
     defaultHashtags: config.defaultHashtags,
     groupInviteUrl: config.groupInviteUrl
@@ -36,7 +52,6 @@ async function dispatchOffer(offer, options = {}) {
 
   // 1. WhatsApp
   if (sendWpp) {
-    const targetJid = options.targetGroupJid || config.whatsappTargetGroupId;
     if (!targetJid) {
       results.whatsapp = { success: false, error: 'Nenhum grupo de WhatsApp configurado para envio.' };
     } else {
@@ -47,7 +62,7 @@ async function dispatchOffer(offer, options = {}) {
           offerId: offer.id,
           title: offer.title,
           channel: 'whatsapp',
-          target: config.whatsappTargetGroupName || targetJid,
+          target: targetGroupName || targetJid,
           status: 'success',
           message: 'Enviado com sucesso'
         });
@@ -71,11 +86,16 @@ async function dispatchOffer(offer, options = {}) {
   }
 
   // 2. Telegram
-  if (sendTg && config.telegramBotToken && config.telegramChatId) {
+  let tgChatId = config.telegramChatId;
+  if (offer.niche && config.nicheGroups && config.nicheGroups[offer.niche]?.telegramChatId) {
+    tgChatId = config.nicheGroups[offer.niche].telegramChatId;
+  }
+
+  if (sendTg && config.telegramBotToken && tgChatId) {
     try {
       const tgRes = await telegram.sendTelegramOffer(
         config.telegramBotToken,
-        config.telegramChatId,
+        tgChatId,
         formattedMessage,
         offer.imageUrl
       );
@@ -84,7 +104,7 @@ async function dispatchOffer(offer, options = {}) {
         offerId: offer.id,
         title: offer.title,
         channel: 'telegram',
-        target: config.telegramChatId,
+        target: tgChatId,
         status: 'success',
         message: 'Enviado com sucesso'
       });
@@ -94,22 +114,28 @@ async function dispatchOffer(offer, options = {}) {
         offerId: offer.id,
         title: offer.title,
         channel: 'telegram',
-        target: config.telegramChatId,
+        target: tgChatId,
         status: 'error',
         message: err.message
       });
     }
   }
 
-  // Se ao menos um canal enviou com sucesso, marca como enviado
+  // Se ao menos um canal enviou com sucesso, marca como enviado e atualiza contadores
   const anySuccess = (results.whatsapp?.success || results.telegram?.success);
   if (anySuccess) {
+    const isAlreadySent = offer.status === 'enviado';
     storage.updateOffer(offer.id, {
       status: 'enviado',
-      dispatchedAt: new Date().toISOString()
+      dispatchedAt: offer.dispatchedAt || new Date().toISOString(),
+      lastDispatchedAt: new Date().toISOString(),
+      recycledCount: isAlreadySent ? (offer.recycledCount || 0) + 1 : (offer.recycledCount || 0)
     });
     lastDispatchTime = Date.now();
-    currentJitterMinutes = getRandomJitter(config.dispatchJitterMinutes || 5);
+    currentTargetIntervalMs = calculateNextIntervalMs(
+      config.minIntervalMinutes || 2,
+      config.maxIntervalMinutes || 15
+    );
   }
 
   return { success: anySuccess, results, messageText: formattedMessage };
@@ -126,62 +152,72 @@ async function checkScheduleTick() {
   const now = new Date();
   const currentHour = now.getHours();
 
-  // Verifica janela de horário comercial seguro (ex: 09h às 22h)
-  const startHour = parseInt(config.dispatchStartHour) || 9;
-  const endHour = parseInt(config.dispatchEndHour) || 22;
+  // Janela de horário comercial seguro (ex: 09h às 23h)
+  const startHour = parseInt(config.dispatchStartHour, 10) || 9;
+  const endHour = parseInt(config.dispatchEndHour, 10) || 23;
 
   if (currentHour < startHour || currentHour >= endHour) {
     // Fora da janela de disparo
     return;
   }
 
-  // Intervalo configurado com variação orgânica (Jitter)
-  const baseIntervalMs = (parseInt(config.dispatchIntervalMinutes) || 40) * 60 * 1000;
-  const jitterMs = currentJitterMinutes * 60 * 1000;
-  const targetIntervalMs = Math.max(10 * 60 * 1000, baseIntervalMs + jitterMs); // Mínimo seguro de 10 min
+  const elapsedMs = lastDispatchTime > 0 ? (Date.now() - lastDispatchTime) : Infinity;
 
-  const elapsedMs = Date.now() - lastDispatchTime;
+  if (elapsedMs >= currentTargetIntervalMs) {
+    let offerToDispatch = storage.getNextPendingOffer();
 
-  if (lastDispatchTime === 0 || elapsedMs >= targetIntervalMs) {
-    const nextOffer = storage.getNextPendingOffer();
-    if (nextOffer) {
-      console.log(`[Agendador] Disparando oferta agendada: "${nextOffer.title}"...`);
-      await dispatchOffer(nextOffer, {
+    // Modo Rodízio / Reciclagem Inteligente se não houver pendentes
+    if (!offerToDispatch && config.recycleMode !== false) {
+      offerToDispatch = storage.getNextRecycledOffer();
+      if (offerToDispatch) {
+        console.log(`[Agendador] 🔄 Fila zerada! Reciclando oferta ativa mais antiga: "${offerToDispatch.title}"...`);
+      }
+    }
+
+    if (offerToDispatch) {
+      console.log(`[Agendador] 🚀 Disparando oferta agendada: "${offerToDispatch.title}"...`);
+      await dispatchOffer(offerToDispatch, {
         sendWhatsapp: true,
         sendTelegram: Boolean(config.telegramBotToken && config.telegramChatId)
       });
     } else {
-      console.log('[Agendador] Nenhuma oferta pendente na fila.');
+      console.log('[Agendador] Nenhuma oferta pendente ou ativa disponível no momento.');
     }
   }
 }
 
 function startScheduler() {
   if (schedulerTimer) clearInterval(schedulerTimer);
-  currentJitterMinutes = getRandomJitter(5);
-  schedulerTimer = setInterval(checkScheduleTick, 60 * 1000); // checa a cada minuto
-  console.log('[Agendador] Serviço de agendamento automático iniciado.');
+  const config = storage.getConfig();
+  currentTargetIntervalMs = calculateNextIntervalMs(
+    config.minIntervalMinutes || 2,
+    config.maxIntervalMinutes || 15
+  );
+  schedulerTimer = setInterval(checkScheduleTick, 30 * 1000); // checa a cada 30 segundos
+  console.log('[Agendador] Serviço de agendamento automático contínuo iniciado.');
 }
 
 function getSchedulerStatus() {
   const config = storage.getConfig();
-  const baseIntervalMs = (parseInt(config.dispatchIntervalMinutes) || 40) * 60 * 1000;
-  const jitterMs = currentJitterMinutes * 60 * 1000;
-  const targetIntervalMs = baseIntervalMs + jitterMs;
   const elapsedMs = lastDispatchTime > 0 ? Date.now() - lastDispatchTime : null;
-  const nextInMs = elapsedMs !== null ? Math.max(0, targetIntervalMs - elapsedMs) : 0;
+  const nextInMs = elapsedMs !== null ? Math.max(0, currentTargetIntervalMs - elapsedMs) : 0;
 
   return {
-    autoDispatchEnabled: config.autoDispatchEnabled,
-    intervalMinutes: config.dispatchIntervalMinutes,
-    jitterMinutes: Math.round(currentJitterMinutes * 10) / 10,
+    autoDispatchEnabled: Boolean(config.autoDispatchEnabled),
+    intervalMinutes: config.dispatchIntervalMinutes || 10,
+    minIntervalMinutes: config.minIntervalMinutes || 2,
+    maxIntervalMinutes: config.maxIntervalMinutes || 15,
+    recycleMode: config.recycleMode !== false,
+    welcomeMessageEnabled: config.welcomeMessageEnabled !== false,
+    welcomeGroupName: config.welcomeGroupName || 'GLTech Ofertas - Impressão 3D',
     lastDispatchTime: lastDispatchTime ? new Date(lastDispatchTime).toISOString() : null,
     nextDispatchInMinutes: lastDispatchTime ? Math.round(nextInMs / 60000) : 0,
-    window: `${config.dispatchStartHour}h - ${config.dispatchEndHour}h`
+    window: `${config.dispatchStartHour || 9}h - ${config.dispatchEndHour || 23}h`
   };
 }
 
 module.exports = {
+  calculateNextIntervalMs,
   dispatchOffer,
   startScheduler,
   getSchedulerStatus
