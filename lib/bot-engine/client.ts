@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const BOT_SERVICE_URL = process.env.BOT_OFERTAS_URL || "http://127.0.0.1:3000";
+const BOT_SERVICE_URL =
+  process.env.BOT_OFERTAS_URL || "https://gltech-bot-ofertas.onrender.com";
 const DATA_DIR = path.resolve(process.cwd(), "services/bot_ofertas/data");
 const OFFERS_FILE = path.join(DATA_DIR, "offers.json");
 const CONFIG_FILE = path.join(DATA_DIR, "config.json");
@@ -149,7 +150,7 @@ export function writeLocalJson<T>(filePath: string, data: T): boolean {
 export async function fetchFromDaemon(endpoint: string, options: RequestInit = {}): Promise<any> {
   const url = `${BOT_SERVICE_URL}/api${endpoint.startsWith("/") ? endpoint : "/" + endpoint}`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 4000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch(url, {
       ...options,

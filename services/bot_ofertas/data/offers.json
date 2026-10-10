@@ -810,5 +810,43 @@
     "createdAt": "2026-10-10T15:12:16.353Z",
     "dispatchedAt": null,
     "lastDispatchedAt": null
+  },
+  {
+    "id": "off_1791646194091_fn1vg",
+    "title": "Filamento PETG Masterprint 1kg",
+    "category": "Filamentos 3D",
+    "niche": "impressao_3d",
+    "marketplace": "shopee",
+    "originalPrice": 79.9,
+    "promoPrice": 62.27,
+    "coupon": "",
+    "couponHubUrl": "https://sshopee.me/GMNE98tfdo4yYUpL",
+    "copyStyle": "achado",
+    "affiliateUrl": "",
+    "imageUrl": "",
+    "status": "pendente",
+    "recycledCount": 0,
+    "createdAt": "2026-10-10T15:29:54.091Z",
+    "dispatchedAt": null,
+    "lastDispatchedAt": null
+  },
+  {
+    "id": "off_1791646194093_avb6o",
+    "title": "Alicate de Corte Maker",
+    "category": "Geral",
+    "niche": "ferramentas",
+    "marketplace": "mercadolivre",
+    "originalPrice": 0,
+    "promoPrice": 25,
+    "coupon": "",
+    "couponHubUrl": "",
+    "copyStyle": "padrao",
+    "affiliateUrl": "",
+    "imageUrl": "",
+    "status": "pendente",
+    "recycledCount": 0,
+    "createdAt": "2026-10-10T15:29:54.093Z",
+    "dispatchedAt": null,
+    "lastDispatchedAt": null
   }
 ]
