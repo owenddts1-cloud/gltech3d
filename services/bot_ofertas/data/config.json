@@ -6,6 +6,25 @@
   "autoDispatchEnabled": true,
   "dispatchIntervalMinutes": 15,
   "dispatchJitterMinutes": 5,
+  "minIntervalMinutes": 2,
+  "maxIntervalMinutes": 15,
+  "recycleMode": true,
+  "welcomeMessageEnabled": true,
+  "welcomeGroupName": "GLTech Ofertas - Impressão 3D",
+  "nicheGroups": {
+    "impressao_3d": {
+      "whatsappJid": "120363000000000000@g.us",
+      "whatsappName": "GLTech Ofertas - Impressão 3D",
+      "telegramChatId": "@gltech3d_ofertas"
+    }
+  },
+  "marketplacesCouponHubs": {
+    "mercadolivre": "https://www.mercadolivre.com.br/cupons",
+    "shopee": "https://shopee.com.br/m/cupons-diarios",
+    "amazon": "https://www.amazon.com.br/cupom",
+    "aliexpress": "https://best.aliexpress.com",
+    "tiktok": "https://www.tiktok.com"
+  },
   "dispatchStartHour": 9,
   "dispatchEndHour": 23,
   "defaultHashtags": "#anúncio #cacadoresderenda",
