@@ -136,20 +136,20 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "Ofertas",
+          "value": "produtos",
           "mode": "name"
         },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Data": "={{ $json.dataExtracao }}",
+            "Nome Produto": "={{ $json.titulo }}",
+            "Imagem Produto": "={{ $json.imagemUrl }}",
+            "preco": "={{ $json.precoAtual }}",
+            "link_produtos_afiliado": "={{ $json.linkAfiliado }}",
+            "titulo_produto": "={{ $json.titulo }}",
+            "mensagem": "={{ $json.copyPronta }}",
             "Plataforma": "={{ $json.plataforma }}",
-            "Titulo": "={{ $json.titulo }}",
-            "Preco_De": "={{ $json.precoOriginal }}",
-            "Preco_Por": "={{ $json.precoAtual }}",
-            "Desconto": "={{ $json.descontoPct }}%",
-            "Link_Afiliado": "={{ $json.linkAfiliado }}",
-            "Status": "PENDENTE"
+            "Status_Meta": "Pendente"
           }
         },
         "options": {}

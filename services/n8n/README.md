@@ -97,3 +97,74 @@ No painel do Render, vá em **Manual Deploy** > **Deploy latest commit** (ou agu
 ### Dúvida sobre a Porta no Render Settings:
 Você **não precisa alterar nada na aba Settings sobre porta**!  
 Como a variável `PORT=5678` já está configurada nas *Environment Variables*, o Render detecta e roteia automaticamente o tráfego HTTPS para a porta `5678`. O único motivo de dar 502 era o container que estava crashando antes de conseguir subir.
+
+---
+
+## 🔑 Ativação da Licença do n8n
+
+Sua chave de licença enviada por e-mail:
+`855e3a57-bbe3-4eed-adee-35d59d1db721`
+
+### Como ativar:
+1. **Via Interface Web (Mais Rápido):**
+   * Abra o n8n: [https://n8n-636f.onrender.com/](https://n8n-636f.onrender.com/)
+   * Vá em **Settings** (engrenagem no canto inferior esquerdo) > **Usage and plan** (ou **License**).
+   * Cole a chave `855e3a57-bbe3-4eed-adee-35d59d1db721` no campo de ativação e clique em **Activate**.
+2. **Via Variável no Render (Persistente):**
+   * Em Render > `n8n` > **Environment**, adicione:
+     * **Key:** `N8N_LICENSE_ACTIVATION_KEY`
+     * **Value:** `855e3a57-bbe3-4eed-adee-35d59d1db721`
+
+---
+
+## 📲 Como Subir a Evolution API no Render Conectada ao Supabase
+
+A Evolution API conectada ao seu Supabase **garante que as sessões do WhatsApp nunca desloguem**, mesmo que o Render reinicie.
+
+### 1. Criar o Web Service no Render:
+1. No painel do Render, clique em **+ New** > **Web Service**.
+2. Selecione **"Deploy an existing image from a registry"**.
+3. Em **Image URL**, digite: `atendai/evolution-api:v2.1.2` e clique em **Next**.
+4. Configure os campos:
+   * **Name:** `evolution-api-gltech`
+   * **Region:** Oregon (US West) ou a mesma do seu Supabase
+   * **Instance Type:** Free
+
+### 2. Variáveis de Ambiente no Render (Environment):
+Adicione as seguintes variáveis na aba **Environment**:
+
+| KEY | VALUE |
+|---|---|
+| `SERVER_URL` | `https://evolution-api-gltech.onrender.com` (a URL do seu serviço no Render) |
+| `AUTHENTICATION_API_KEY` | `gltech_evolution_secret_key_2026` (sua chave secreta) |
+| `DATABASE_ENABLED` | `true` |
+| `DATABASE_PROVIDER` | `postgresql` |
+| `DATABASE_CONNECTION_URI` | `postgresql://postgres:Guidata%404834@db.plfwkvnhhhjnqrmrlbzl.supabase.co:5432/postgres` |
+| `DATABASE_CONNECTION_CLIENT_NAME` | `evolution_api` |
+| `PORT` | `8080` |
+
+> ⚠️ **Atenção:** Na URI do PostgreSQL, o `@` da sua senha `Guidata@4834` é codificado como `%40` para a URL não quebrar.
+
+### 3. Conectar seu WhatsApp via QR Code:
+1. Assim que a Evolution API ficar **Live**, acesse o painel ou envie um POST para `/instance/create` com o nome `gltech_ofertas`.
+2. Escaneie o QR Code no seu celular (WhatsApp > Aparelhos Conectados).
+3. A sessão será salva diretamente na tabela do Supabase e o n8n poderá disparar mensagens de mídia e texto em todos os seus grupos!
+
+---
+
+## 📊 Estrutura da Planilha Google Sheets (`Achadinhos shoope`)
+
+Para usar o template master com o Google Sheets, crie a planilha no Google Drive com a aba `produtos` e as colunas exatas:
+
+```text
+Nome Produto | Imagem Produto | preco | link_produtos_afiliado | titulo_produto | mensagem | Plataforma | Status_Meta
+```
+
+* `Nome Produto`: Título completo do produto
+* `Imagem Produto`: URL da imagem CDN em alta resolução
+* `preco`: Valor promocional numérico (ex: `19.7`)
+* `link_produtos_afiliado`: Link parametrizado com a sua tag de afiliado
+* `titulo_produto`: Nome resumido
+* `mensagem`: Copy persuasiva gerada pela OpenAI / ChatGPT com emojis, tópicos de benefícios e gatilhos de escassez
+* `Plataforma`: `Shopee`, `Mercado Livre`, `Amazon` ou `AliExpress`
+* `Status_Meta`: Inicialmente `Pendente` (depois atualizado para `Publicado` pelo fluxo do Instagram/Facebook)

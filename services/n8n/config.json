@@ -34,6 +34,19 @@
     "envVariable": "N8N_ENCRYPTION_KEY",
     "explanation": "Chave fixa de 32 caracteres para garantir que reinicializações do Render nunca percam acesso aos dados do Supabase."
   },
+  "license": {
+    "activationKey": "855e3a57-bbe3-4eed-adee-35d59d1db721",
+    "envVariable": "N8N_LICENSE_ACTIVATION_KEY"
+  },
+  "evolutionApi": {
+    "provider": "Render Web Service (Docker)",
+    "dockerImage": "atendai/evolution-api:v2.1.2",
+    "port": 8080,
+    "supabaseProject": "https://plfwkvnhhhjnqrmrlbzl.supabase.co",
+    "supabaseAnonKey": "sb_publishable_eqHJtg__0p0urXDFPwUEzw_2cKnTitd",
+    "databaseConnectionUri": "postgresql://postgres:Guidata%404834@db.plfwkvnhhhjnqrmrlbzl.supabase.co:5432/postgres",
+    "databaseProvider": "postgresql"
+  },
   "integrations": {
     "targetChannels": ["whatsapp", "telegram"],
     "whatsappGateway": "Evolution API ou Baileys / Meta Cloud API",
