@@ -1,0 +1,123 @@
+{
+  "name": "GLTech3D - Bot de Ofertas WhatsApp (Evolution API) & Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "oferta-post",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-trigger",
+      "name": "Webhook Nova Oferta",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai e enriquece a oferta com formatação persuasiva anti-banimento\nconst input = $input.first().json.body || $input.first().json;\n\nconst title = input.title || 'Super Oferta Maker';\nconst promoPrice = Number(input.promoPrice) || 0;\nconst origPrice = Number(input.originalPrice) || 0;\nconst discount = origPrice > promoPrice ? Math.round(((origPrice - promoPrice) / origPrice) * 100) : 0;\nconst link = input.affiliateUrl || input.link || '';\nconst coupon = input.coupon ? input.coupon.toUpperCase() : '';\n\nlet lines = [];\nlines.push('🖨️ OFERTA ESPECIAL: IMPRESSÃO 3D & MAKER 🧵\\n');\nlines.push(`📦 *${title}*\\n`);\n\nif (origPrice > promoPrice && promoPrice > 0) {\n  lines.push(`❌ De: R$ ${origPrice.toFixed(2).replace('.', ',')}`);\n  lines.push(`✅ Por apenas: *R$ ${promoPrice.toFixed(2).replace('.', ',')}* 🔥 (${discount}% OFF)`);\n} else if (promoPrice > 0) {\n  lines.push(`✅ Por apenas: *R$ ${promoPrice.toFixed(2).replace('.', ',')}* 🔥`);\n}\n\nif (coupon) {\n  lines.push(`\\n🎟️ CUPOM: *${coupon}*`);\n  lines.push('👉 Aplique no carrinho antes de finalizar a compra!');\n}\n\nif (link) {\n  lines.push(`\\n🛒 Garanta no link oficial:\\n👉 ${link}`);\n}\n\nlines.push('\\n⚠️ Preços e estoques sujeitos a alteração pela loja.');\nlines.push('\\n#anúncio #GLTech3D');\n\nreturn [{\n  json: {\n    formattedMessage: lines.join('\\n'),\n    imageUrl: input.imageUrl || '',\n    whatsappTargetGroup: input.whatsappTargetGroup || '120363414256913914@g.us',\n    telegramChatId: input.telegramChatId || '',\n    raw: input\n  }\n}];"
+      },
+      "id": "node-code-formatter",
+      "name": "Formatar Copy Persuasiva",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "seconds"
+      },
+      "id": "node-delay-antiban",
+      "name": "Delay Anti-Banimento (Jitter)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL || 'http://localhost:8080' }}/message/sendText/{{ $env.EVOLUTION_INSTANCE || 'gltech3d' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY || 'sua-chave-aqui' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.whatsappTargetGroup }}\",\n  \"text\": \"{{ $json.formattedMessage }}\",\n  \"options\": {\n    \"delay\": 1200,\n    \"presence\": \"composing\"\n  }\n}",
+        "options": {}
+      },
+      "id": "node-send-evolution",
+      "name": "Enviar WhatsApp (Evolution API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Oferta processada e encaminhada aos canais\",\n  \"timestamp\": \"{{ $now }}\"\n}",
+        "options": {}
+      },
+      "id": "node-respond-webhook",
+      "name": "Responder Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Nova Oferta": {
+      "main": [
+        [
+          {
+            "node": "Formatar Copy Persuasiva",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Copy Persuasiva": {
+      "main": [
+        [
+          {
+            "node": "Delay Anti-Banimento (Jitter)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay Anti-Banimento (Jitter)": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp (Evolution API)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

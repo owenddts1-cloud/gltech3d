@@ -1,0 +1,49 @@
+{
+  "name": "GLTech3D - Keep-Alive & Health Ping (cron-job.org)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "780020eb-c627-4e45-baf1-c046447e5a7b",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-keepalive",
+      "name": "Webhook Keep-Alive",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"healthy\",\n  \"service\": \"n8n-render\",\n  \"keepAlive\": true,\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "node-respond-ok",
+      "name": "Respond OK (200)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Keep-Alive": {
+      "main": [
+        [
+          {
+            "node": "Respond OK (200)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -42,14 +42,25 @@ export default function AutomationsLandingPage() {
           {app.description}
         </p>
 
-        <Link
-          href="/app/automations"
-          className="mt-4 flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 text-sm font-bold text-zinc-950 shadow-lg shadow-cyan-500/20 hover:opacity-90 transition-all hover:scale-105"
-        >
-          <Play size={18} weight="bold" />
-          <span>Ver demonstração</span>
-          <ArrowRight size={16} />
-        </Link>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <a
+            href="https://n8n-636f.onrender.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 text-sm font-bold text-zinc-950 shadow-lg shadow-cyan-500/20 hover:opacity-90 transition-all hover:scale-105"
+          >
+            <span>🚀 Abrir n8n Web (Render)</span>
+            <ArrowRight size={16} />
+          </a>
+
+          <Link
+            href="/app/automations"
+            className="flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20 transition-all"
+          >
+            <Play size={16} weight="bold" />
+            <span>Workspace & Templates</span>
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3 mt-4 text-left">

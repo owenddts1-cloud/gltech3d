@@ -1,0 +1,37 @@
+{
+  "instance": {
+    "name": "GLTech n8n Cloud",
+    "provider": "Render",
+    "serviceId": "srv-db56gpo473hc73a297tg",
+    "baseUrl": "https://n8n-636f.onrender.com",
+    "workflowUrl": "https://n8n-636f.onrender.com/workflow/7iua4dTJrDU9QrUd",
+    "activeWorkflowId": "7iua4dTJrDU9QrUd",
+    "keepAliveWebhookPath": "780020eb-c627-4e45-baf1-c046447e5a7b",
+    "keepAliveWebhookUrl": "https://n8n-636f.onrender.com/webhook/780020eb-c627-4e45-baf1-c046447e5a7b"
+  },
+  "database": {
+    "provider": "Supabase (Dedicated n8n)",
+    "host": "aws-1-us-west-2.pooler.supabase.com",
+    "port": 5432,
+    "transactionPort": 6543,
+    "database": "postgres",
+    "user": "postgres.plfwkvnhhhjnqrmrlbzl",
+    "schema": "public",
+    "connectionString": "postgresql://postgres.plfwkvnhhhjnqrmrlbzl:[Guidata@4834]@aws-1-us-west-2.pooler.supabase.com:5432/postgres",
+    "notes": "Para migrations e inicialização do n8n, use a porta 5432 (Session mode). A porta 6543 é transaction pooler PgBouncer e pode bloquear locks do TypeORM."
+  },
+  "maintenance": {
+    "cronJobProvider": "cron-job.org",
+    "jobId": "8619437",
+    "jobConsoleUrl": "https://console.cron-job.org/jobs/8619437",
+    "schedule": "*/5 * * * *",
+    "frequency": "A cada 5 minutos",
+    "targetUrl": "https://n8n-636f.onrender.com/webhook/780020eb-c627-4e45-baf1-c046447e5a7b",
+    "purpose": "Evitar spin-down do plano gratuito do Render mantendo o container aquecido 24/7."
+  },
+  "integrations": {
+    "targetChannels": ["whatsapp", "telegram"],
+    "whatsappGateway": "Evolution API ou Baileys / Meta Cloud API",
+    "antiBanMode": true
+  }
+}
