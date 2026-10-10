@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, FloppyDisk, Sparkle, Tag, LinkSimple, Image as ImageIcon } from "@/lib/ui/icons";
+import { X, FloppyDisk, Sparkle, Tag, ImageIcon } from "@/lib/ui/icons";
 import { toast } from "sonner";
 import type { OfferItem, OfferNiche, OfferMarketplace, OfferCopyStyle, OfferStatus } from "./types";
 

@@ -11,8 +11,8 @@ import {
   CheckCircle,
   Clock,
   ArrowsClockwise,
-  PauseCircle,
-  XCircle,
+  Pause,
+  WarningOctagon,
 } from "@/lib/ui/icons";
 import { formatCurrency, calculateDiscount } from "@/lib/bot-engine/formatter";
 import { toast } from "sonner";
@@ -128,7 +128,8 @@ export function PlanilhaFilaTable({ offers, onDispatch, onDelete, onEdit, onRefr
           return;
         }
 
-        const separator = lines[0].includes(";") ? ";" : ",";
+        const firstLine = lines[0] || "";
+        const separator = firstLine.includes(";") ? ";" : ",";
         let count = 0;
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i];
@@ -327,12 +328,12 @@ export function PlanilhaFilaTable({ offers, onDispatch, onDelete, onEdit, onRefr
                         </span>
                       ) : offer.status === "pausado" ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-600 border border-zinc-200">
-                          <PauseCircle size={12} weight="fill" />
+                          <Pause size={12} weight="bold" />
                           Pausado
                         </span>
                       ) : offer.status === "esgotado" ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200">
-                          <XCircle size={12} weight="fill" />
+                          <WarningOctagon size={12} weight="fill" />
                           Esgotado
                         </span>
                       ) : (

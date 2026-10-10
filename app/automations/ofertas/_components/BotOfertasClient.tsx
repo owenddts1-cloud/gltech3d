@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Tag, Sparkle, PlugsConnected, ShieldCheck, Clock, ArrowsClockwise } from "@/lib/ui/icons";
-import { NovaOfertaForm } from "@/components/bot-ofertas/NovaOfertaForm";
+import { NovaOfertaForm, type NovaOfertaFormData } from "@/components/bot-ofertas/NovaOfertaForm";
 import { WhatsAppMockupPreview } from "@/components/bot-ofertas/WhatsAppMockupPreview";
 import { PlanilhaFilaTable } from "@/components/bot-ofertas/PlanilhaFilaTable";
 import { EditarOfertaModal } from "@/components/bot-ofertas/EditarOfertaModal";
@@ -35,12 +35,17 @@ export function BotOfertasClient({
   const [editingOffer, setEditingOffer] = useState<OfferItem | null>(null);
 
   // Form state compartilhado entre o Form e o WhatsApp Mockup Preview
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<NovaOfertaFormData>({
     title: "Filamento PLA Basic 1.75mm GLTech3D 1kg Vermelho",
     category: "Filamentos 3D",
+    niche: "impressao_3d",
+    marketplace: "mercadolivre",
+    copyStyle: "padrao",
     originalPrice: "119.90",
     promoPrice: "89.00",
     coupon: "10OFFMAKER",
+    couponHubUrl: "https://www.mercadolivre.com.br/cupons",
+    couponTutorial: "",
     affiliateUrl: "https://gltech3d.vercel.app/filamentos",
     imageUrl: "https://http2.mlstatic.com/D_NQ_NP_900224-MLB78901234567_092024-O.webp",
   });

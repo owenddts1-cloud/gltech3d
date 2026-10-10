@@ -6,12 +6,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   try {
     const offers = await getBotOffers();
     const index = offers.findIndex((o) => o.id === id);
-    if (index === -1) {
+    const currentOffer = offers[index];
+    if (index === -1 || !currentOffer) {
       return NextResponse.json({ success: false, error: "Oferta não encontrada" }, { status: 404 });
     }
 
-    const offer = offers[index];
-    const targetUrl = offer.affiliateUrl;
+    const targetUrl = currentOffer.affiliateUrl;
 
     if (!targetUrl || !targetUrl.startsWith("http")) {
       return NextResponse.json(
@@ -41,24 +41,18 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         updatedPrice = parseFloat(priceMatch[1].replace(",", ".")) || 0;
       }
 
-      const updates: Record<string, any> = {
-        lastDispatchedAt: offer.dispatchedAt,
+      const updatedOffer = {
+        ...currentOffer,
+        promoPrice: updatedPrice > 0 ? updatedPrice : currentOffer.promoPrice,
+        lastDispatchedAt: currentOffer.dispatchedAt,
       };
 
-      if (updatedPrice > 0) {
-        updates.promoPrice = updatedPrice;
-      }
-
-      offers[index] = {
-        ...offer,
-        ...updates,
-      };
-
+      offers[index] = updatedOffer;
       await saveBotOffers(offers);
 
       return NextResponse.json({
         success: true,
-        offer: offers[index],
+        offer: updatedOffer,
         updatedPrice: updatedPrice > 0 ? updatedPrice : null,
       });
     } catch (scrapeErr: any) {

@@ -11,6 +11,10 @@ interface Props {
     originalPrice: number | string;
     promoPrice: number | string;
     coupon: string;
+    couponHubUrl?: string;
+    couponTutorial?: string;
+    copyStyle?: string;
+    marketplace?: string;
     affiliateUrl: string;
     imageUrl: string;
   };
@@ -24,7 +28,7 @@ interface Props {
 
 export function WhatsAppMockupPreview({
   offer,
-  groupName = "Tech Ofertas - Impressão 3D",
+  groupName = "GLTech Ofertas - Impressão 3D",
   groupInviteUrl = "",
   defaultHashtags = "#anúncio #cacadoresderenda #GLTech3D",
   watermarkText = "GLTech3D",
@@ -33,7 +37,6 @@ export function WhatsAppMockupPreview({
 }: Props) {
   const [copied, setCopied] = useState(false);
 
-  const discount = calculateDiscount(offer.originalPrice, offer.promoPrice);
   const formattedText = formatOfferMessage(offer, {
     groupInviteUrl,
     defaultHashtags,
@@ -75,7 +78,7 @@ export function WhatsAppMockupPreview({
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold text-zinc-100 leading-tight">
-              {groupName || "Grupo de Ofertas Maker 3D"}
+              {groupName || "GLTech Ofertas - Impressão 3D"}
             </p>
             <p className="text-[10px] text-zinc-400">mensagens do bot de ofertas</p>
           </div>
@@ -83,7 +86,7 @@ export function WhatsAppMockupPreview({
 
         {/* Chat Canvas com Wallpaper WhatsApp */}
         <div
-          className="min-h-[380px] p-2.5 flex flex-col justify-end"
+          className="min-h-[400px] p-2.5 flex flex-col justify-end"
           style={{
             backgroundColor: "#0b141a",
             backgroundImage:
@@ -93,7 +96,7 @@ export function WhatsAppMockupPreview({
           }}
         >
           {/* Balão de Mensagem estilo WhatsApp */}
-          <div className="relative max-w-[92%] self-start rounded-2xl rounded-tl-sm bg-[#202c33] p-2.5 shadow-md border border-[#2a3942]/60">
+          <div className="relative max-w-[94%] self-start rounded-2xl rounded-tl-sm bg-[#202c33] p-2.5 shadow-md border border-[#2a3942]/60">
             {/* Imagem do Produto com Marca D'água */}
             {offer.imageUrl ? (
               <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-xl bg-zinc-900 border border-zinc-700/40">
@@ -102,7 +105,6 @@ export function WhatsAppMockupPreview({
                   alt={offer.title || "Oferta"}
                   className="h-full w-full object-cover"
                   onError={(e) => {
-                    // Fallback se imagem quebrar
                     (e.target as HTMLElement).style.display = "none";
                   }}
                 />
@@ -118,49 +120,9 @@ export function WhatsAppMockupPreview({
               </div>
             )}
 
-            {/* Texto da Mensagem */}
-            <div className="space-y-1 text-xs leading-relaxed text-zinc-200">
-              <p className="font-bold text-white break-words">
-                🛍️ {offer.title || "Título do Produto"}
-              </p>
-
-              {Number(offer.originalPrice) > Number(offer.promoPrice) && Number(offer.promoPrice) > 0 ? (
-                <div className="pt-0.5">
-                  <p className="text-[11px] text-zinc-400 line-through">
-                    De: R$ {formatCurrency(offer.originalPrice)}
-                  </p>
-                  <p className="font-bold text-emerald-400 text-sm">
-                    Por: R$ {formatCurrency(offer.promoPrice)} ✅
-                    {discount > 0 ? ` (${discount}% OFF)` : ""}
-                  </p>
-                </div>
-              ) : Number(offer.promoPrice) > 0 ? (
-                <p className="font-bold text-emerald-400 text-sm">
-                  Por: R$ {formatCurrency(offer.promoPrice)} ✅
-                </p>
-              ) : null}
-
-              {offer.coupon?.trim() && (
-                <p className="font-semibold text-amber-300">
-                  🎟️ {offer.coupon.toLowerCase().includes("cupom") ? offer.coupon : `Use o cupom ${offer.coupon}`}
-                </p>
-              )}
-
-              {offer.affiliateUrl?.trim() && (
-                <p className="text-cyan-400 underline break-all font-mono text-[11px] pt-1">
-                  🛒 {offer.affiliateUrl}
-                </p>
-              )}
-
-              {groupInviteUrl?.trim() && (
-                <p className="text-zinc-400 text-[10px] pt-1">
-                  🚀 Entre no grupo: <span className="text-cyan-400 underline">{groupInviteUrl}</span>
-                </p>
-              )}
-
-              <p className="text-[10px] text-zinc-500 pt-1">
-                {defaultHashtags}
-              </p>
+            {/* Texto Formatado da Mensagem */}
+            <div className="space-y-1.5 text-xs leading-relaxed text-zinc-200 whitespace-pre-wrap break-words font-sans">
+              {formattedText}
             </div>
 
             {/* Timestamp e Status Checkmarks */}
