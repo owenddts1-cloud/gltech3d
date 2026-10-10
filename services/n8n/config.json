@@ -29,6 +29,11 @@
     "targetUrl": "https://n8n-636f.onrender.com/webhook/780020eb-c627-4e45-baf1-c046447e5a7b",
     "purpose": "Evitar spin-down do plano gratuito do Render mantendo o container aquecido 24/7."
   },
+  "security": {
+    "encryptionKey": "9a7f3c1b8e4d206f5a3b7c9e1f4a8b2d",
+    "envVariable": "N8N_ENCRYPTION_KEY",
+    "explanation": "Chave fixa de 32 caracteres para garantir que reinicializações do Render nunca percam acesso aos dados do Supabase."
+  },
   "integrations": {
     "targetChannels": ["whatsapp", "telegram"],
     "whatsappGateway": "Evolution API ou Baileys / Meta Cloud API",

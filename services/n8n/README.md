@@ -55,10 +55,45 @@ Coloque qualquer arquivo na pasta [`services/n8n/templates/`](file:///c:/Users/G
 
 ---
 
-## 🛠️ Diagnóstico do Erro 502 no Render
+## 🔐 Correção Definitiva do Erro: `signing.hmac cannot be read with this instance encryption key`
 
-Caso a URL do Render retorne `502 Bad Gateway` ou o deploy fique com status `Failed`:
+### Por que esse erro aconteceu?
+No plano gratuito do Render, o disco do container é **efêmero** (ele é destruído e recriado a cada deploy ou reinicialização).
+1. No primeiro deploy, o n8n gerou uma chave aleatória temporária e salvou em `/home/node/.n8n/config`. Ele conectou no Supabase e criptografou a chave interna do sistema (`signing.hmac`) com essa chave.
+2. Quando o Render reiniciou após a alteração de variáveis, o container foi recriado e aquela chave temporária sumiu.
+3. O n8n gerou uma **nova** chave aleatória no boot, tentou ler o Supabase e falhou porque a chave não batia com a anterior. Isso causou o crash imediato (`Exited with status 1`) e a página ficou exibindo `502 Bad Gateway`.
 
-1. **Ajuste da Porta do Banco:** Altere `DB_POSTGRESDB_PORT` de `6543` para `5432` no painel do Render > *Environment*.
-2. **Variável SSL:** Adicione `DB_POSTGRESDB_SSL_REJECT_UNAUTHORIZED=false` nas Environment Variables do Render para autorizar a conexão TLS do Supabase.
-3. **Porta do Web Service:** Em Render > *Settings* > *Port*, certifique-se de que a porta configurada corresponde a `5678` (ou adicione `N8N_PORT=10000` e aponte a porta para 10000).
+---
+
+### Solução Passo a Passo (2 Minutos):
+
+#### 1. Definir a Chave Fixa no Render (Environment Variables):
+No painel do Render > Web Service `n8n` > aba **Environment**:
+* Adicione a variável:
+  * **Key:** `N8N_ENCRYPTION_KEY`
+  * **Value:** `9a7f3c1b8e4d206f5a3b7c9e1f4a8b2d`
+* Salve as alterações. Com isso, o Render **nunca mais** vai gerar chaves aleatórias no boot!
+
+#### 2. Resetar o Schema no Supabase (Elimina a chave antiga corrompida):
+Como esse Supabase é exclusivo para o n8n e foi criado do zero:
+1. Abra o painel do Supabase no projeto `n8n's Project`.
+2. No menu lateral esquerdo, clique no ícone **SQL Editor** (`>_`).
+3. Clique em **New query**, cole o código abaixo e clique em **Run**:
+   ```sql
+   DROP SCHEMA public CASCADE;
+   CREATE SCHEMA public;
+   GRANT ALL ON SCHEMA public TO postgres;
+   GRANT ALL ON SCHEMA public TO public;
+   ```
+4. O Supabase limpa o schema `public` em 1 segundo.
+
+#### 3. Fazer Deploy no Render:
+No painel do Render, vá em **Manual Deploy** > **Deploy latest commit** (ou aguarde o redeploy automático após salvar a variável `N8N_ENCRYPTION_KEY`).
+* O n8n iniciará, detectará a chave fixa `N8N_ENCRYPTION_KEY`, recriará as tabelas no Supabase limpo e ficará **Live** na porta 5678!
+* O erro `502 Bad Gateway` desaparecerá e seu n8n voltará a funcionar imediatamente.
+
+---
+
+### Dúvida sobre a Porta no Render Settings:
+Você **não precisa alterar nada na aba Settings sobre porta**!  
+Como a variável `PORT=5678` já está configurada nas *Environment Variables*, o Render detecta e roteia automaticamente o tráfego HTTPS para a porta `5678`. O único motivo de dar 502 era o container que estava crashando antes de conseguir subir.
