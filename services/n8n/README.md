@@ -139,11 +139,16 @@ Adicione as seguintes variáveis na aba **Environment**:
 | `AUTHENTICATION_API_KEY` | `gltech_evolution_secret_key_2026` (sua chave secreta) |
 | `DATABASE_ENABLED` | `true` |
 | `DATABASE_PROVIDER` | `postgresql` |
-| `DATABASE_CONNECTION_URI` | `postgresql://postgres.plfwkvnhhhjnqrmrlbzl:Guidata%404834@aws-1-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require` |
+| `DATABASE_CONNECTION_URI` | `postgresql://postgres.plfwkvnhhhjnqrmrlbzl:Guidata%404834@aws-1-us-west-2.pooler.supabase.com:5432/postgres?schema=evolution&sslmode=require` |
 | `DATABASE_CONNECTION_CLIENT_NAME` | `evolution_api` |
 | `PORT` | `8080` |
 
-> ⚠️ **Atenção:** Usamos o pooler `aws-1-us-west-2.pooler.supabase.com` porque ele tem IPv4 (o Render não suporta IPv6 do host direto `db.xxx.supabase.co`). Além disso, o usuário do pooler deve conter o ID do projeto (`postgres.plfwkvnhhhjnqrmrlbzl`) e a senha com `@` vira `%40`.
+> ⚠️ **Atenção sobre o Schema Isolado:** Adicionamos `?schema=evolution` para isolar as tabelas da Evolution API das tabelas do n8n (que rodam no schema `public`). Antes de iniciar, execute no SQL Editor do Supabase:
+> ```sql
+> CREATE SCHEMA IF NOT EXISTS evolution;
+> GRANT ALL ON SCHEMA evolution TO postgres;
+> GRANT ALL ON SCHEMA evolution TO public;
+> ```
 
 ### 3. Conectar seu WhatsApp via QR Code:
 1. Assim que a Evolution API ficar **Live**, acesse o painel ou envie um POST para `/instance/create` com o nome `gltech_ofertas`.
