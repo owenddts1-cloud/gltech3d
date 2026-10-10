@@ -141,19 +141,17 @@ Adicione as seguintes variáveis na aba **Environment**:
 | `DATABASE_PROVIDER` | `postgresql` |
 | `DATABASE_CONNECTION_URI` | `postgresql://postgres.plfwkvnhhhjnqrmrlbzl:Guidata%404834@aws-1-us-west-2.pooler.supabase.com:5432/postgres?schema=evolution&sslmode=require` |
 | `DATABASE_CONNECTION_CLIENT_NAME` | `evolution_api` |
-| `PORT` | `8080` |
+| `CACHE_REDIS_ENABLED` | `false` (desativa a busca contínua por Redis local) |
+| `CACHE_LOCAL_ENABLED` | `true` (usa cache em memória local) |
 
-> ⚠️ **Atenção sobre o Schema Isolado:** Adicionamos `?schema=evolution` para isolar as tabelas da Evolution API das tabelas do n8n (que rodam no schema `public`). Antes de iniciar, execute no SQL Editor do Supabase:
-> ```sql
-> CREATE SCHEMA IF NOT EXISTS evolution;
-> GRANT ALL ON SCHEMA evolution TO postgres;
-> GRANT ALL ON SCHEMA evolution TO public;
-> ```
+> ⚠️ **Atenção sobre o Schema Isolado:** Usamos `?schema=evolution` para isolar as tabelas da Evolution API das tabelas do n8n (que rodam no schema `public`).
 
 ### 3. Conectar seu WhatsApp via QR Code:
-1. Assim que a Evolution API ficar **Live**, acesse o painel ou envie um POST para `/instance/create` com o nome `gltech_ofertas`.
-2. Escaneie o QR Code no seu celular (WhatsApp > Aparelhos Conectados).
-3. A sessão será salva diretamente na tabela do Supabase e o n8n poderá disparar mensagens de mídia e texto em todos os seus grupos!
+1. Acesse o painel Manager da sua Evolution API:
+   👉 [https://evolution-api-gltech.onrender.com/manager](https://evolution-api-gltech.onrender.com/manager)
+2. Faça login com a sua API Key: `gltech_evolution_secret_2026`
+3. Crie a instância `gltech_ofertas` e escaneie o QR Code no seu celular (*WhatsApp > Aparelhos Conectados*).
+4. A sessão será salva diretamente no schema `evolution` do seu Supabase e o n8n poderá disparar ofertas nos seus grupos!
 
 ---
 
