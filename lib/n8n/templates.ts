@@ -4,6 +4,16 @@ import rawTemplates from "./templates-data.json";
 // Templates dedicados da pasta services/n8n/templates/
 export const WORKSPACE_TEMPLATES: N8nTemplateItem[] = [
   {
+    id: "tpl_gltech_achadinhos_master",
+    title: "GLTech3D — Achadinhos Multicanal Master (ML, Shopee, Amazon, Sheets & WhatsApp)",
+    category: "⭐ GLTech Workspace",
+    description: "Automação completa inspirada no sistema Garimpa Store: mineração com cron 2h, IA para geração de copy persuasiva com cálculo De/Por, logging em planilha Google Sheets no Drive e envio em loop para grupos de WhatsApp via Evolution API com delay anti-ban.",
+    jsonContent: {
+      name: "GLTech3D - Achadinhos Multicanal Master",
+      file: "services/n8n/templates/achadinhos-multicanal-master.json",
+    },
+  },
+  {
     id: "tpl_gltech_bot_ofertas",
     title: "GLTech3D — Bot de Ofertas WhatsApp (Evolution API) & Telegram",
     category: "⭐ GLTech Workspace",

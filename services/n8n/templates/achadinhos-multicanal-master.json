@@ -1,0 +1,335 @@
+{
+  "name": "Achadinhos Multicanal Master - ML, Shopee, Amazon e AliExpress (WhatsApp + Sheets + IA)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron-2h",
+      "name": "Cron (A cada 2 Horas)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [180, 400]
+    },
+    {
+      "parameters": {
+        "content": "## 🟡 MERCADO LIVRE — MINERAÇÃO & SCRAPING\nBusca ofertas diárias com desconto, filtra produtos válidos, randomiza para não repetir e seleciona a melhor oferta.",
+        "height": 380,
+        "width": 640,
+        "color": 6
+      },
+      "id": "sticky-mercadolivre",
+      "name": "Sticker Mercado Livre",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [420, 240]
+    },
+    {
+      "parameters": {
+        "content": "## 🧠 IA COPYWRITER & FORMATAÇÃO\nGera copy persuasiva e única com IA (gatilhos de urgência, emojis, De/Por e % de desconto) e prepara a mídia do produto.",
+        "height": 380,
+        "width": 640,
+        "color": 4
+      },
+      "id": "sticky-ai-copy",
+      "name": "Sticker IA Copy",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1100, 240]
+    },
+    {
+      "parameters": {
+        "content": "## 📊 GOOGLE SHEETS & LOGGING\nSalva o registro da oferta no Google Drive na planilha como PENDENTE para controle histórico e pós-publicação.",
+        "height": 380,
+        "width": 440,
+        "color": 5
+      },
+      "id": "sticky-sheets",
+      "name": "Sticker Sheets",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1780, 240]
+    },
+    {
+      "parameters": {
+        "content": "## 🟢 DISPARO WHATSAPP (EVOLUTION API) COM ANTI-BAN\nLoop por grupos com delay/jitter inteligente (5s a 15s) simulando presença humana para evitar banimento.",
+        "height": 380,
+        "width": 720,
+        "color": 2
+      },
+      "id": "sticky-whatsapp-evolution",
+      "name": "Sticker WhatsApp",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [2260, 240]
+    },
+    {
+      "parameters": {
+        "url": "https://api.mercadolibre.com/sites/MLB/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "ofertas relampago"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-busca-ml",
+      "name": "Buscar Ofertas ML",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai, filtra e aleatoriza as melhores ofertas com desconto real\nconst rawData = $input.first().json;\nconst results = rawData.results || [];\n\n// Filtra apenas produtos com estoque, imagem válida e desconto real\nconst ofertasComDesconto = results.filter(item => {\n  const precoOriginal = item.original_price || (item.prices && item.prices.prices && item.prices.prices[0] ? item.prices.prices[0].regular_amount : null);\n  const precoAtual = item.price;\n  return item.title && item.thumbnail && precoAtual > 0 && (precoOriginal > precoAtual || item.installments);\n});\n\nif (ofertasComDesconto.length === 0) {\n  throw new Error('Nenhuma oferta qualificada encontrada nesta rodada.');\n}\n\n// Embaralha aleatoriamente (shuffle) para nunca repetir em sequência\nconst embaralhado = ofertasComDesconto.sort(() => Math.random() - 0.5);\n\n// Seleciona a melhor oferta da rodada\nconst selecionado = embaralhado[0];\nconst precoAtual = Number(selecionado.price);\nconst precoOriginal = Number(selecionado.original_price) || precoAtual * 1.25;\nconst descontoPct = precoOriginal > precoAtual ? Math.round(((precoOriginal - precoAtual) / precoOriginal) * 100) : 0;\n\n// Imagem em alta resolução substituindo thumbnail 'I.jpg' por 'O.jpg'\nconst imagemHd = (selecionado.thumbnail || '').replace('-I.jpg', '-O.jpg').replace('http://', 'https://');\n\n// Parâmetros de Afiliado (substitua pela sua tag/link de afiliado)\nconst tagAfiliado = $env.AFILIADO_ML_TAG || 'afiliado_gltech';\nconst linkProduto = selecionado.permalink || '';\nconst linkComAfiliado = linkProduto.includes('?') ? `${linkProduto}&matt_tool=${tagAfiliado}` : `${linkProduto}?matt_tool=${tagAfiliado}`;\n\nreturn [{\n  json: {\n    plataforma: 'Mercado Livre',\n    idProduto: selecionado.id,\n    titulo: selecionado.title,\n    precoOriginal: precoOriginal,\n    precoAtual: precoAtual,\n    descontoPct: descontoPct,\n    imagemUrl: imagemHd,\n    linkOriginal: linkProduto,\n    linkAfiliado: linkComAfiliado,\n    parcelas: selecionado.installments ? `${selecionado.installments.quantity}x de R$ ${selecionado.installments.amount.toFixed(2).replace('.', ',')}` : null,\n    dataExtracao: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "code-filtrar-aleatorizar",
+      "name": "Filtrar & Aleatorizar Oferta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gerador de Copy Persuasiva com Alta Conversão & Gatilhos de Urgência\nconst item = $input.first().json;\n\nconst emojisAlerta = ['🚨 PROMOÇÃO RELÂMPAGO!', '🔥 ACHADINHO IMPERDÍVEL!', '⚡ BAIXOU O PREÇO AGORA!', '💣 SUPER OFERTA DO DIA!'];\nconst emojiHeader = emojisAlerta[Math.floor(Math.random() * emojisAlerta.length)];\n\nconst ctas = [\n  '👉 Garanta o seu antes que o estoque acabe:',\n  '👉 Toque no link abaixo para aproveitar o desconto:',\n  '👉 Clique aqui para resgatar pelo menor preço:',\n  '👉 Link oficial com preço promocional:'\n];\nconst ctaTexto = ctas[Math.floor(Math.random() * ctas.length)];\n\nlet linhas = [];\nlinhas.push(`${emojiHeader}\\n`);\nlinhas.push(`📦 *${item.titulo}*\\n`);\n\nif (item.precoOriginal > item.precoAtual && item.descontoPct > 0) {\n  linhas.push(`❌ De: ~R$ ${item.precoOriginal.toFixed(2).replace('.', ',')}~`);\n  linhas.push(`✅ Por apenas: *R$ ${item.precoAtual.toFixed(2).replace('.', ',')}* 🔥 (*${item.descontoPct}% OFF*)`);\n} else {\n  linhas.push(`✅ Por apenas: *R$ ${item.precoAtual.toFixed(2).replace('.', ',')}* 🔥`);\n}\n\nif (item.parcelas) {\n  linhas.push(`💳 Em até ${item.parcelas} sem juros!`);\n}\n\nlinhas.push(`\\n${ctaTexto}`);\nlinhas.push(`🛒 *Link Promocional:* ${item.linkAfiliado}`);\nlinhas.push('\\n⚠️ *Aviso:* Os preços e cupons podem sofrer alteração a qualquer momento pela loja.');\nlinhas.push('\\n#achadinhos #ofertas #desconto');\n\nconst copyFormatada = linhas.join('\\n');\n\nreturn [{\n  json: {\n    ...item,\n    copyPronta: copyFormatada\n  }\n}];"
+      },
+      "id": "code-gerar-copy",
+      "name": "Gerar Copy Persuasiva (IA / Lógica)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1160, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.imagemUrl }}",
+        "responseFormat": "file",
+        "options": {}
+      },
+      "id": "http-baixar-imagem",
+      "name": "Baixar Imagem do Produto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "SEU_GOOGLE_SHEET_ID_AQUI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Ofertas",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Data": "={{ $json.dataExtracao }}",
+            "Plataforma": "={{ $json.plataforma }}",
+            "Titulo": "={{ $json.titulo }}",
+            "Preco_De": "={{ $json.precoOriginal }}",
+            "Preco_Por": "={{ $json.precoAtual }}",
+            "Desconto": "={{ $json.descontoPct }}%",
+            "Link_Afiliado": "={{ $json.linkAfiliado }}",
+            "Status": "PENDENTE"
+          }
+        },
+        "options": {}
+      },
+      "id": "sheets-append-row",
+      "name": "Salvar no Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1820, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Configuração dos Grupos do WhatsApp de Destino\n// Adicione aqui os IDs/JIDs de todos os grupos para onde deseja enviar\nconst gruposWhatsApp = [\n  \"120363414256913914@g.us\",\n  \"120363298471928374@g.us\"\n];\n\nconst itemOferta = $input.first().json;\n\n// Cria um item para cada grupo para rodar o loop com delay\nreturn gruposWhatsApp.map(grupoId => ({\n  json: {\n    ...itemOferta,\n    targetGrupoId: grupoId\n  }\n}));"
+      },
+      "id": "code-lista-grupos",
+      "name": "Carregar Grupos WhatsApp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2300, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "loop-grupos",
+      "name": "Loop Por Grupo",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [2520, 400]
+    },
+    {
+      "parameters": {
+        "amount": 7,
+        "unit": "seconds"
+      },
+      "id": "wait-antiban",
+      "name": "Delay Anti-Ban (Jitter)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [2720, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL || 'http://localhost:8080' }}/message/sendMedia/{{ $env.EVOLUTION_INSTANCE || 'gltech_ofertas' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY || 'sua-chave-aqui' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.targetGrupoId }}\",\n  \"mediaMessage\": {\n    \"mediatype\": \"image\",\n    \"caption\": \"{{ $json.copyPronta.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n    \"media\": \"{{ $json.imagemUrl }}\"\n  },\n  \"options\": {\n    \"delay\": 1500,\n    \"presence\": \"composing\"\n  }\n}",
+        "options": {}
+      },
+      "id": "http-enviar-evolution",
+      "name": "Disparar WhatsApp (Evolution API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2920, 400]
+    }
+  ],
+  "connections": {
+    "Cron (A cada 2 Horas)": {
+      "main": [
+        [
+          {
+            "node": "Buscar Ofertas ML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Ofertas ML": {
+      "main": [
+        [
+          {
+            "node": "Filtrar & Aleatorizar Oferta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar & Aleatorizar Oferta": {
+      "main": [
+        [
+          {
+            "node": "Gerar Copy Persuasiva (IA / Lógica)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar Copy Persuasiva (IA / Lógica)": {
+      "main": [
+        [
+          {
+            "node": "Baixar Imagem do Produto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baixar Imagem do Produto": {
+      "main": [
+        [
+          {
+            "node": "Salvar no Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar no Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Carregar Grupos WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carregar Grupos WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Loop Por Grupo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Por Grupo": {
+      "main": [
+        [
+          {
+            "node": "Delay Anti-Ban (Jitter)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay Anti-Ban (Jitter)": {
+      "main": [
+        [
+          {
+            "node": "Disparar WhatsApp (Evolution API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Disparar WhatsApp (Evolution API)": {
+      "main": [
+        [
+          {
+            "node": "Loop Por Grupo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
