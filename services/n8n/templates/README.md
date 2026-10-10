@@ -20,6 +20,7 @@ Eu lerei, interpretarei os nós, corrigirei as variáveis e devolverei o JSON pr
 
 ## 📂 Templates Iniciais Inclusos
 
+* `shopee-achadinhos-filtros-avancados.json`: Fluxo especializado da Shopee com os nós de filtro enviados pelo usuário (score de palavras positivas/negativas, preço min/max, comissão mínima e diversificação por categoria anti-flood) com envio para Google Sheets e WhatsApp.
 * `achadinhos-multicanal-master.json`: Automação completa (Mercado Livre, Shopee, Amazon, AliExpress) com Cron 2h, mineração/scraping, IA para copy persuasiva e cálculo De/Por, logging em planilha Google Sheets no Drive e envio em loop para grupos de WhatsApp via Evolution API com delay anti-ban.
 * `bot-ofertas-evolution.json`: Fluxo profissional de captura de ofertas via Webhook, enriquecimento de copy com IA, rate limiting (anti-banimento) e disparo para Evolution API (WhatsApp) e Telegram.
 * `keepalive-monitor.json`: Fluxo leve com trigger Webhook e resposta imediata com timestamp para manutenção contínua 24/7.

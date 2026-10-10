@@ -1,0 +1,259 @@
+{
+  "name": "Shopee Achadinhos - Filtros Avançados, Comissão, Anti-Flood e Disparo WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "node-cron-trigger",
+      "name": "Cron (A cada 2 Horas)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [180, 360]
+    },
+    {
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "maxPrice",
+              "value": 79.9
+            },
+            {
+              "name": "minPrice",
+              "value": 5
+            },
+            {
+              "name": "minScore",
+              "value": 1
+            },
+            {
+              "name": "minComission",
+              "value": 1
+            },
+            {
+              "name": "minComissionRate",
+              "value": 0.1
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-config-fluxo",
+      "name": "Configuração do fluxo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [400, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "// =====================\n// 1) CONFIG (puxa do node \"Configuração do fluxo\")\n// =====================\nconst cfgItem = ($items(\"Configuração do fluxo\")?.[0]?.json) ?? {};\nconst maxPrice = Number(cfgItem.maxPrice ?? 79.90);\nconst minPrice = Number(cfgItem.minPrice ?? 0);\nconst minScore = Number(cfgItem.minScore ?? 1);\n\n// =====================\n// 2) KEYWORDS (positivas e negativas)\n// =====================\nconst POSITIVE_KEYWORDS = [\n  \"kit\", \"organizador\", \"suporte\", \"capa\", \"capinha\", \"pelicula\", \"película\",\n  \"usb\", \"type c\", \"tipo c\", \"carregador\", \"cabo\", \"adaptador\",\n  \"led\", \"luz\", \"lanterna\", \"sensor\", \"magnetico\", \"magnético\", \"ima\", \"imã\",\n  \"portatil\", \"portátil\", \"dobravel\", \"dobrável\", \"recarregavel\", \"recarregável\", \"silicone\",\n  \"cozinha\", \"casa\", \"decoracao\", \"decoração\", \"banheiro\", \"limpeza\",\n  \"pet\", \"gato\", \"cachorro\", \"automotivo\", \"carro\",\n  \"porta\", \"gancho\", \"ganchos\", \"cabide\", \"cabideiro\", \"prateleira\",\n  \"caixa\", \"caixinha\", \"pote\", \"pote hermetico\", \"pote hermético\", \"recipiente\",\n  \"cesto\", \"lixeira\", \"dispenser\", \"dispensador\", \"dosador\", \"borrifador\", \"pulverizador\",\n  \"escova\", \"esponja\", \"toalha\", \"pano\", \"tapete\", \"capacho\",\n  \"pelicula 3d\", \"película 3d\", \"suporte celular\", \"suporte carro\", \"fone\", \"fone bluetooth\",\n  \"decorativo\", \"decorativa\", \"quadro\", \"placa\", \"plaquinha\", \"adesivo\", \"moldura\", \"enfeite\",\n  \"necessaire\", \"nécessaire\", \"pente\", \"pinça\", \"lixa\", \"hidratante\", \"sabonete\",\n  \"estojo\", \"caneta\", \"caderno\", \"material escolar\",\n  \"camiseta\", \"camisa\", \"blusa\", \"cropped\", \"moletom\", \"jaqueta\",\n  \"calca\", \"calça\", \"bermuda\", \"short\", \"vestido\", \"saia\", \"conjunto\",\n  \"moda\", \"feminino\", \"masculino\", \"unissex\", \"casual\", \"basico\", \"básico\", \"inverno\", \"verao\", \"verão\"\n];\n\nconst NEGATIVE_KEYWORDS = [\n  \"emagrecedor\", \"capsulas\", \"cápsulas\", \"gotas\", \"original envio hoje\", \"green\", \"lepti\",\n  \"curso\", \"ebook\", \"apostila\", \"assinatura\",\n  \"casamento\", \"gravata\", \"urna\", \"pix\", \"alianca\", \"aliança\", \"porta alianca\", \"porta aliança\"\n];\n\nfunction toNumber(v) {\n  if (v === null || v === undefined) return NaN;\n  const s = String(v).trim().replace(\",\", \".\");\n  const n = Number(s);\n  return Number.isFinite(n) ? n : NaN;\n}\n\nfunction norm(s) {\n  return String(s ?? \"\")\n    .toLowerCase()\n    .normalize(\"NFD\")\n    .replace(/[\\u0300-\\u036f]/g, \"\");\n}\n\nfunction countMatches(text, list) {\n  const hits = [];\n  for (const kw of list) {\n    const k = norm(kw);\n    if (k && text.includes(k)) hits.push(kw);\n  }\n  return hits;\n}\n\nconst root = $input.first()?.json ?? {};\nif (root.errors?.length) return [];\n\nconst nodes = root?.data?.productOfferV2?.nodes ?? root?.products ?? [];\nif (!Array.isArray(nodes) || nodes.length === 0) return [];\n\nlet offers = nodes.map(n => {\n  const price = toNumber(n.price);\n  return {\n    productName: n.productName ?? n.title ?? \"\",\n    offerLink: n.offerLink ?? n.link ?? \"\",\n    productLink: n.productLink ?? n.url ?? \"\",\n    imageUrl: n.imageUrl ?? n.image ?? \"\",\n    price,\n    commissionRate: toNumber(n.commissionRate ?? 0.2),\n    commission: toNumber(n.commission ?? price * 0.2),\n  };\n});\n\noffers = offers.filter(o =>\n  Number.isFinite(o.price) &&\n  o.price >= minPrice &&\n  o.price <= maxPrice\n);\n\noffers = offers.map(o => {\n  const name = norm(o.productName);\n  const posHits = countMatches(name, POSITIVE_KEYWORDS);\n  const negHits = countMatches(name, NEGATIVE_KEYWORDS);\n  const score = (posHits.length * 1) - (negHits.length * 2);\n  return { ...o, score, posHits, negHits };\n});\n\noffers = offers.filter(o => o.score >= minScore);\n\noffers.sort((a, b) => {\n  if (b.score !== a.score) return b.score - a.score;\n  return a.price - b.price;\n});\n\nreturn offers.map(oferta => ({ json: { oferta } }));"
+      },
+      "id": "node-filtro-preco-palavras",
+      "name": "Filtrar Achadinhos (Preço + Palavras)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtrar Comissão\nconst cfg = $node[\"Configuração do fluxo\"].json;\nconst minComission = Number(cfg.minComission ?? 1);\nconst minComissionRate = Number(cfg.minComissionRate ?? 0.1);\n\nconst items = $input.all();\n\nreturn items.filter((it) => {\n  const o = it.json.oferta || it.json;\n  const commission = Number(o.commission ?? 0);\n  const commissionRate = Number(o.commissionRate ?? 0);\n  return commission >= minComission && commissionRate >= minComissionRate;\n});"
+      },
+      "id": "node-filtro-comissao",
+      "name": "Filtrar Comissão",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node: Diversificar (dedupe + limite por categoria)\nconst MAX_PER_CATEGORY = 3;\n\nconst LIMITED_CATEGORIES = new Set([\n  \"roupas\", \"oculos\", \"relogio\", \"livros\", \"capinhas\", \"peliculas\"\n]);\n\nconst CATEGORY_RULES = [\n  {\n    cat: \"roupas\",\n    keys: [\"camiseta\",\"camisa\",\"blusa\",\"cropped\",\"moletom\",\"jaqueta\",\"calca\",\"calça\",\"bermuda\",\"short\",\"vestido\",\"saia\",\"conjunto\",\"moda\",\"feminino\",\"masculino\",\"unissex\",\"casual\",\"basico\",\"básico\",\"inverno\",\"verao\",\"verão\"],\n  },\n  {\n    cat: \"oculos\",\n    keys: [\"oculos\",\"óculos\",\"lente\",\"uv400\",\"solar\",\"armação\",\"armacao\"],\n  },\n  {\n    cat: \"relogio\",\n    keys: [\"relogio\",\"relógio\",\"smartwatch\",\"pulseira inteligente\",\"watch\"],\n  },\n  {\n    cat: \"livros\",\n    keys: [\"livro\",\"livros\",\"ebook\",\"e-book\",\"romance\",\"hq\",\"manga\",\"mangá\",\"box\"],\n  },\n  {\n    cat: \"capinhas\",\n    keys: [\"capinha\",\"capa case\",\"capa\",\"case\",\"full cover\",\"360\"],\n  },\n  {\n    cat: \"peliculas\",\n    keys: [\"pelicula\",\"película\",\"vidro\",\"glass\",\"protector\",\"protetor de tela\"],\n  },\n];\n\nfunction norm(s) {\n  return String(s || \"\").toLowerCase().normalize(\"NFD\").replace(/[\\u0300-\\u036f]/g, \"\").replace(/[^\\p{L}\\p{N}\\s]+/gu, \" \").replace(/\\s+/g, \" \").trim();\n}\n\nfunction detectCategory(productName) {\n  const n = norm(productName);\n  for (const rule of CATEGORY_RULES) {\n    for (const k of rule.keys) {\n      if (n.includes(norm(k))) return rule.cat;\n    }\n  }\n  return \"outros\";\n}\n\nconst itemsIn = $input.all();\nitemsIn.sort((a, b) => {\n  const A = a.json?.oferta || {};\n  const B = b.json?.oferta || {};\n  const sA = Number(A.score ?? 0);\n  const sB = Number(B.score ?? 0);\n  if (sB !== sA) return sB - sA;\n  const cA = Number(A.commission ?? 0);\n  const cB = Number(B.commission ?? 0);\n  return cB - cA;\n});\n\nconst seenNames = new Set();\nconst catCounts = new Map();\nconst out = [];\n\nfor (const item of itemsIn) {\n  const oferta = item.json?.oferta;\n  if (!oferta?.productName) continue;\n  const nameKey = norm(oferta.productName);\n  if (!nameKey || seenNames.has(nameKey)) continue;\n\n  const cat = detectCategory(oferta.productName);\n  oferta._categoria = cat;\n\n  if (LIMITED_CATEGORIES.has(cat)) {\n    const current = catCounts.get(cat) ?? 0;\n    if (current >= MAX_PER_CATEGORY) continue;\n    catCounts.set(cat, current + 1);\n  }\n\n  seenNames.add(nameKey);\n  out.push({ json: { oferta } });\n}\n\nreturn out;"
+      },
+      "id": "node-filtro-diversificar",
+      "name": "Filtro do Filtro (Dedupe & Anti-Flood)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gera Copy Altamente Persuasiva e Formatada no Padrão do WhatsApp Garimpa Store\nconst o = $input.first().json.oferta || $input.first().json;\n\nconst titulo = o.productName || 'Achadinho Exclusivo';\nconst preco = Number(o.price) || 0;\nconst link = o.offerLink || o.productLink || '';\nconst imagem = o.imageUrl || '';\n\nlet linhas = [];\nlinhas.push(`🔥 **OFERTA IMPERDÍVEL SHOPEE!** 🛍️\\n`);\nlinhas.push(`📦 **${titulo}**\\n`);\nlinhas.push(`💵 **R$ ${preco.toFixed(2).replace('.', ',')}** ✨`);\nlinhas.push(`\\n✅ Ideal para praticidade no dia a dia`);\nlinhas.push(`✅ Qualidade garantida e envio rápido`);\nlinhas.push(`\\n👉 **GARANTA O SEU AGORA:**`);\nlinhas.push(`🔗 ${link}`);\nlinhas.push(`\\n⏰ *Aproveite enquanto dura o estoque promocional!*`);\n\nconst copyFormatada = linhas.join('\\n');\n\nreturn [{\n  json: {\n    'Nome Produto': titulo,\n    'Imagem Produto': imagem,\n    'preco': preco,\n    'link_produtos_afiliado': link,\n    'titulo_produto': titulo,\n    'mensagem': copyFormatada,\n    'Plataforma': 'Shopee',\n    'Status_Meta': 'Pendente'\n  }\n}];"
+      },
+      "id": "node-gerar-copy-shopee",
+      "name": "Gerador de Copy WhatsApp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1360, 360]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "SEU_GOOGLE_SHEET_ID_AQUI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "produtos",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nome Produto": "={{ $json['Nome Produto'] }}",
+            "Imagem Produto": "={{ $json['Imagem Produto'] }}",
+            "preco": "={{ $json['preco'] }}",
+            "link_produtos_afiliado": "={{ $json['link_produtos_afiliado'] }}",
+            "titulo_produto": "={{ $json['titulo_produto'] }}",
+            "mensagem": "={{ $json['mensagem'] }}",
+            "Plataforma": "={{ $json['Plataforma'] }}",
+            "Status_Meta": "={{ $json['Status_Meta'] }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "node-sheets-append",
+      "name": "Salvar Planilha Achadinhos (Aba produtos)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1600, 360]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "node-wait-antiban",
+      "name": "Delay Anti-Ban (5s)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1840, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution-api-gltech.onrender.com/message/sendMedia/gltech_ofertas",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "gltech_evolution_secret_2026"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"SEU_GRUPO_ID@g.us\",\n  \"mediaMessage\": {\n    \"mediatype\": \"image\",\n    \"caption\": \"{{ $json['mensagem'].replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n    \"media\": \"{{ $json['Imagem Produto'] }}\"\n  },\n  \"options\": {\n    \"delay\": 1500,\n    \"presence\": \"composing\"\n  }\n}",
+        "options": {}
+      },
+      "id": "node-disparo-evolution",
+      "name": "Disparar WhatsApp (Evolution API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2080, 360]
+    }
+  ],
+  "connections": {
+    "Cron (A cada 2 Horas)": {
+      "main": [
+        [
+          {
+            "node": "Configuração do fluxo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuração do fluxo": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Achadinhos (Preço + Palavras)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Achadinhos (Preço + Palavras)": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Comissão",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Comissão": {
+      "main": [
+        [
+          {
+            "node": "Filtro do Filtro (Dedupe & Anti-Flood)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtro do Filtro (Dedupe & Anti-Flood)": {
+      "main": [
+        [
+          {
+            "node": "Gerador de Copy WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerador de Copy WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Salvar Planilha Achadinhos (Aba produtos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar Planilha Achadinhos (Aba produtos)": {
+      "main": [
+        [
+          {
+            "node": "Delay Anti-Ban (5s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay Anti-Ban (5s)": {
+      "main": [
+        [
+          {
+            "node": "Disparar WhatsApp (Evolution API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

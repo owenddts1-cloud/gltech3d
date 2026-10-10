@@ -4,6 +4,16 @@ import rawTemplates from "./templates-data.json";
 // Templates dedicados da pasta services/n8n/templates/
 export const WORKSPACE_TEMPLATES: N8nTemplateItem[] = [
   {
+    id: "tpl_gltech_shopee_filtros",
+    title: "GLTech3D — Shopee Achadinhos (Filtros Avançados, Comissão & Anti-Flood)",
+    category: "⭐ GLTech Workspace",
+    description: "Pipeline completo da Shopee com os nós de filtro enviados pelo usuário: pontuação de palavras-chave positivas/negativas, corte de preço mínimo/máximo, comissão mínima e anti-flood por categoria com envio direto para Evolution API e Google Sheets.",
+    jsonContent: {
+      name: "GLTech3D - Shopee Achadinhos Filtros Avançados",
+      file: "services/n8n/templates/shopee-achadinhos-filtros-avancados.json",
+    },
+  },
+  {
     id: "tpl_gltech_achadinhos_master",
     title: "GLTech3D — Achadinhos Multicanal Master (ML, Shopee, Amazon, Sheets & WhatsApp)",
     category: "⭐ GLTech Workspace",

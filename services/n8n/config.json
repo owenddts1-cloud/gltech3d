@@ -45,10 +45,17 @@
     "baseUrl": "https://evolution-api-gltech.onrender.com",
     "managerUrl": "https://evolution-api-gltech.onrender.com/manager",
     "apiKey": "gltech_evolution_secret_2026",
+    "instanceName": "gltech_ofertas",
+    "instanceToken": "A0E27E275DDF-42BB-9933-1DE16461CCCF",
     "supabaseProject": "https://plfwkvnhhhjnqrmrlbzl.supabase.co",
     "supabaseAnonKey": "sb_publishable_eqHJtg__0p0urXDFPwUEzw_2cKnTitd",
     "databaseConnectionUri": "postgresql://postgres.plfwkvnhhhjnqrmrlbzl:Guidata%404834@aws-1-us-west-2.pooler.supabase.com:5432/postgres?schema=evolution&sslmode=require",
     "databaseProvider": "postgresql"
+  },
+  "mcp": {
+    "serverUrl": "https://n8n-636f.onrender.com/mcp-server/http",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwNGYwNjg4Mi05NzA3LTQyYWItYjBmOS1mYjhkMDE3N2UwN2QiLCJpc3MiOiJuOG4iLCJhdWQiOiJtY3Atc2VydmVyLWFwaSIsImp0aSI6IjFlZWU0ZjBhLTU0MmQtNGU4Ny05ZTY4LTc3MGIyMWViNWVhYyIsImlhdCI6MTc5MTY2NDIyNn0.i5EGYo0wC0U5oMu8F9z0lL5rrcTSlp2cJpypTkDSxTM",
+    "note": "Servidor MCP do n8n para conexão direta com IA e IDEs"
   },
   "integrations": {
     "targetChannels": ["whatsapp", "telegram"],
