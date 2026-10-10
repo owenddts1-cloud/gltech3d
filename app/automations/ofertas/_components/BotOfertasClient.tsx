@@ -5,6 +5,7 @@ import { Tag, Sparkle, PlugsConnected, ShieldCheck, Clock, ArrowsClockwise } fro
 import { NovaOfertaForm } from "@/components/bot-ofertas/NovaOfertaForm";
 import { WhatsAppMockupPreview } from "@/components/bot-ofertas/WhatsAppMockupPreview";
 import { PlanilhaFilaTable } from "@/components/bot-ofertas/PlanilhaFilaTable";
+import { EditarOfertaModal } from "@/components/bot-ofertas/EditarOfertaModal";
 import { ConexoesManager } from "@/components/bot-ofertas/ConexoesManager";
 import { AntiBanSettings } from "@/components/bot-ofertas/AntiBanSettings";
 import { HistoricoView } from "@/components/bot-ofertas/HistoricoView";
@@ -31,6 +32,7 @@ export function BotOfertasClient({
   const [history, setHistory] = useState<HistoryItem[]>(initialHistory);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
+  const [editingOffer, setEditingOffer] = useState<OfferItem | null>(null);
 
   // Form state compartilhado entre o Form e o WhatsApp Mockup Preview
   const [formData, setFormData] = useState({
@@ -124,17 +126,21 @@ export function BotOfertasClient({
   };
 
   const handleEditOffer = (offer: OfferItem) => {
-    setFormData({
-      title: offer.title,
-      category: offer.category,
-      originalPrice: String(offer.originalPrice || ""),
-      promoPrice: String(offer.promoPrice || ""),
-      coupon: offer.coupon || "",
-      affiliateUrl: offer.affiliateUrl || "",
-      imageUrl: offer.imageUrl || "",
+    setEditingOffer(offer);
+  };
+
+  const handleSaveEditedOffer = async (updated: OfferItem) => {
+    const res = await fetch(`/api/bot-ofertas/offers/${updated.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updated),
     });
-    setActiveTab("ofertas");
-    toast.info("Oferta carregada no formulário para edição.");
+    const data = await res.json();
+    if (!data.success && data.error) {
+      throw new Error(data.error);
+    }
+    setOffers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    await refreshData();
   };
 
   const handleSaveConfig = async (newCfg: Partial<BotConfigData>) => {
@@ -360,6 +366,12 @@ export function BotOfertasClient({
       )}
 
       {activeTab === "historico" && <HistoricoView history={history} />}
+      <EditarOfertaModal
+        offer={editingOffer}
+        isOpen={Boolean(editingOffer)}
+        onClose={() => setEditingOffer(null)}
+        onSave={handleSaveEditedOffer}
+      />
     </div>
   );
 }
