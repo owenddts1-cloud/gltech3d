@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GLTECH CRM — Bot de Ofertas (WhatsApp & Telegram)</title>
+  <!-- Google Fonts Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="top-nav">
+    <div class="nav-brand">
+      <div class="logo-icon">🖨️</div>
+      <div class="brand-text">
+        <h1>GLTECH <span>CRM</span></h1>
+        <p class="subtitle">Automações &gt; Bots de Ofertas (Afiliados)</p>
+      </div>
+    </div>
+
+    <div class="nav-status-indicators">
+      <div class="status-pill" id="wpp-status-pill">
+        <span class="status-dot disconnected" id="wpp-dot"></span>
+        <span id="wpp-status-text">WhatsApp: Desconectado</span>
+      </div>
+      <div class="status-pill" id="scheduler-status-pill">
+        <span class="status-dot paused" id="sched-dot"></span>
+        <span id="sched-status-text">Automação: Pausada</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main App Container -->
+  <div class="app-layout">
+    <!-- Sidebar Navigation Styled with GLTECH CRM Clay Palette -->
+    <aside class="sidebar">
+      <div class="sidebar-category-label">Automações</div>
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="tab-ofertas">
+          <span class="nav-icon">🛍️</span>
+          <span>Nova Oferta</span>
+        </button>
+        <button class="nav-item" data-tab="tab-fila">
+          <span class="nav-icon">📋</span>
+          <span>Planilha de Ofertas</span>
+          <span class="badge" id="pending-badge">0</span>
+        </button>
+        <button class="nav-item" data-tab="tab-conexoes">
+          <span class="nav-icon">📱</span>
+          <span>WhatsApp & Canais</span>
+        </button>
+        <button class="nav-item" data-tab="tab-automacao">
+          <span class="nav-icon">⚙️</span>
+          <span>Anti-Ban & Horários</span>
+        </button>
+        <button class="nav-item" data-tab="tab-historico">
+          <span class="nav-icon">📜</span>
+          <span>Histórico</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="quick-stat">
+          <span class="stat-label">Total</span>
+          <span class="stat-val" id="stat-total">0</span>
+        </div>
+        <div class="quick-stat">
+          <span class="stat-label">Disparadas</span>
+          <span class="stat-val" id="stat-sent">0</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="content-area">
+
+      <!-- TAB 1: NOVA OFERTA & PREVIEW -->
+      <section id="tab-ofertas" class="tab-content active">
+        <div class="breadcrumb-nav">
+          Automações / <span>Bots de Ofertas</span> / Nova Oferta
+        </div>
+        <div class="section-header">
+          <h2>Criar Nova Oferta</h2>
+          <p>Preencha os dados ou cole o link de afiliado para extração automática com preview em tempo real no padrão GLTech3D.</p>
+        </div>
+
+        <!-- Quick Scraper Banner -->
+        <div class="card scraper-card">
+          <div class="scraper-header">
+            <span class="scraper-badge">MÁGICA</span>
+            <h3>Puxar Dados Automáticos do Link</h3>
+          </div>
+          <p class="scraper-sub">Cole qualquer link do Mercado Livre, Shopee, Amazon, AliExpress ou Magalu:</p>
+          <div class="scraper-input-group">
+            <input type="url" id="scrape-url-input" placeholder="https://meli.la/... ou https://www.amazon.com.br/... ou link Shopee" />
+            <button class="btn btn-primary" id="btn-scrape">
+              <span class="btn-icon">⚡</span> Puxar Dados
+            </button>
+          </div>
+          <div id="scrape-feedback" class="feedback-msg"></div>
+        </div>
+
+        <div class="two-column-grid">
+          <!-- Form Card -->
+          <div class="card form-card">
+            <h3>Detalhes da Promoção</h3>
+            <form id="offer-form">
+              <div class="form-group">
+                <label for="offer-title">Título do Produto *</label>
+                <input type="text" id="offer-title" required placeholder="Ex: Filamento PLA 1.75mm Voolt3D 1kg Preto" />
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="offer-orig-price">Preço "DE" (R$)</label>
+                  <input type="number" step="0.01" id="offer-orig-price" placeholder="199.98" />
+                </div>
+                <div class="form-group">
+                  <label for="offer-promo-price">Preço "POR" (R$) *</label>
+                  <input type="number" step="0.01" id="offer-promo-price" required placeholder="105.98" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="offer-coupon">Cupom de Desconto (opcional)</label>
+                  <input type="text" id="offer-coupon" placeholder="Ex: R$ 2,00 OFF ou GLTECH3D" />
+                </div>
+                <div class="form-group">
+                  <label for="offer-category">Nicho / Categoria</label>
+                  <input type="text" id="offer-category" placeholder="Ex: Filamentos 3D, Resina, Acessórios" value="Filamentos 3D" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="offer-affiliate-url">Seu Link de Afiliado *</label>
+                <input type="url" id="offer-affiliate-url" required placeholder="https://meli.la/uy-H1GSDg0h0bWC ou https://amzn.to/..." />
+                <span class="field-hint">Cole o link com seu código de comissão (shope.ee, amzn.to, meli.la, s.click.aliexpress).</span>
+              </div>
+
+              <div class="form-group">
+                <label for="offer-image-url">URL da Foto do Produto *</label>
+                <input type="url" id="offer-image-url" placeholder="https://exemplo.com/foto.jpg" />
+                <span class="field-hint">A imagem é enviada com legenda, idêntica ao grupo de referência.</span>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="btn-save-offer">
+                  <span class="btn-icon">💾</span> Salvar na Fila
+                </button>
+                <button type="button" class="btn btn-warning" id="btn-dispatch-now">
+                  <span class="btn-icon">🚀</span> Disparar Agora
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Live WhatsApp Preview Card -->
+          <div class="card preview-card">
+            <div class="preview-header">
+              <span class="preview-badge">📱 Preview Real WhatsApp</span>
+              <span class="preview-target" id="preview-target-label">Grupo: Padrão</span>
+            </div>
+
+            <!-- Simulated WhatsApp Chat Bubble -->
+            <div class="wa-mockup">
+              <div class="wa-chat-bg">
+                <div class="wa-bubble">
+                  <!-- Watermark / Image container -->
+                  <div class="wa-media-container" id="wa-preview-media-box">
+                    <img id="wa-preview-img" src="https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80" alt="Preview da Oferta" />
+                    <div class="wa-watermark" id="wa-preview-watermark">GLTech3D</div>
+                  </div>
+
+                  <!-- Text Caption -->
+                  <div class="wa-caption" id="wa-preview-caption">
+                    <div class="caption-title">🛍️ EPC Kit 60 Canetas Acrílicas Brush Marcador Permanente 60 Cores Para Desenho Pintura Lettering Artesanato</div>
+                    <div class="caption-prices">
+                      <span class="price-de">De: R$ 199,98</span>
+                      <span class="price-por">Por: 105,98 ✅ (47% OFF)</span>
+                    </div>
+                    <div class="caption-coupon">🎟️ Use o cupom R$ 2,00 OFF</div>
+                    <div class="caption-link">🛒 <span class="link-text">https://meli.la/uy-H1GSDg0h0bWC</span></div>
+                    <div class="caption-tags">#anúncio #cacadoresderenda</div>
+                  </div>
+                  <div class="wa-time">18:00 <span class="wa-check">✓✓</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: PLANILHA DE OFERTAS (FILA) -->
+      <section id="tab-fila" class="tab-content">
+        <div class="breadcrumb-nav">
+          Automações / <span>Bots de Ofertas</span> / Planilha & Fila
+        </div>
+        <div class="section-header-flex">
+          <div>
+            <h2>Planilha de Ofertas & Fila de Disparo</h2>
+            <p>Gerencie todas as ofertas pendentes, edite valores ou importe direto via CSV.</p>
+          </div>
+          <div class="table-actions">
+            <button class="btn btn-outline" id="btn-export-csv">
+              <span class="btn-icon">📤</span> Exportar CSV
+            </button>
+            <label class="btn btn-outline file-upload-label">
+              <span class="btn-icon">📥</span> Importar CSV
+              <input type="file" id="csv-file-input" accept=".csv" style="display: none;" />
+            </label>
+            <button class="btn btn-danger-ghost" id="btn-clear-sent">
+              Limpar Enviadas
+            </button>
+          </div>
+        </div>
+
+        <div class="card table-card">
+          <div class="table-filters">
+            <input type="text" id="filter-search" placeholder="🔍 Filtrar por título ou categoria..." />
+            <select id="filter-status">
+              <option value="todos">Todos os Status</option>
+              <option value="pendente" selected>Apenas Pendentes</option>
+              <option value="enviado">Apenas Enviadas</option>
+            </select>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="offers-table">
+              <thead>
+                <tr>
+                  <th width="70">Foto</th>
+                  <th>Produto / Nicho</th>
+                  <th width="120">De / Por</th>
+                  <th width="120">Cupom</th>
+                  <th width="110">Status</th>
+                  <th width="160">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="offers-tbody">
+                <!-- Inserido dinamicamente via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: CONEXÕES (WHATSAPP & TELEGRAM) -->
+      <section id="tab-conexoes" class="tab-content">
+        <div class="breadcrumb-nav">
+          Automações / <span>Bots de Ofertas</span> / Canais de Disparo
+        </div>
+        <div class="section-header">
+          <h2>Conexões de Mensageria</h2>
+          <p>Conecte seu WhatsApp sem precisar de Docker ou VPS, e integre seu bot do Telegram.</p>
+        </div>
+
+        <div class="two-column-grid">
+          <!-- WhatsApp Baileys Card -->
+          <div class="card">
+            <div class="card-title-row">
+              <div class="card-icon-title">
+                <span class="icon-circle whatsapp-bg">💬</span>
+                <div>
+                  <h3>WhatsApp Web Gateway</h3>
+                  <p class="card-sub">Conexão direta Baileys (Zero Servidor Externo)</p>
+                </div>
+              </div>
+              <span class="badge" id="wpp-connection-badge">Desconectado</span>
+            </div>
+
+            <!-- QR Code Area -->
+            <div class="qr-container" id="qr-box">
+              <div class="qr-placeholder" id="qr-placeholder">
+                <div class="spinner"></div>
+                <p>Aguardando inicialização do QR Code...</p>
+              </div>
+              <img id="qr-image" src="" alt="Escaneie o QR Code no WhatsApp" style="display: none;" />
+            </div>
+
+            <!-- Connected Info -->
+            <div id="wpp-connected-info" class="connected-info-box" style="display: none;">
+              <div class="success-icon">✅</div>
+              <h4>WhatsApp Conectado e Operacional!</h4>
+              <p id="wpp-user-details">Sessão ativa e sincronizada.</p>
+            </div>
+
+            <div class="form-actions-inline">
+              <button class="btn btn-primary" id="btn-wpp-reconnect">
+                <span class="btn-icon">🔄</span> Conectar / Gerar QR
+              </button>
+              <button class="btn btn-danger" id="btn-wpp-logout">
+                <span class="btn-icon">🔌</span> Desconectar Sessão
+              </button>
+            </div>
+
+            <hr class="card-divider" />
+
+            <!-- Seleção de Grupo do WhatsApp -->
+            <div class="group-select-section">
+              <div class="group-title-row">
+                <h4>Grupo de Destino do WhatsApp</h4>
+                <button class="btn btn-sm btn-outline" id="btn-refresh-groups">Atualizar Grupos</button>
+              </div>
+              <p class="field-hint">Selecione o grupo que receberá os disparos (ex: "Tech Ofertas - Impressão 3D"):</p>
+
+              <select id="wpp-group-select" class="form-select">
+                <option value="">Carregando grupos...</option>
+              </select>
+
+              <div class="current-selected-box" id="current-group-box">
+                Nenhum grupo selecionado ainda.
+              </div>
+
+              <button class="btn btn-primary" id="btn-save-group-target">
+                Salvar Grupo Principal
+              </button>
+            </div>
+          </div>
+
+          <!-- Telegram Bot Card -->
+          <div class="card">
+            <div class="card-title-row">
+              <div class="card-icon-title">
+                <span class="icon-circle telegram-bg">✈️</span>
+                <div>
+                  <h3>Canal do Telegram</h3>
+                  <p class="card-sub">Postagem em canais públicos ou privados</p>
+                </div>
+              </div>
+              <span class="badge" id="tg-status-badge">Opcional</span>
+            </div>
+
+            <form id="tg-config-form">
+              <div class="form-group">
+                <label for="tg-bot-token">Telegram Bot Token</label>
+                <input type="password" id="tg-bot-token" placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxYZ" />
+                <span class="field-hint">Crie no Telegram com o @BotFather e cole o token aqui.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="tg-chat-id">Chat ID ou Username do Canal</label>
+                <input type="text" id="tg-chat-id" placeholder="@meucanaldeofertas ou -1001234567890" />
+                <span class="field-hint">Coloque o bot como administrador do canal para ele poder postar.</span>
+              </div>
+
+              <div class="form-actions-inline">
+                <button type="button" class="btn btn-outline" id="btn-test-tg">
+                  <span class="btn-icon">🧪</span> Testar Conexão
+                </button>
+                <button type="submit" class="btn btn-primary" id="btn-save-tg">
+                  <span class="btn-icon">💾</span> Salvar Telegram
+                </button>
+              </div>
+              <div id="tg-test-feedback" class="feedback-msg"></div>
+            </form>
+
+            <hr class="card-divider" />
+
+            <div class="info-tip-box">
+              <h5>💡 Dica Multi-Canal</h5>
+              <p>O Telegram não tem risco de ban por disparos. Você pode postar simultaneamente no WhatsApp e no seu canal do Telegram para multiplicar os cliques em seus links de afiliados!</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: AUTOMAÇÃO & ANTI-BAN -->
+      <section id="tab-automacao" class="tab-content">
+        <div class="breadcrumb-nav">
+          Automações / <span>Bots de Ofertas</span> / Motor Anti-Ban
+        </div>
+        <div class="section-header">
+          <h2>Motor de Automação & Proteção Anti-Ban</h2>
+          <p>Configure os intervalos e a blindagem contra detecção de spam pelo WhatsApp.</p>
+        </div>
+
+        <div class="card max-w-card">
+          <form id="automation-config-form">
+            <div class="toggle-row">
+              <div>
+                <h4>Disparo Automático da Fila</h4>
+                <p class="toggle-sub">Quando ativado, o sistema envia a próxima oferta pendente automaticamente dentro dos horários permitidos.</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="auto-dispatch-toggle">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <hr class="card-divider" />
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="cfg-interval">Intervalo Base entre Envios (Minutos)</label>
+                <input type="number" id="cfg-interval" min="15" max="180" value="40" />
+                <span class="field-hint">Recomendado: 35 a 50 minutos para não incomodar os membros.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="cfg-jitter">Variação Randômica Anti-Robô (Jitter em Minutos)</label>
+                <input type="number" id="cfg-jitter" min="1" max="15" value="5" />
+                <span class="field-hint">Adiciona variação (ex: 40 min ± 5 min) para simular envios humanos.</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="cfg-start-hour">Hora Inicial de Envios</label>
+                <select id="cfg-start-hour">
+                  <option value="7">07:00</option>
+                  <option value="8">08:00</option>
+                  <option value="9" selected>09:00</option>
+                  <option value="10">10:00</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="cfg-end-hour">Hora Final de Envios</label>
+                <select id="cfg-end-hour">
+                  <option value="20">20:00</option>
+                  <option value="21">21:00</option>
+                  <option value="22" selected>22:00</option>
+                  <option value="23">23:00</option>
+                </select>
+                <span class="field-hint">Fora dessa janela, o bot aguarda o dia seguinte.</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-hashtags">Hashtags Padrão das Mensagens</label>
+              <input type="text" id="cfg-hashtags" value="#anúncio #cacadoresderenda" />
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-invite-url">Link de Convite do Seu Grupo (Opcional)</label>
+              <input type="url" id="cfg-invite-url" placeholder="https://chat.whatsapp.com/..." />
+              <span class="field-hint">Adiciona "🚀 Entre no grupo: ..." ao final das postagens para atrair membros caso a oferta seja encaminhada.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-watermark">Marca d'água / Selo do Grupo na Imagem</label>
+              <input type="text" id="cfg-watermark" value="GLTech3D" />
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+              <span class="btn-icon">💾</span> Salvar Configurações de Automação
+            </button>
+            <div id="cfg-save-feedback" class="feedback-msg"></div>
+          </form>
+        </div>
+      </section>
+
+      <!-- TAB 5: HISTÓRICO & LOGS -->
+      <section id="tab-historico" class="tab-content">
+        <div class="breadcrumb-nav">
+          Automações / <span>Bots de Ofertas</span> / Logs de Disparo
+        </div>
+        <div class="section-header">
+          <h2>Histórico de Disparos</h2>
+          <p>Acompanhe todos os envios realizados com sucesso e eventuais falhas.</p>
+        </div>
+
+        <div class="card table-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th width="150">Data / Hora</th>
+                  <th>Produto</th>
+                  <th width="110">Canal</th>
+                  <th width="180">Destino</th>
+                  <th width="100">Status</th>
+                </tr>
+              </thead>
+              <tbody id="history-tbody">
+                <!-- Inserido dinamicamente via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

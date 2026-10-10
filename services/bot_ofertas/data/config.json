@@ -1,0 +1,14 @@
+{
+  "whatsappTargetGroupId": "120363414256913914@g.us",
+  "whatsappTargetGroupName": "Ofertas (2 membros)",
+  "telegramBotToken": "",
+  "telegramChatId": "",
+  "autoDispatchEnabled": true,
+  "dispatchIntervalMinutes": 15,
+  "dispatchJitterMinutes": 5,
+  "dispatchStartHour": 9,
+  "dispatchEndHour": 23,
+  "defaultHashtags": "#anúncio #cacadoresderenda",
+  "groupInviteUrl": "",
+  "watermarkText": "Tech Ofertas"
+}

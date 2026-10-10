@@ -5,7 +5,7 @@ import {
   Inbox, ScalesSimple, Robot, PlugsConnected,
   Gauge, Printer, Ruler, ClipboardText, Sparkle, ShoppingCart, Package, Cube,
   CalendarBlank, ChartLineUp, Toolbox, Handshake, AddressBook, Calculator, Coins,
-  Storefront, VideoCamera, Layers, Drop, Receipt,
+  Storefront, VideoCamera, Layers, Drop, Receipt, Tag,
 } from "@/lib/ui/icons";
 
 export interface NavLeaf {
@@ -99,7 +99,15 @@ export const CRM_NAV: NavEntry[] = [
     ],
   },
   { href: "/app/assistant", label: "Assistente IA", icon: Sparkle },
-  { href: "/automations", label: "Automações (n8n)", icon: Robot },
+  {
+    key: "automacoes",
+    label: "Automações",
+    icon: Robot,
+    children: [
+      { href: "/automations", label: "Workflows n8n", icon: Robot },
+      { href: "/automations/ofertas", label: "Bots de Ofertas", icon: Tag },
+    ],
+  },
   { href: "/content-studio", label: "Criação de Conteúdo", icon: VideoCamera },
   { href: "/app/landing-edit", label: "Landing Edit", icon: Storefront },
   { href: "/app/settings", label: "Configurações", icon: Gear },

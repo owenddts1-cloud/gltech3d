@@ -1,23 +1,20 @@
+import { cookies } from "next/headers";
 import { loadAppShellContext } from "@/lib/auth/app-shell";
 import { AuthProvider } from "@/hooks/auth/AuthProvider";
 import { MfaEnrollGate } from "@/components/auth/MfaEnrollGate";
-import { MinimalTopBar } from "@/components/shell/MinimalTopBar";
-import { GuideProvider } from "@/components/guides/GuideProvider";
+import { AppShell } from "../app/_components/AppShell";
 
 export default async function AutomationsLayout({ children }: { children: React.ReactNode }) {
   const { user, activeOrg, plan, mustEnrollMfa } = await loadAppShellContext();
+  const store = await cookies();
+  const collapsed = store.get("sidebar_collapsed")?.value === "1";
 
   return (
     <AuthProvider user={user} activeOrg={activeOrg} plan={plan}>
       {mustEnrollMfa ? (
         <MfaEnrollGate />
       ) : (
-        <GuideProvider>
-          <div className="flex min-h-screen flex-col bg-bg">
-            <MinimalTopBar />
-            <main className="flex-1">{children}</main>
-          </div>
-        </GuideProvider>
+        <AppShell sidebarCollapsed={collapsed}>{children}</AppShell>
       )}
     </AuthProvider>
   );

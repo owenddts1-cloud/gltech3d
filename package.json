@@ -22,7 +22,9 @@
     "db:reset": "supabase db reset",
     "test:e2e": "playwright test",
     "test:unit": "vitest run",
-    "test:db": "supabase db query --file supabase/tests/rls-tenant-isolation.sql && supabase db query --file supabase/tests/money-sync-triggers.sql"
+    "test:db": "supabase db query --file supabase/tests/rls-tenant-isolation.sql && supabase db query --file supabase/tests/money-sync-triggers.sql",
+    "bot": "node services/bot_ofertas/server.js",
+    "bot:dev": "node --watch services/bot_ofertas/server.js"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.94",

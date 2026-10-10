@@ -152,7 +152,7 @@ export function Sidebar({ collapsed, nav }: { collapsed: boolean; nav: NavEntry[
       );
     }
 
-    const isOpen = open[group.key] ?? false;
+    const isOpen = open[group.key] ?? groupActive;
     return (
       <div key={group.key} className="space-y-0.5">
         <button

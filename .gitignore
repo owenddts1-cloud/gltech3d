@@ -1,5 +1,7 @@
 # Dependencies
 node_modules/
+**/node_modules/
+**/session_auth/
 .pnp
 .pnp.js
 
