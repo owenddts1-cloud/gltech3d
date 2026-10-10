@@ -144,5 +144,7 @@ export {
   SpeakerSimpleX,
   MagnifyingGlassPlus,
   MagnifyingGlassMinus,
+  List,
+  List as MenuIcon,
 } from "@phosphor-icons/react/dist/ssr";
 

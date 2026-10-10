@@ -47,6 +47,7 @@ export interface BotOffer {
   coupon: string;
   couponHubUrl?: string;
   copyStyle?: string;
+  variationSeed?: number;
   affiliateUrl: string;
   imageUrl: string;
   status: "pendente" | "enviado" | "pausado" | "esgotado";

@@ -19,7 +19,7 @@ export default async function MfaChallengePage({
 
   const { data: factorsData } = await supabase.auth.mfa.listFactors();
   const hasVerified = !!factorsData?.totp?.some((f) => f.status === "verified");
-  if (!hasVerified) redirect("/app/inbox");
+  if (!hasVerified) redirect(next || "/portal");
 
   return (
     <div className="space-y-6">

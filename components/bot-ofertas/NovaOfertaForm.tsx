@@ -19,6 +19,7 @@ export interface NovaOfertaFormData {
   couponTutorial?: string;
   affiliateUrl: string;
   imageUrl: string;
+  variationSeed?: number;
 }
 
 interface Props {
@@ -109,6 +110,7 @@ export function NovaOfertaForm({
           niche: formData.niche || "impressao_3d",
           marketplace: formData.marketplace || "mercadolivre",
           copyStyle: formData.copyStyle || "padrao",
+          variationSeed: formData.variationSeed || 0,
           originalPrice: parseFloat(formData.originalPrice) || 0,
           promoPrice: parseFloat(formData.promoPrice),
           coupon: formData.coupon.trim(),
@@ -133,6 +135,7 @@ export function NovaOfertaForm({
         niche: "impressao_3d",
         marketplace: "mercadolivre",
         copyStyle: "padrao",
+        variationSeed: 0,
         originalPrice: "",
         promoPrice: "",
         coupon: "",
@@ -275,16 +278,35 @@ export function NovaOfertaForm({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#2d241e] mb-1">Estilo de Copy</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-[#2d241e]">Estilo de Copy</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      variationSeed: (prev.variationSeed || 0) + 1,
+                    }));
+                    toast.success("🎲 Nova variação de copy gerada! Veja o preview ao lado.");
+                  }}
+                  className="text-[11px] font-bold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1 cursor-pointer"
+                  title="Gera novos ganchos, benefícios e CTAs para esta oferta"
+                >
+                  <span>🎲 Variação</span>
+                </button>
+              </div>
               <select
                 value={formData.copyStyle || "padrao"}
                 onChange={(e) => setFormData({ ...formData, copyStyle: e.target.value })}
                 className="w-full rounded-xl border border-[#e8e2d9] bg-[#faf9f6] px-3 py-2 text-xs text-[#2d241e] focus:bg-white focus:border-[#ea580c] focus:outline-none"
               >
                 <option value="padrao">🛍️ Padrão Conversão Maker</option>
-                <option value="achado">✨ Achado Sensacional!</option>
+                <option value="achado">✨ Achado Sensacional / Garimpo</option>
+                <option value="urgencia">⚡ Corre que vai esgotar! (Urgência)</option>
+                <option value="custo_beneficio">💰 Custo-Benefício Imbatível</option>
+                <option value="review_maker">🔬 Recomendação de Bancada / Review</option>
+                <option value="direto_ao_ponto">🎯 Direto ao Ponto (Preço Seco)</option>
                 <option value="cupom_mes">🔥 Melhor Cupom do Mês</option>
-                <option value="urgencia">⚡ Corre que vai esgotar</option>
               </select>
             </div>
           </div>

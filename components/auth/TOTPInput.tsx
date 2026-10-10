@@ -52,9 +52,28 @@ export function TOTPInput({
   };
 
   const handleChange = (i: number, raw: string) => {
-    // Strip non-digits, take last char.
-    const digit = raw.replace(/\D/g, "").slice(-1);
-    if (!digit && raw.length > 0) return;
+    const digits = raw.replace(/\D/g, "");
+    if (!digits) {
+      if (raw.length > 0) return;
+      const next = [...chars];
+      next[i] = "";
+      commit(next);
+      return;
+    }
+
+    // Mobile autofill (SMS / Authenticator app) typically injects the entire 6-digit code at once
+    if (digits.length > 1) {
+      const next = [...chars];
+      for (let j = 0; j < digits.length && i + j < LENGTH; j++) {
+        next[i + j] = digits[j] ?? "";
+      }
+      commit(next);
+      const targetFocus = Math.min(i + digits.length, LENGTH - 1);
+      inputs.current[targetFocus]?.focus();
+      return;
+    }
+
+    const digit = digits.slice(-1);
     const next = [...chars];
     next[i] = digit;
     commit(next);
@@ -109,7 +128,7 @@ export function TOTPInput({
           type="text"
           inputMode="numeric"
           autoComplete={i === 0 ? "one-time-code" : "off"}
-          maxLength={1}
+          maxLength={i === 0 ? LENGTH : 1}
           value={c}
           disabled={disabled}
           aria-invalid={hasError ? true : undefined}

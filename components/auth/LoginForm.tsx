@@ -28,20 +28,25 @@ export function LoginForm({ next }: { next?: string }) {
 
   const onSubmit = (values: LoginInput) => {
     setServerError(null);
+    const sanitized = {
+      email: values.email.trim().toLowerCase(),
+      password: values.password,
+    };
     startTransition(async () => {
       // Server Action redirects on success — no return value reaches here.
       // On failure, an error discriminator is returned and rendered inline.
-      const res = await signInWithPassword(values, next);
+      const res = await signInWithPassword(sanitized, next);
       if (!res) {
         // Should be unreachable (redirect throws), but guard anyway.
-        router.replace(next || "/portal");
+        window.location.href = next || "/portal";
         return;
       }
       if (res.error === "mfa_required") {
         const params = new URLSearchParams();
         if (next) params.set("next", next);
         if (res.challengeId) params.set("factor", res.challengeId);
-        router.replace(`/login/mfa${params.toString() ? `?${params}` : ""}`);
+        // On mobile, full navigation ensures Set-Cookie headers are saved synchronously
+        window.location.href = `/login/mfa${params.toString() ? `?${params}` : ""}`;
         return;
       }
       if (res.error === "invalid_credentials") {
@@ -64,6 +69,9 @@ export function LoginForm({ next }: { next?: string }) {
           id="email"
           type="email"
           autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           autoFocus
           aria-invalid={errors.email ? true : undefined}
           {...register("email")}
@@ -81,6 +89,9 @@ export function LoginForm({ next }: { next?: string }) {
           id="password"
           type="password"
           autoComplete="current-password"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           aria-invalid={errors.password ? true : undefined}
           {...register("password")}
         />

@@ -49,7 +49,7 @@ export async function middleware(request: NextRequest) {
       },
       cookieOptions: {
         name: COOKIE_NAME,
-        sameSite: "strict",
+        sameSite: "lax",
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         path: "/",

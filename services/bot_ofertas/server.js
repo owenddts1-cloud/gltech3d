@@ -18,6 +18,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Rotas da API
 app.use('/api', apiRoutes);
 
+// Health check para monitoramento na nuvem (Render, UptimeRobot, etc.)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
 // Rota fallback para o app SPA (compatível com Express 5)
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

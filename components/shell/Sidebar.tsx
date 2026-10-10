@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { motion } from "motion/react";
 import {
-  CaretDoubleLeft, CaretDoubleRight, CaretDown, House, SignOut, Lightning, Lock,
+  CaretDoubleLeft, CaretDoubleRight, CaretDown, House, SignOut, Lightning, Lock, X,
 } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { toggleSidebar } from "@/app/actions/shell/toggleSidebar";
@@ -26,7 +26,15 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export function Sidebar({ collapsed, nav }: { collapsed: boolean; nav: NavEntry[] }) {
+export function Sidebar({
+  collapsed,
+  nav,
+  onCloseMobile,
+}: {
+  collapsed: boolean;
+  nav: NavEntry[];
+  onCloseMobile?: () => void;
+}) {
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const canLgpd = usePermission("lgpd.execute_redact");
@@ -77,6 +85,9 @@ export function Sidebar({ collapsed, nav }: { collapsed: boolean; nav: NavEntry[
     return (
       <Link
         key={item.href}
+        onClick={() => {
+          if (onCloseMobile) onCloseMobile();
+        }}
         // Travado leva para a tela de upgrade, nao para a rota — que redirecionaria
         // para la de qualquer forma, so que depois de um round-trip.
         href={locked ? upgradeHref(item.href) : item.href}
@@ -191,12 +202,23 @@ export function Sidebar({ collapsed, nav }: { collapsed: boolean; nav: NavEntry[
       layout="position"
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
-        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-sidebar border-sidebar-border shadow-lg",
-        collapsed ? "w-16" : "w-60",
+        "inset-y-0 left-0 z-30 flex flex-col border-r bg-sidebar border-sidebar-border shadow-lg",
+        onCloseMobile ? "h-full w-full" : "fixed",
+        !onCloseMobile && (collapsed ? "w-16" : "w-60"),
       )}
     >
-      <div className={cn("flex items-center border-b border-sidebar-border px-4 h-14", collapsed ? "justify-center" : "justify-start")}>
+      <div className={cn("flex items-center border-b border-sidebar-border px-4 h-14", collapsed ? "justify-center" : "justify-between")}>
         <Logo collapsed={collapsed} />
+        {onCloseMobile && (
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="rounded p-1 text-sidebar-text hover:bg-sidebar-elevated hover:text-sidebar-text-active md:hidden"
+            aria-label="Fechar menu lateral"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-2 scrollbar-none" aria-label="Navegação principal">
         {nav.map((entry) => {

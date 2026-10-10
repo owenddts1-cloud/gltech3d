@@ -17,6 +17,7 @@ interface Props {
     marketplace?: string;
     affiliateUrl: string;
     imageUrl: string;
+    variationSeed?: number;
   };
   groupName?: string;
   groupInviteUrl?: string;

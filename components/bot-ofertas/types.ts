@@ -1,6 +1,13 @@
 export type OfferNiche = "impressao_3d" | "ferramentas" | "eletronicos" | "geral";
 export type OfferMarketplace = "mercadolivre" | "amazon" | "shopee" | "aliexpress" | "tiktok" | "outro";
-export type OfferCopyStyle = "padrao" | "achado" | "cupom_mes" | "urgencia";
+export type OfferCopyStyle =
+  | "padrao"
+  | "achado"
+  | "cupom_mes"
+  | "urgencia"
+  | "custo_beneficio"
+  | "review_maker"
+  | "direto_ao_ponto";
 export type OfferStatus = "pendente" | "enviado" | "pausado" | "esgotado";
 
 export interface OfferItem {
@@ -14,6 +21,7 @@ export interface OfferItem {
   coupon: string;
   couponHubUrl?: string;
   copyStyle?: OfferCopyStyle | string;
+  variationSeed?: number;
   affiliateUrl: string;
   imageUrl: string;
   status: OfferStatus;

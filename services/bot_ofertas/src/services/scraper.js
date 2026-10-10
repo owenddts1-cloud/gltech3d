@@ -143,6 +143,70 @@ function extractCoupon(html, $, marketplace, url = '') {
 }
 
 /**
+ * Resolve cadeias de redirecionamento de links de afiliados (301/302, meta-refresh e window.location)
+ */
+async function resolveFinalProductUrl(initialUrl, maxHops = 3) {
+  let currentUrl = initialUrl;
+  let lastHtml = '';
+  let hops = 0;
+
+  while (hops < maxHops) {
+    try {
+      const response = await axios.get(currentUrl, {
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+        },
+        timeout: 12000,
+        maxRedirects: 5,
+      });
+
+      lastHtml = response.data;
+      const resUrl = response.request?.res?.responseUrl || currentUrl;
+
+      if (typeof lastHtml === 'string') {
+        // 1. Checa meta refresh (usado por encurtadores de afiliados)
+        const metaRefresh = lastHtml.match(/<meta[^>]*http-equiv=["']?refresh["']?[^>]*content=["']?[^"']*url=([^"'>\s]+)["']?/i);
+        if (metaRefresh && metaRefresh[1]) {
+          let nextUrl = metaRefresh[1].trim().replace(/['"]/g, '');
+          if (nextUrl.startsWith('/')) {
+            const base = new URL(resUrl);
+            nextUrl = `${base.origin}${nextUrl}`;
+          }
+          if (nextUrl !== currentUrl && nextUrl.startsWith('http')) {
+            currentUrl = nextUrl;
+            hops++;
+            continue;
+          }
+        }
+
+        // 2. Checa script de window.location se for página curta de trampolim
+        const jsRedirect = lastHtml.match(/window\.location(?:\.replace|\.href)?\s*[=(]\s*["']([^"']+)["']/i);
+        if (jsRedirect && jsRedirect[1] && lastHtml.length < 4000) {
+          let nextUrl = jsRedirect[1].trim();
+          if (nextUrl.startsWith('/')) {
+            const base = new URL(resUrl);
+            nextUrl = `${base.origin}${nextUrl}`;
+          }
+          if (nextUrl !== currentUrl && nextUrl.startsWith('http')) {
+            currentUrl = nextUrl;
+            hops++;
+            continue;
+          }
+        }
+      }
+
+      return { html: lastHtml, finalUrl: resUrl };
+    } catch (err) {
+      break;
+    }
+  }
+
+  return { html: lastHtml, finalUrl: currentUrl };
+}
+
+/**
  * Extrai título, imagem e informações de preços de um link de e-commerce.
  */
 async function scrapeProductInfo(url) {
@@ -150,28 +214,20 @@ async function scrapeProductInfo(url) {
     throw new Error('URL inválida. Forneça um link iniciando com http:// ou https://');
   }
 
-  const marketplace = detectPlatformFromUrl(url);
-  const couponHubUrl = getDefaultCouponHub(marketplace);
-
   try {
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
-      },
-      timeout: 12000,
-      maxRedirects: 5
-    });
+    const { html, finalUrl } = await resolveFinalProductUrl(url);
+    if (!html) throw new Error('Não foi possível obter o conteúdo da página.');
 
-    const html = response.data;
-    const finalUrl = response.request?.res?.responseUrl || url;
+    const targetUrl = finalUrl || url;
+    const marketplace = detectPlatformFromUrl(targetUrl);
+    const couponHubUrl = getDefaultCouponHub(marketplace);
     const $ = cheerio.load(html);
 
     // 1. Título
     let rawTitle =
       $('meta[property="og:title"]').attr('content') ||
       $('meta[name="twitter:title"]').attr('content') ||
+      $('h1').first().text() ||
       $('title').text() ||
       '';
     const title = cleanTitle(rawTitle);
@@ -191,10 +247,10 @@ async function scrapeProductInfo(url) {
     let promoPrice = 0;
     let originalPrice = 0;
 
-    // Mercado Livre DOM dedicado (precedência máxima para preço promocional da loja)
+    // Mercado Livre DOM dedicado (layouts clássicos e novos 2025/2026)
     if (marketplace === 'mercadolivre') {
       const prevFraction = $(
-        '.ui-pdp-price__original-value .andes-money-amount__fraction, .andes-money-amount--previous .andes-money-amount__fraction'
+        '.ui-pdp-price__original-value .andes-money-amount__fraction, .andes-money-amount--previous .andes-money-amount__fraction, s .andes-money-amount__fraction'
       )
         .first()
         .text()
@@ -210,13 +266,13 @@ async function scrapeProductInfo(url) {
       }
 
       const fraction = $(
-        '.ui-pdp-price__second-line .andes-money-amount__fraction, .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction'
+        '.poly-price__current .andes-money-amount__fraction, .ui-pdp-price__second-line .andes-money-amount__fraction, .ui-pdp-price__main-container .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction, .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction'
       )
         .first()
         .text()
         .replace(/\./g, '');
       const cents = $(
-        '.ui-pdp-price__second-line .andes-money-amount__cents, .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents'
+        '.poly-price__current .andes-money-amount__cents, .ui-pdp-price__second-line .andes-money-amount__cents, .ui-pdp-price__main-container .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents'
       )
         .first()
         .text();
@@ -224,6 +280,53 @@ async function scrapeProductInfo(url) {
         const parsed = parseFloat(fraction + (cents ? '.' + cents : '.00'));
         if (parsed > 0) promoPrice = parsed;
       }
+    }
+
+    // Shopee DOM & Embedded State
+    if (marketplace === 'shopee') {
+      // 1. Tenta pegar de tags pré-carregadas ou Next data
+      $('script').each((_, el) => {
+        const content = $(el).html() || '';
+        if (content.includes('__PRELOADED_STATE__') || content.includes('itemPrice') || content.includes('price_min')) {
+          const matchPrice =
+            content.match(/"price"\s*:\s*(\d+)/i) ||
+            content.match(/"price_min"\s*:\s*(\d+)/i) ||
+            content.match(/"current_price"\s*:\s*(\d+)/i);
+          if (matchPrice && matchPrice[1]) {
+            let pVal = parseFloat(matchPrice[1]);
+            // Shopee armazena em 100.000 (ex: 7990000 = 79.90)
+            if (pVal > 50000) pVal = pVal / 100000;
+            if (pVal > 0 && !promoPrice) promoPrice = pVal;
+          }
+          const matchBefore =
+            content.match(/"price_before_discount"\s*:\s*(\d+)/i) ||
+            content.match(/"price_max_before_discount"\s*:\s*(\d+)/i);
+          if (matchBefore && matchBefore[1]) {
+            let oVal = parseFloat(matchBefore[1]);
+            if (oVal > 50000) oVal = oVal / 100000;
+            if (oVal > 0 && !originalPrice) originalPrice = oVal;
+          }
+        }
+      });
+    }
+
+    // Amazon DOM dedicado
+    if (marketplace === 'amazon') {
+      const amzPromoEl = $('.apexPriceToPay .a-offscreen, .corePrice_feature_div .a-offscreen, .a-price .a-offscreen').first();
+      const amzPrice = amzPromoEl
+        .text()
+        .replace(/[^\d.,]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+      if (amzPrice) promoPrice = parseFloat(amzPrice) || 0;
+
+      const amzOrig = $('.a-text-price .a-offscreen, #basisPrice .a-offscreen')
+        .first()
+        .text()
+        .replace(/[^\d.,]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+      if (amzOrig) originalPrice = parseFloat(amzOrig) || 0;
     }
 
     // JSON-LD (Schema.org) se ainda não capturado
@@ -234,40 +337,40 @@ async function scrapeProductInfo(url) {
           const offers = json.offers || (json['@graph'] && json['@graph'].find((g) => g.offers)?.offers);
           if (offers) {
             const p = offers.price || (Array.isArray(offers) ? offers[0]?.price : null);
-            if (p && !promoPrice) promoPrice = parseFloat(p) || 0;
+            if (p && !promoPrice) promoPrice = parseFloat(String(p).replace(',', '.')) || 0;
             const orig = offers.highPrice || offers.priceSpecification?.maxPrice;
-            if (orig && !originalPrice) originalPrice = parseFloat(orig) || 0;
+            if (orig && !originalPrice) originalPrice = parseFloat(String(orig).replace(',', '.')) || 0;
           }
         } catch (_) {}
       });
     }
 
-    // Fallback Meta Tags
+    // Fallback Meta Tags (og:price, product:price)
     if (!promoPrice) {
       const ogPrice =
         $('meta[property="og:price:amount"]').attr('content') ||
-        $('meta[property="product:price:amount"]').attr('content');
+        $('meta[property="product:price:amount"]').attr('content') ||
+        $('meta[name="twitter:data1"]').attr('value');
       if (ogPrice) {
         promoPrice = parseFloat(ogPrice.replace(',', '.')) || 0;
       }
     }
 
-    // Amazon DOM
-    if (marketplace === 'amazon' && !promoPrice) {
-      const amzPrice = $('.a-price .a-offscreen')
-        .first()
-        .text()
-        .replace(/[^\d.,]/g, '')
-        .replace(/\./g, '')
-        .replace(',', '.');
-      if (amzPrice) promoPrice = parseFloat(amzPrice) || 0;
-      const amzOrig = $('.a-text-price .a-offscreen')
-        .first()
-        .text()
-        .replace(/[^\d.,]/g, '')
-        .replace(/\./g, '')
-        .replace(',', '.');
-      if (amzOrig) originalPrice = parseFloat(amzOrig) || 0;
+    // Fallback Inteligente Regex em Real (R$ XX,XX) em blocos de preço
+    if (!promoPrice) {
+      const htmlText = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ');
+      const brlMatches = [...htmlText.matchAll(/R\$\s*([\d.]+,\d{2})/gi)];
+      if (brlMatches.length > 0) {
+        const validValues = brlMatches
+          .map((m) => parseFloat(m[1].replace(/\./g, '').replace(',', '.')))
+          .filter((v) => v > 1 && v < 100000);
+        if (validValues.length > 0) {
+          promoPrice = validValues[0];
+          if (validValues.length > 1 && validValues[1] > validValues[0]) {
+            originalPrice = validValues[1];
+          }
+        }
+      }
     }
 
     // 4. Cupom

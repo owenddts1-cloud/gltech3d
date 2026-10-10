@@ -40,10 +40,14 @@ async function dispatchOffer(offer, options = {}) {
     targetJid = config.whatsappTargetGroupId;
   }
 
-  const formattedMessage = formatter.formatOfferMessage(offer, {
-    defaultHashtags: config.defaultHashtags,
-    groupInviteUrl: config.groupInviteUrl
-  });
+  const variationSeed = (offer.recycledCount || 0) + (offer.variationSeed || 0);
+  const formattedMessage = formatter.formatOfferMessage(
+    { ...offer, variationSeed },
+    {
+      defaultHashtags: config.defaultHashtags,
+      groupInviteUrl: config.groupInviteUrl
+    }
+  );
 
   const results = {
     whatsapp: null,
