@@ -7,6 +7,12 @@ const OFFERS_FILE = path.join(DATA_DIR, "offers.json");
 const CONFIG_FILE = path.join(DATA_DIR, "config.json");
 const HISTORY_FILE = path.join(DATA_DIR, "history.json");
 
+export interface NicheGroupMapping {
+  whatsappJid: string;
+  whatsappName: string;
+  telegramChatId: string;
+}
+
 export interface BotConfig {
   whatsappTargetGroupId: string;
   whatsappTargetGroupName: string;
@@ -15,6 +21,13 @@ export interface BotConfig {
   autoDispatchEnabled: boolean;
   dispatchIntervalMinutes: number;
   dispatchJitterMinutes: number;
+  minIntervalMinutes?: number;
+  maxIntervalMinutes?: number;
+  recycleMode?: boolean;
+  welcomeMessageEnabled?: boolean;
+  welcomeGroupName?: string;
+  nicheGroups?: Record<string, NicheGroupMapping>;
+  marketplacesCouponHubs?: Record<string, string>;
   dispatchStartHour: number;
   dispatchEndHour: number;
   defaultHashtags: string;
@@ -26,14 +39,20 @@ export interface BotOffer {
   id: string;
   title: string;
   category: string;
+  niche?: string;
+  marketplace?: string;
   originalPrice: number;
   promoPrice: number;
   coupon: string;
+  couponHubUrl?: string;
+  copyStyle?: string;
   affiliateUrl: string;
   imageUrl: string;
-  status: "pendente" | "enviado" | "pausado";
+  status: "pendente" | "enviado" | "pausado" | "esgotado";
+  recycledCount?: number;
   createdAt: string;
   dispatchedAt: string | null;
+  lastDispatchedAt?: string | null;
 }
 
 export interface BotHistoryItem {
@@ -54,10 +73,39 @@ const DEFAULT_CONFIG: BotConfig = {
   telegramBotToken: "",
   telegramChatId: "",
   autoDispatchEnabled: false,
-  dispatchIntervalMinutes: 40,
-  dispatchJitterMinutes: 5,
+  dispatchIntervalMinutes: 10,
+  dispatchJitterMinutes: 3,
+  minIntervalMinutes: 2,
+  maxIntervalMinutes: 15,
+  recycleMode: true,
+  welcomeMessageEnabled: true,
+  welcomeGroupName: "GLTech Ofertas - Impressão 3D",
+  nicheGroups: {
+    impressao_3d: {
+      whatsappJid: "",
+      whatsappName: "GLTech Ofertas - Impressão 3D",
+      telegramChatId: "",
+    },
+    ferramentas: {
+      whatsappJid: "",
+      whatsappName: "GLTech Ofertas - Ferramentas & Oficina",
+      telegramChatId: "",
+    },
+    eletronicos: {
+      whatsappJid: "",
+      whatsappName: "GLTech Ofertas - Smart Home & Tech",
+      telegramChatId: "",
+    },
+  },
+  marketplacesCouponHubs: {
+    mercadolivre: "https://www.mercadolivre.com.br/cupons",
+    shopee: "https://shopee.com.br/m/cupons-diarios",
+    amazon: "https://www.amazon.com.br/cupom",
+    aliexpress: "https://best.aliexpress.com",
+    tiktok: "https://www.tiktok.com",
+  },
   dispatchStartHour: 9,
-  dispatchEndHour: 22,
+  dispatchEndHour: 23,
   defaultHashtags: "#anúncio #cacadoresderenda #GLTech3D",
   groupInviteUrl: "",
   watermarkText: "GLTech3D",

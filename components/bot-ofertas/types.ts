@@ -1,15 +1,32 @@
+export type OfferNiche = "impressao_3d" | "ferramentas" | "eletronicos" | "geral";
+export type OfferMarketplace = "mercadolivre" | "amazon" | "shopee" | "aliexpress" | "tiktok" | "outro";
+export type OfferCopyStyle = "padrao" | "achado" | "cupom_mes" | "urgencia";
+export type OfferStatus = "pendente" | "enviado" | "pausado" | "esgotado";
+
 export interface OfferItem {
   id: string;
   title: string;
   category: string;
+  niche?: OfferNiche | string;
+  marketplace?: OfferMarketplace | string;
   originalPrice: number;
   promoPrice: number;
   coupon: string;
+  couponHubUrl?: string;
+  copyStyle?: OfferCopyStyle | string;
   affiliateUrl: string;
   imageUrl: string;
-  status: "pendente" | "enviado" | "pausado";
+  status: OfferStatus;
+  recycledCount?: number;
   createdAt: string;
   dispatchedAt: string | null;
+  lastDispatchedAt?: string | null;
+}
+
+export interface NicheGroupMapping {
+  whatsappJid: string;
+  whatsappName: string;
+  telegramChatId: string;
 }
 
 export interface BotConfigData {
@@ -20,6 +37,13 @@ export interface BotConfigData {
   autoDispatchEnabled: boolean;
   dispatchIntervalMinutes: number;
   dispatchJitterMinutes: number;
+  minIntervalMinutes?: number;
+  maxIntervalMinutes?: number;
+  recycleMode?: boolean;
+  welcomeMessageEnabled?: boolean;
+  welcomeGroupName?: string;
+  nicheGroups?: Record<string, NicheGroupMapping>;
+  marketplacesCouponHubs?: Record<string, string>;
   dispatchStartHour: number;
   dispatchEndHour: number;
   defaultHashtags: string;
@@ -64,3 +88,4 @@ export interface HistoryItem {
   timestamp: string;
   messageText?: string;
 }
+

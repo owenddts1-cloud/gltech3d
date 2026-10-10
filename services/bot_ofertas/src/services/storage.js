@@ -17,13 +17,42 @@ const DEFAULT_CONFIG = {
   telegramBotToken: '',
   telegramChatId: '',
   autoDispatchEnabled: false,
-  dispatchIntervalMinutes: 40,
-  dispatchJitterMinutes: 5,
+  dispatchIntervalMinutes: 10,
+  dispatchJitterMinutes: 3,
+  minIntervalMinutes: 2,
+  maxIntervalMinutes: 15,
+  recycleMode: true,
+  welcomeMessageEnabled: true,
+  welcomeGroupName: 'GLTech Ofertas - Impressão 3D',
+  nicheGroups: {
+    impressao_3d: {
+      whatsappJid: '',
+      whatsappName: 'GLTech Ofertas - Impressão 3D',
+      telegramChatId: ''
+    },
+    ferramentas: {
+      whatsappJid: '',
+      whatsappName: 'GLTech Ofertas - Ferramentas & Oficina',
+      telegramChatId: ''
+    },
+    eletronicos: {
+      whatsappJid: '',
+      whatsappName: 'GLTech Ofertas - Smart Home & Tech',
+      telegramChatId: ''
+    }
+  },
+  marketplacesCouponHubs: {
+    mercadolivre: 'https://www.mercadolivre.com.br/cupons',
+    shopee: 'https://shopee.com.br/m/cupons-diarios',
+    amazon: 'https://www.amazon.com.br/cupom',
+    aliexpress: 'https://best.aliexpress.com',
+    tiktok: 'https://www.tiktok.com'
+  },
   dispatchStartHour: 9,
-  dispatchEndHour: 22,
-  defaultHashtags: '#anúncio #cacadoresderenda',
+  dispatchEndHour: 23,
+  defaultHashtags: '#anúncio #cacadoresderenda #GLTech3D',
   groupInviteUrl: '',
-  watermarkText: 'Tech Ofertas'
+  watermarkText: 'GLTech3D'
 };
 
 function readJsonFile(filePath, defaultValue) {
@@ -78,14 +107,20 @@ function addOffer(offerData) {
     id: 'off_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
     title: offerData.title || '',
     category: offerData.category || 'Geral',
+    niche: offerData.niche || 'impressao_3d',
+    marketplace: offerData.marketplace || 'mercadolivre',
     originalPrice: parseFloat(offerData.originalPrice) || 0,
     promoPrice: parseFloat(offerData.promoPrice) || 0,
     coupon: offerData.coupon || '',
+    couponHubUrl: offerData.couponHubUrl || '',
+    copyStyle: offerData.copyStyle || 'padrao',
     affiliateUrl: offerData.affiliateUrl || '',
     imageUrl: offerData.imageUrl || '',
-    status: offerData.status || 'pendente', // pendente, enviado, pausado
+    status: offerData.status || 'pendente', // pendente, enviado, pausado, esgotado
+    recycledCount: 0,
     createdAt: new Date().toISOString(),
-    dispatchedAt: null
+    dispatchedAt: null,
+    lastDispatchedAt: null
   };
   offers.push(newOffer);
   saveOffers(offers);
@@ -108,9 +143,30 @@ function deleteOffer(id) {
   return true;
 }
 
-function getNextPendingOffer() {
+function getNextPendingOffer(niche = null) {
   const offers = getOffers();
+  if (niche) {
+    return offers.find((o) => o.status === 'pendente' && o.niche === niche) || null;
+  }
   return offers.find((o) => o.status === 'pendente') || null;
+}
+
+function getNextRecycledOffer(niche = null) {
+  const offers = getOffers();
+  let pool = offers.filter((o) => o.status === 'enviado');
+  if (niche) {
+    pool = pool.filter((o) => o.niche === niche || !o.niche);
+  }
+  if (pool.length === 0) return null;
+
+  // Ordena pelo que foi disparado há mais tempo (ou nunca teve lastDispatchedAt)
+  pool.sort((a, b) => {
+    const timeA = new Date(a.lastDispatchedAt || a.dispatchedAt || a.createdAt).getTime();
+    const timeB = new Date(b.lastDispatchedAt || b.dispatchedAt || b.createdAt).getTime();
+    return timeA - timeB;
+  });
+
+  return pool[0] || null;
 }
 
 // Histórico de Disparos
@@ -207,6 +263,7 @@ module.exports = {
   updateOffer,
   deleteOffer,
   getNextPendingOffer,
+  getNextRecycledOffer,
   getHistory,
   logDispatch,
   exportToCsv,
