@@ -82,7 +82,32 @@ export function getDefaultCouponHub(marketplace: string): string {
 /**
  * Tenta extrair cupons de desconto presentes na página ou nos metadados.
  */
-export function extractCouponFromHtml(html: string, marketplace: string): string {
+export function extractCouponFromUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const cp =
+      parsed.searchParams.get("coupon") ||
+      parsed.searchParams.get("cupom") ||
+      parsed.searchParams.get("code") ||
+      parsed.searchParams.get("voucher") ||
+      parsed.searchParams.get("promocode");
+    if (cp && cp.trim().length >= 3) {
+      return cp.trim().toUpperCase();
+    }
+  } catch (_) {}
+  return "";
+}
+
+/**
+ * Tenta extrair cupons de desconto presentes na página ou nos metadados.
+ */
+export function extractCouponFromHtml(html: string, marketplace: string, url: string = ""): string {
+  // 0. Verifica se veio código de cupom na própria URL
+  if (url) {
+    const urlCoupon = extractCouponFromUrl(url);
+    if (urlCoupon) return urlCoupon;
+  }
+
   // Converte para texto plano removendo tags para não ser interrompido por <strong>, <span>, etc.
   const textContent = html.replace(/<[^>]+>/g, " ");
 
@@ -91,38 +116,51 @@ export function extractCouponFromHtml(html: string, marketplace: string): string
     /(?:use\s+o\s+)?cupom(?:\s+de)?(?:\s+c[oó]digo)?[:\s]+["']?([A-Z0-9_\-]{3,20})["']?/i,
     /c[oó]digo\s+(?:promocional|de\s+desconto)[:\s]+["']?([A-Z0-9_\-]{3,20})["']?/i,
     /voucher[:\s]+["']?([A-Z0-9_\-]{3,20})["']?/i,
+    /(?:código|cupom)\s+([A-Z0-9_\-]{4,20})\s+(?:no\s+carrinho|ao\s+finalizar|no\s+checkout)/i,
   ];
 
   for (const regex of explicitCouponRegexes) {
     const match = textContent.match(regex);
-    if (match?.[1] && !["DE", "EM", "NA", "NO", "COM", "PARA", "OFF", "POR", "DO", "DA"].includes(match[1].toUpperCase())) {
+    if (
+      match?.[1] &&
+      !["DE", "EM", "NA", "NO", "COM", "PARA", "OFF", "POR", "DO", "DA", "FRETE", "GRATIS"].includes(
+        match[1].toUpperCase()
+      )
+    ) {
       return match[1].toUpperCase();
     }
   }
 
   // 2. Mercado Livre: Padrões de cupom em pills ou textos de desconto
   if (marketplace === "mercadolivre") {
-    const mlPill = html.match(/class="[^"]*ui-pdp-promotions-pill-label[^"]*"[^>]*>([^<]+)</i) ||
-                   html.match(/class="[^"]*ui-vip-coupon__description[^"]*"[^>]*>([^<]+)</i);
+    const mlPill =
+      html.match(/class="[^"]*ui-pdp-promotions-pill-label[^"]*"[^>]*>([^<]+)</i) ||
+      html.match(/class="[^"]*ui-vip-coupon__description[^"]*"[^>]*>([^<]+)</i) ||
+      html.match(/class="[^"]*ui-vip-coupon__title[^"]*"[^>]*>([^<]+)</i);
     if (mlPill?.[1]) return mlPill[1].trim();
 
-    const mlMatch = textContent.match(/(?:cupom|desconto)\s+de\s+(R\$\s*\d+(?:,\d{2})?)/i) ||
-                    textContent.match(/(\d+%\s*OFF\s*com\s*cupom)/i);
+    const mlMatch =
+      textContent.match(/(?:cupom|desconto)\s+de\s+(R\$\s*\d+(?:,\d{2})?)/i) ||
+      textContent.match(/cupom\s+de\s+(\d+%\s*OFF)/i) ||
+      textContent.match(/(\d+%\s*OFF\s*com\s*cupom)/i) ||
+      textContent.match(/(R\$\s*\d+(?:,\d{2})?\s*OFF\s*com\s*cupom)/i);
     if (mlMatch?.[1]) return mlMatch[1].trim();
   }
 
   // 3. Amazon: Cupons de caixa de seleção (ex: "Economize R$ 10 ao aplicar o cupom")
   if (marketplace === "amazon") {
-    const amzCouponMatch = textContent.match(/Economize\s+(R\$\s*\d+(?:,\d{2})?)\s+ao\s+aplicar\s+o\s+cupom/i) ||
-                           textContent.match(/Aplicar\s+cupom\s+de\s+(R\$\s*\d+(?:,\d{2})?)/i) ||
-                           textContent.match(/Cupom\s+de\s+desconto:\s*([A-Z0-9_-]+)/i);
+    const amzCouponMatch =
+      textContent.match(/Economize\s+(R\$\s*\d+(?:,\d{2})?)\s+ao\s+aplicar\s+o\s+cupom/i) ||
+      textContent.match(/Aplicar\s+cupom\s+de\s+(R\$\s*\d+(?:,\d{2})?)/i) ||
+      textContent.match(/Cupom\s+de\s+desconto:\s*([A-Z0-9_-]+)/i);
     if (amzCouponMatch?.[1]) return amzCouponMatch[1].trim();
   }
 
   // 4. Shopee: Vouchers
   if (marketplace === "shopee") {
-    const shopeeMatch = textContent.match(/(?:cupom|voucher)\s+de\s+(R\$\s*\d+)/i) ||
-                        textContent.match(/(\d+%\s*OFF\s*(?:no\s*app|com\s*cupom))/i);
+    const shopeeMatch =
+      textContent.match(/(?:cupom|voucher)\s+de\s+(R\$\s*\d+)/i) ||
+      textContent.match(/(\d+%\s*OFF\s*(?:no\s*app|com\s*cupom))/i);
     if (shopeeMatch?.[1]) return shopeeMatch[1].trim();
   }
 
@@ -136,29 +174,64 @@ export function extractPrices(html: string, marketplace: string): { promoPrice: 
   let promoPrice = 0;
   let originalPrice = 0;
 
-  // Estratégia 1: JSON-LD (Schema.org Product)
-  const jsonLdMatches = html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
-  for (const match of jsonLdMatches) {
-    try {
-      if (!match[1]) continue;
-      const parsed = JSON.parse(match[1]);
-      const obj = Array.isArray(parsed) ? parsed[0] : parsed;
-      const offers = obj?.offers || (obj?.["@graph"] && obj["@graph"].find((g: any) => g.offers)?.offers);
+  // Estratégia 1: Mercado Livre DOM dedicado (máxima fidelidade no preço com desconto)
+  if (marketplace === "mercadolivre") {
+    const parts = html.split(/ui-pdp-price__second-line/i);
+    const prevSection = parts[0] || "";
+    const secondSection = (parts.length > 1 && parts[1]) ? parts[1] : html;
 
-      if (offers) {
-        const p = Array.isArray(offers) ? offers[0]?.price : offers.price;
-        if (p && !promoPrice) {
-          promoPrice = parseFloat(String(p).replace(",", ".")) || 0;
-        }
-        const high = Array.isArray(offers) ? offers[0]?.highPrice : offers.highPrice;
-        if (high && !originalPrice) {
-          originalPrice = parseFloat(String(high).replace(",", ".")) || 0;
+    // Preço original tachado (.ui-pdp-price__original-value ou .andes-money-amount--previous)
+    if (prevSection.includes("andes-money-amount--previous") || prevSection.includes("ui-pdp-price__original-value")) {
+      const origMatch = prevSection.match(/class="andes-money-amount__fraction"[^>]*>([\d.]+)</i);
+      const origCents = prevSection.match(/class="andes-money-amount__cents[^"]*"[^>]*>(\d+)</i);
+      if (origMatch?.[1]) {
+        const parsedOrig = parseFloat(
+          origMatch[1].replace(/\./g, "") + (origCents?.[1] ? "." + origCents[1] : ".00")
+        );
+        if (parsedOrig > 0) {
+          originalPrice = parsedOrig;
         }
       }
-    } catch (_) {}
+    }
+
+    // Preço promocional em .ui-pdp-price__second-line
+    const promoMatch = secondSection.match(/class="andes-money-amount__fraction"[^>]*>([\d.]+)</i);
+    const promoCents = secondSection.match(/class="andes-money-amount__cents[^"]*"[^>]*>(\d+)</i);
+    if (promoMatch?.[1]) {
+      const parsedPromo = parseFloat(
+        promoMatch[1].replace(/\./g, "") + (promoCents?.[1] ? "." + promoCents[1] : ".00")
+      );
+      if (parsedPromo > 0) {
+        promoPrice = parsedPromo;
+      }
+    }
   }
 
-  // Estratégia 2: Meta tags abertas (og:price:amount, product:price:amount)
+  // Estratégia 2: JSON-LD (Schema.org Product) se ainda não capturou
+  if (!promoPrice) {
+    const jsonLdMatches = html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
+    for (const match of jsonLdMatches) {
+      try {
+        if (!match[1]) continue;
+        const parsed = JSON.parse(match[1]);
+        const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+        const offers = obj?.offers || (obj?.["@graph"] && obj["@graph"].find((g: any) => g.offers)?.offers);
+
+        if (offers) {
+          const p = Array.isArray(offers) ? offers[0]?.price : offers.price;
+          if (p && !promoPrice) {
+            promoPrice = parseFloat(String(p).replace(",", ".")) || 0;
+          }
+          const high = Array.isArray(offers) ? offers[0]?.highPrice : offers.highPrice;
+          if (high && !originalPrice) {
+            originalPrice = parseFloat(String(high).replace(",", ".")) || 0;
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  // Estratégia 3: Meta tags abertas (og:price:amount, product:price:amount)
   if (!promoPrice) {
     const metaPriceMatch =
       html.match(/<meta\s+property="(?:product|og):price:amount"\s+content="([^"]+)"/i) ||
@@ -168,47 +241,66 @@ export function extractPrices(html: string, marketplace: string): { promoPrice: 
     }
   }
 
-  // Estratégia 3: Mercado Livre DOM específico (.andes-money-amount)
-  if (marketplace === "mercadolivre") {
-    // Preço original tachado (antes do desconto)
-    const strikethroughMatch = html.match(/class="[^"]*andes-money-amount--previous[^"]*"[\s\S]*?class="andes-money-amount__fraction"[^>]*>([\d.]+)</i);
-    if (strikethroughMatch?.[1]) {
-      const origInt = strikethroughMatch[1].replace(/\./g, "");
-      const parsedOrig = parseFloat(origInt);
-      if (parsedOrig > 0) {
-        originalPrice = parsedOrig;
-      }
-    }
-
-    // Preço de venda real (exclui o bloco previous)
-    const htmlWithoutPrevious = html.replace(/<[^>]*andes-money-amount--previous[\s\S]*?<\/div>/gi, "")
-                                    .replace(/<[^>]*andes-money-amount--previous[\s\S]*?<\/span>/gi, "");
-    const fractionMatch = htmlWithoutPrevious.match(/class="andes-money-amount__fraction"[^>]*>([\d.]+)</i);
-    const centsMatch = htmlWithoutPrevious.match(/class="andes-money-amount__cents[^"]*"[^>]*>(\d+)</i);
-    if (fractionMatch?.[1]) {
-      const intPart = fractionMatch[1].replace(/\./g, "");
-      const decPart = centsMatch?.[1] ? "." + centsMatch[1] : ".00";
-      const parsed = parseFloat(`${intPart}${decPart}`);
-      if (parsed > 0) {
-        promoPrice = parsed;
-      }
-    }
-  }
-
   // Estratégia 4: Amazon DOM específico (.a-price .a-offscreen)
   if (marketplace === "amazon" && !promoPrice) {
-    const amzPriceMatch = html.match(/class="a-price\s+aok-align-center[^"]*"[\s\S]*?class="a-offscreen"[^>]*>R\$\s*([\d.,]+)</i) ||
-                          html.match(/class="a-price"[^>]*>[\s\S]*?class="a-offscreen"[^>]*>R\$\s*([\d.,]+)</i) ||
-                          html.match(/id="priceblock_ourprice"[^>]*>R\$\s*([\d.,]+)</i);
+    const amzPriceMatch =
+      html.match(/class="a-price\s+aok-align-center[^"]*"[\s\S]*?class="a-offscreen"[^>]*>R\$\s*([\d.,]+)</i) ||
+      html.match(/class="a-price"[^>]*>[\s\S]*?class="a-offscreen"[^>]*>R\$\s*([\d.,]+)</i) ||
+      html.match(/id="priceblock_ourprice"[^>]*>R\$\s*([\d.,]+)</i);
     if (amzPriceMatch?.[1]) {
       const cleanVal = amzPriceMatch[1].replace(/\./g, "").replace(",", ".");
       promoPrice = parseFloat(cleanVal) || 0;
     }
 
-    const amzBasisPrice = html.match(/class="a-text-price"[^>]*>[\s\S]*?class="a-offscreen"[^>]*>R\$\s*([\d.,]+)</i);
+    const amzBasisPrice = html.match(
+      /class="a-text-price"[^>]*>[\s\S]*?class="a-offscreen"[^>]*>R\$\s*([\d.,]+)</i
+    );
     if (amzBasisPrice?.[1]) {
       const cleanBasis = amzBasisPrice[1].replace(/\./g, "").replace(",", ".");
       originalPrice = parseFloat(cleanBasis) || 0;
+    }
+  }
+
+  // Estratégia 5: Microdata (itemprop="price")
+  if (!promoPrice) {
+    const itemPropPrice =
+      html.match(/itemprop="price"\s+content="([^"]+)"/i) ||
+      html.match(/content="([^"]+)"\s+itemprop="price"/i);
+    if (itemPropPrice?.[1]) {
+      promoPrice = parseFloat(itemPropPrice[1].replace(",", ".")) || 0;
+    }
+  }
+
+  // Estratégia 6: Scripts de Estado (JSON com "price", "salePrice" ou "promoPrice")
+  if (!promoPrice) {
+    const scriptPrice =
+      html.match(/"salePrice"\s*:\s*(\d+(?:\.\d+)?)/i) ||
+      html.match(/"promoPrice"\s*:\s*(\d+(?:\.\d+)?)/i) ||
+      html.match(/"price"\s*:\s*(\d+(?:\.\d+)?)/i);
+    if (scriptPrice?.[1]) {
+      const parsed = parseFloat(scriptPrice[1]);
+      if (parsed > 0) promoPrice = parsed;
+    }
+  }
+
+  // Estratégia 7: Fallback geral em texto de preços em Real (R$ XX,XX)
+  if (!promoPrice) {
+    const brlPriceMatch = html.match(/R\$\s*([\d.]+,\d{2})/i);
+    if (brlPriceMatch?.[1]) {
+      const clean = brlPriceMatch[1].replace(/\./g, "").replace(",", ".");
+      promoPrice = parseFloat(clean) || 0;
+    }
+  }
+
+  // Fallback para preço original se não encontrado
+  if (!originalPrice) {
+    const scriptOrig =
+      html.match(/"originalPrice"\s*:\s*(\d+(?:\.\d+)?)/i) ||
+      html.match(/"listPrice"\s*:\s*(\d+(?:\.\d+)?)/i) ||
+      html.match(/"highPrice"\s*:\s*(\d+(?:\.\d+)?)/i);
+    if (scriptOrig?.[1]) {
+      const parsed = parseFloat(scriptOrig[1]);
+      if (parsed > 0 && parsed > promoPrice) originalPrice = parsed;
     }
   }
 
@@ -267,7 +359,7 @@ export async function scrapeProductInfo(url: string): Promise<ScrapedProductData
     const { promoPrice, originalPrice } = extractPrices(html, marketplace);
 
     // 4. Cupom
-    const coupon = extractCouponFromHtml(html, marketplace);
+    const coupon = extractCouponFromHtml(html, marketplace, finalUrl || url);
 
     // 5. Tutorial de Cupom Inteligente
     let couponTutorial = "";

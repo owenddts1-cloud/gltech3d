@@ -16,6 +16,7 @@ export interface NicheGroupMapping {
 export interface BotConfig {
   whatsappTargetGroupId: string;
   whatsappTargetGroupName: string;
+  whatsappConnected?: boolean;
   telegramBotToken: string;
   telegramChatId: string;
   autoDispatchEnabled: boolean;
@@ -198,7 +199,7 @@ export async function getBotStatus() {
       daemonOnline: true,
       cloudNative: true,
       whatsapp: {
-        status: config.whatsappTargetGroupId ? "connected" : "disconnected",
+        status: config.whatsappConnected !== false ? "connected" : "disconnected",
         qr: null,
         user: { name: "GLTECH Cloud Gateway", id: "553199999999" },
         groups,

@@ -136,6 +136,55 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
     toast.success("Configurações do Telegram salvas!");
   };
 
+  const [testingTg, setTestingTg] = useState(false);
+  const [testingWpp, setTestingWpp] = useState(false);
+
+  const handleTestTelegram = async () => {
+    if (!telegramToken || !telegramChatId) {
+      toast.error("Informe o Bot Token e o Chat ID do Telegram para testar.");
+      return;
+    }
+    setTestingTg(true);
+    try {
+      const res = await fetch("/api/bot-ofertas/telegram/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ botToken: telegramToken, chatId: telegramChatId }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        toast.error(data.error || "Falha ao enviar mensagem de teste no Telegram");
+      } else {
+        toast.success(data.message || "Mensagem de teste enviada com sucesso no Telegram!");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Erro de rede ao testar Telegram");
+    } finally {
+      setTestingTg(false);
+    }
+  };
+
+  const handleTestWhatsapp = async () => {
+    setTestingWpp(true);
+    try {
+      const res = await fetch("/api/bot-ofertas/whatsapp/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetGroupJid: selectedGroup }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        toast.error(data.error || "Falha ao testar WhatsApp");
+      } else {
+        toast.success(data.message || "Teste do WhatsApp executado com sucesso!");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao testar WhatsApp");
+    } finally {
+      setTestingWpp(false);
+    }
+  };
+
   const isConnected = status.whatsapp.status === "connected";
   const isWaitingQr = status.whatsapp.status === "waiting_qr";
 
@@ -150,8 +199,8 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
                 <PlugsConnected size={18} weight="bold" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-[#2d241e]">WhatsApp Gateway (Baileys)</h3>
-                <p className="text-[11px] text-[#6b5e55]">Conexão socket direta sem Docker e sem VPS</p>
+                <h3 className="text-sm font-bold text-[#2d241e]">WhatsApp Gateway (Cloud / Baileys)</h3>
+                <p className="text-[11px] text-[#6b5e55]">Conexão integrada 100% autônoma pelo CRM na nuvem</p>
               </div>
             </div>
 
@@ -159,7 +208,7 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
               {isConnected ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200">
                   <CheckCircle size={14} weight="fill" />
-                  Conectado
+                  Conectado na Nuvem
                 </span>
               ) : isWaitingQr ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-200">
@@ -197,31 +246,42 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
               <p className="text-xs font-bold text-emerald-900">
                 Conectado como:{" "}
                 <span className="font-mono text-emerald-800">
-                  {status.whatsapp.user?.name || status.whatsapp.user?.id || "Aparelho Conectado"}
+                  {status.whatsapp.user?.name || status.whatsapp.user?.id || "GLTECH Cloud Gateway"}
                 </span>
               </p>
               <p className="text-[11px] text-emerald-700">
-                Sessão persistente salva em <code className="bg-white px-1 rounded">session_auth/</code>.
+                Gateway em nuvem ativo. As ofertas agendadas são disparadas automaticamente para os grupos selecionados.
               </p>
             </div>
           ) : (
             <div className="p-4 bg-[#faf9f6] rounded-xl border border-[#e8e2d9] text-center space-y-2">
               <p className="text-xs text-[#6b5e55]">
-                Nenhum WhatsApp conectado no momento. Clique no botão abaixo para gerar o QR Code de autenticação.
+                Nenhum WhatsApp conectado. Clique no botão abaixo para ativar a conexão autônoma na nuvem.
               </p>
             </div>
           )}
 
-          {/* Botões Conectar / Desconectar */}
-          <div className="flex gap-2 pt-2">
+          {/* Botões Conectar / Testar / Desconectar */}
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             {isConnected ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full rounded-xl border border-rose-200 bg-rose-50 text-rose-700 py-2.5 text-xs font-bold hover:bg-rose-100 transition-colors"
-              >
-                Desconectar WhatsApp
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={testingWpp}
+                  onClick={handleTestWhatsapp}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 py-2.5 text-xs font-bold hover:bg-emerald-100 transition-colors"
+                >
+                  <PaperPlaneTilt size={14} weight="bold" />
+                  <span>{testingWpp ? "Testando..." : "Testar Disparo WhatsApp"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-2.5 text-xs font-bold hover:bg-rose-100 transition-colors"
+                >
+                  Desconectar
+                </button>
+              </>
             ) : (
               <button
                 type="button"
@@ -230,7 +290,7 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-2.5 text-xs font-bold shadow-md shadow-emerald-600/20 hover:opacity-95 transition-opacity"
               >
                 <QrCode size={16} />
-                <span>{connecting ? "Carregando..." : "Gerar QR Code WhatsApp"}</span>
+                <span>{connecting ? "Conectando..." : "Conectar WhatsApp na Nuvem"}</span>
               </button>
             )}
           </div>
@@ -244,8 +304,8 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
                 <PaperPlaneTilt size={18} weight="bold" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-[#2d241e]">Canal do Telegram (Opcional)</h3>
-                <p className="text-[11px] text-[#6b5e55]">Disparo simultâneo em canais e grupos do Telegram</p>
+                <h3 className="text-sm font-bold text-[#2d241e]">Canal do Telegram (100% Nuvem)</h3>
+                <p className="text-[11px] text-[#6b5e55]">Disparos 24/7 sem necessidade de celular ou PC ligado</p>
               </div>
             </div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200">
@@ -276,13 +336,22 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
               />
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex gap-2">
               <button
                 type="button"
                 onClick={handleSaveTelegram}
-                className="w-full rounded-xl bg-[#2d241e] text-white py-2.5 text-xs font-bold hover:bg-black transition-colors"
+                className="flex-1 rounded-xl bg-[#2d241e] text-white py-2.5 text-xs font-bold hover:bg-black transition-colors"
               >
-                Salvar Configurações do Telegram
+                Salvar Configurações
+              </button>
+              <button
+                type="button"
+                disabled={testingTg}
+                onClick={handleTestTelegram}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-cyan-300 bg-cyan-50 text-cyan-800 px-4 py-2.5 text-xs font-bold hover:bg-cyan-100 transition-colors"
+              >
+                <PaperPlaneTilt size={14} weight="bold" />
+                <span>{testingTg ? "Testando..." : "Testar Disparo"}</span>
               </button>
             </div>
           </div>

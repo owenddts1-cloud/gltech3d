@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Tag, Sparkle, PlugsConnected, ShieldCheck, Clock, ArrowsClockwise } from "@/lib/ui/icons";
+import { Tag, Sparkle, PlugsConnected, ShieldCheck, Clock, ArrowsClockwise, Lightning } from "@/lib/ui/icons";
 import { NovaOfertaForm, type NovaOfertaFormData } from "@/components/bot-ofertas/NovaOfertaForm";
 import { WhatsAppMockupPreview } from "@/components/bot-ofertas/WhatsAppMockupPreview";
 import { PlanilhaFilaTable } from "@/components/bot-ofertas/PlanilhaFilaTable";
@@ -33,6 +33,7 @@ export function BotOfertasClient({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
   const [isSyncingPrices, setIsSyncingPrices] = useState(false);
+  const [isAutoDispatching, setIsAutoDispatching] = useState(false);
   const [lastPriceSync, setLastPriceSync] = useState<string | null>(null);
   const [editingOffer, setEditingOffer] = useState<OfferItem | null>(null);
 
@@ -100,23 +101,48 @@ export function BotOfertasClient({
     }
   };
 
-  // Timer contínuo de 5 minutos (300.000 ms) para sincronização de preços
+  // Disparo autônomo da fila
+  const runAutoDispatch = async (manual = false) => {
+    setIsAutoDispatching(true);
+    try {
+      const res = await fetch("/api/bot-ofertas/auto-dispatch", { method: "POST" });
+      const data = await res.json();
+      if (data.dispatched && data.offer) {
+        toast.success(`Disparo automático: "${data.offer.title}" enviado aos grupos!`);
+        await refreshData();
+      } else if (manual) {
+        toast.info(data.message || "Fila de ofertas sem itens pendentes.");
+      }
+    } catch (err: any) {
+      if (manual) toast.error("Falha ao processar disparo da fila: " + err.message);
+    } finally {
+      setIsAutoDispatching(false);
+    }
+  };
+
+  // Timers contínuos de segundo plano (Preços a cada 5 min e Disparo a cada 3 min)
   useEffect(() => {
-    // Roda verificação após 3 segundos da tela aberta
+    // Sincronização inicial de preços
     const initialTimer = setTimeout(() => {
       syncPrices(false);
     }, 3000);
 
-    // E a cada 5 minutos continuamente
     const priceInterval = setInterval(() => {
       syncPrices(false);
     }, 5 * 60 * 1000);
 
+    const dispatchInterval = setInterval(() => {
+      if (config.autoDispatchEnabled) {
+        runAutoDispatch(false);
+      }
+    }, 3 * 60 * 1000);
+
     return () => {
       clearTimeout(initialTimer);
       clearInterval(priceInterval);
+      clearInterval(dispatchInterval);
     };
-  }, []);
+  }, [config.autoDispatchEnabled]);
 
   // Polling suave de status se estiver aguardando QR Code
   useEffect(() => {
@@ -282,6 +308,18 @@ export function BotOfertasClient({
           >
             <ArrowsClockwise size={13} className={isSyncingPrices ? "animate-spin text-[#ea580c]" : ""} />
             <span>{isSyncingPrices ? "Checando lojas..." : "Sincronizar Preços"}</span>
+          </button>
+
+          {/* Botão Disparar Próxima Oferta Agora */}
+          <button
+            type="button"
+            onClick={() => runAutoDispatch(true)}
+            disabled={isAutoDispatching}
+            className="flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-950 hover:bg-emerald-100 transition-colors shadow-2xs"
+            title="Disparar a próxima oferta da fila agora para os grupos configurados"
+          >
+            <Lightning size={13} className={isAutoDispatching ? "animate-bounce text-emerald-600" : "text-emerald-700"} />
+            <span>{isAutoDispatching ? "Disparando..." : "Disparar da Fila"}</span>
           </button>
 
           {/* Botão Atualizar Geral */}

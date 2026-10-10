@@ -61,40 +61,81 @@ function getDefaultCouponHub(platform) {
   }
 }
 
-function extractCoupon(html, $, marketplace) {
+function extractCouponFromUrl(url = '') {
+  try {
+    const parsed = new URL(url);
+    const cp =
+      parsed.searchParams.get('coupon') ||
+      parsed.searchParams.get('cupom') ||
+      parsed.searchParams.get('code') ||
+      parsed.searchParams.get('voucher') ||
+      parsed.searchParams.get('promocode');
+    if (cp && cp.trim().length >= 3) {
+      return cp.trim().toUpperCase();
+    }
+  } catch (_) {}
+  return '';
+}
+
+function extractCoupon(html, $, marketplace, url = '') {
+  // 0. Verifica se veio na URL
+  if (url) {
+    const fromUrl = extractCouponFromUrl(url);
+    if (fromUrl) return fromUrl;
+  }
+
   const textContent = html.replace(/<[^>]+>/g, ' ');
-  // Regex explícitos
+
+  // 1. Regex Geral
   const explicitCouponRegexes = [
     /(?:use\s+o\s+)?cupom(?:\s+de)?(?:\s+c[oó]digo)?[:\s]+["']?([A-Z0-9_\-]{3,20})["']?/i,
     /c[oó]digo\s+(?:promocional|de\s+desconto)[:\s]+["']?([A-Z0-9_\-]{3,20})["']?/i,
     /voucher[:\s]+["']?([A-Z0-9_\-]{3,20})["']?/i,
+    /(?:código|cupom)\s+([A-Z0-9_\-]{4,20})\s+(?:no\s+carrinho|ao\s+finalizar|no\s+checkout)/i
   ];
 
   for (const regex of explicitCouponRegexes) {
     const match = textContent.match(regex);
-    if (match && match[1] && !['DE', 'EM', 'NA', 'NO', 'COM', 'PARA', 'OFF', 'POR', 'DO', 'DA'].includes(match[1].toUpperCase())) {
+    if (
+      match &&
+      match[1] &&
+      !['DE', 'EM', 'NA', 'NO', 'COM', 'PARA', 'OFF', 'POR', 'DO', 'DA', 'FRETE', 'GRATIS'].includes(
+        match[1].toUpperCase()
+      )
+    ) {
       return match[1].toUpperCase();
     }
   }
 
   // Mercado Livre
   if (marketplace === 'mercadolivre') {
-    const mlPill = $('.ui-pdp-promotions-pill-label, .ui-vip-coupon__description').first().text().trim();
+    const mlPill = $('.ui-pdp-promotions-pill-label, .ui-vip-coupon__description, .ui-vip-coupon__title')
+      .first()
+      .text()
+      .trim();
     if (mlPill) return mlPill;
-    const mlMatch = textContent.match(/(?:cupom|desconto)\s+de\s+(R\$\s*\d+(?:,\d{2})?)/i) || textContent.match(/(\d+%\s*OFF\s*com\s*cupom)/i);
+    const mlMatch =
+      textContent.match(/(?:cupom|desconto)\s+de\s+(R\$\s*\d+(?:,\d{2})?)/i) ||
+      textContent.match(/cupom\s+de\s+(\d+%\s*OFF)/i) ||
+      textContent.match(/(\d+%\s*OFF\s*com\s*cupom)/i) ||
+      textContent.match(/(R\$\s*\d+(?:,\d{2})?\s*OFF\s*com\s*cupom)/i);
     if (mlMatch && mlMatch[1]) return mlMatch[1].trim();
   }
 
   // Amazon
   if (marketplace === 'amazon') {
-    const amzText = textContent.match(/Economize\s+(R\$\s*\d+(?:,\d{2})?)\s+ao\s+aplicar\s+o\s+cupom/i) ||
-                    textContent.match(/Aplicar\s+cupom\s+de\s+(R\$\s*\d+(?:,\d{2})?)/i);
+    const amzText =
+      textContent.match(/Economize\s+(R\$\s*\d+(?:,\d{2})?)\s+ao\s+aplicar\s+o\s+cupom/i) ||
+      textContent.match(/Aplicar\s+cupom\s+de\s+(R\$\s*\d+(?:,\d{2})?)/i) ||
+      textContent.match(/Cupom\s+de\s+desconto:\s*([A-Z0-9_-]+)/i);
     if (amzText && amzText[1]) return amzText[1].trim();
   }
 
   // Shopee
   if (marketplace === 'shopee') {
-    const shopeeMatch = textContent.match(/(?:cupom|voucher)\s+de\s+(R\$\s*\d+)/i) || textContent.match(/(\d+%\s*OFF\s*(?:no\s*app|com\s*cupom))/i);
+    const shopeeMatch =
+      textContent.match(/(?:cupom|voucher)\s+de\s+(R\$\s*\d+)/i) ||
+      textContent.match(/(\d+%\s*OFF\s*(?:no\s*app|com\s*cupom))/i);
     if (shopeeMatch && shopeeMatch[1]) return shopeeMatch[1].trim();
   }
 
@@ -128,17 +169,19 @@ async function scrapeProductInfo(url) {
     const $ = cheerio.load(html);
 
     // 1. Título
-    let rawTitle = $('meta[property="og:title"]').attr('content') ||
-                   $('meta[name="twitter:title"]').attr('content') ||
-                   $('title').text() ||
-                   '';
+    let rawTitle =
+      $('meta[property="og:title"]').attr('content') ||
+      $('meta[name="twitter:title"]').attr('content') ||
+      $('title').text() ||
+      '';
     const title = cleanTitle(rawTitle);
 
     // 2. Imagem
-    let imageUrl = $('meta[property="og:image"]').attr('content') ||
-                   $('meta[name="twitter:image"]').attr('content') ||
-                   $('link[rel="image_src"]').attr('href') ||
-                   '';
+    let imageUrl =
+      $('meta[property="og:image"]').attr('content') ||
+      $('meta[name="twitter:image"]').attr('content') ||
+      $('link[rel="image_src"]').attr('href') ||
+      '';
 
     if (imageUrl && imageUrl.startsWith('//')) {
       imageUrl = 'https:' + imageUrl;
@@ -148,54 +191,87 @@ async function scrapeProductInfo(url) {
     let promoPrice = 0;
     let originalPrice = 0;
 
-    // JSON-LD
-    $('script[type="application/ld+json"]').each((_, el) => {
-      try {
-        const json = JSON.parse($(el).html());
-        const offers = json.offers || (json['@graph'] && json['@graph'].find((g) => g.offers)?.offers);
-        if (offers) {
-          const p = offers.price || (Array.isArray(offers) ? offers[0]?.price : null);
-          if (p && !promoPrice) promoPrice = parseFloat(p) || 0;
-          const orig = offers.highPrice || offers.priceSpecification?.maxPrice;
-          if (orig && !originalPrice) originalPrice = parseFloat(orig) || 0;
-        }
-      } catch (_) {}
-    });
-
-    // Fallback Meta Tags
-    if (!promoPrice) {
-      const ogPrice = $('meta[property="og:price:amount"]').attr('content') ||
-                      $('meta[property="product:price:amount"]').attr('content');
-      if (ogPrice) {
-        promoPrice = parseFloat(ogPrice.replace(',', '.')) || 0;
-      }
-    }
-
-    // Mercado Livre DOM
+    // Mercado Livre DOM dedicado (precedência máxima para preço promocional da loja)
     if (marketplace === 'mercadolivre') {
-      const prevFraction = $('.andes-money-amount--previous .andes-money-amount__fraction').first().text().replace(/\./g, '');
+      const prevFraction = $(
+        '.ui-pdp-price__original-value .andes-money-amount__fraction, .andes-money-amount--previous .andes-money-amount__fraction'
+      )
+        .first()
+        .text()
+        .replace(/\./g, '');
+      const prevCents = $(
+        '.ui-pdp-price__original-value .andes-money-amount__cents, .andes-money-amount--previous .andes-money-amount__cents'
+      )
+        .first()
+        .text();
       if (prevFraction) {
-        const parsedPrev = parseFloat(prevFraction);
+        const parsedPrev = parseFloat(prevFraction + (prevCents ? '.' + prevCents : '.00'));
         if (parsedPrev > 0) originalPrice = parsedPrev;
       }
-      const fraction = $('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction').first().text().replace(/\./g, '');
-      const cents = $('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents').first().text();
+
+      const fraction = $(
+        '.ui-pdp-price__second-line .andes-money-amount__fraction, .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction'
+      )
+        .first()
+        .text()
+        .replace(/\./g, '');
+      const cents = $(
+        '.ui-pdp-price__second-line .andes-money-amount__cents, .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents'
+      )
+        .first()
+        .text();
       if (fraction) {
         const parsed = parseFloat(fraction + (cents ? '.' + cents : '.00'));
         if (parsed > 0) promoPrice = parsed;
       }
     }
 
+    // JSON-LD (Schema.org) se ainda não capturado
+    if (!promoPrice) {
+      $('script[type="application/ld+json"]').each((_, el) => {
+        try {
+          const json = JSON.parse($(el).html());
+          const offers = json.offers || (json['@graph'] && json['@graph'].find((g) => g.offers)?.offers);
+          if (offers) {
+            const p = offers.price || (Array.isArray(offers) ? offers[0]?.price : null);
+            if (p && !promoPrice) promoPrice = parseFloat(p) || 0;
+            const orig = offers.highPrice || offers.priceSpecification?.maxPrice;
+            if (orig && !originalPrice) originalPrice = parseFloat(orig) || 0;
+          }
+        } catch (_) {}
+      });
+    }
+
+    // Fallback Meta Tags
+    if (!promoPrice) {
+      const ogPrice =
+        $('meta[property="og:price:amount"]').attr('content') ||
+        $('meta[property="product:price:amount"]').attr('content');
+      if (ogPrice) {
+        promoPrice = parseFloat(ogPrice.replace(',', '.')) || 0;
+      }
+    }
+
     // Amazon DOM
     if (marketplace === 'amazon' && !promoPrice) {
-      const amzPrice = $('.a-price .a-offscreen').first().text().replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.');
+      const amzPrice = $('.a-price .a-offscreen')
+        .first()
+        .text()
+        .replace(/[^\d.,]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
       if (amzPrice) promoPrice = parseFloat(amzPrice) || 0;
-      const amzOrig = $('.a-text-price .a-offscreen').first().text().replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.');
+      const amzOrig = $('.a-text-price .a-offscreen')
+        .first()
+        .text()
+        .replace(/[^\d.,]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
       if (amzOrig) originalPrice = parseFloat(amzOrig) || 0;
     }
 
     // 4. Cupom
-    const coupon = extractCoupon(html, $, marketplace);
+    const coupon = extractCoupon(html, $, marketplace, finalUrl || url);
     let couponTutorial = '';
     if (coupon) {
       if (marketplace === 'mercadolivre') {

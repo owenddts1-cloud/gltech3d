@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Lightning, FloppyDisk, PaperPlaneTilt } from "@/lib/ui/icons";
 import { toast } from "sonner";
+import { detectProductNiche } from "@/lib/bot-engine/formatter";
 import type { OfferItem } from "./types";
 
 export interface NovaOfertaFormData {
@@ -55,9 +56,16 @@ export function NovaOfertaForm({
       }
 
       const p = data.data;
+      const detectedNiche = detectProductNiche(p.title || "", "");
+      let autoCategory = "Filamentos 3D";
+      if (detectedNiche === "ferramentas") autoCategory = "Kits de Ferramentas Maker";
+      else if (detectedNiche === "eletronicos") autoCategory = "Eletrônicos & Smart Home";
+
       setFormData((prev) => ({
         ...prev,
         title: p.title || prev.title,
+        category: autoCategory,
+        niche: detectedNiche !== "geral" ? detectedNiche : prev.niche,
         imageUrl: p.imageUrl || prev.imageUrl,
         promoPrice: p.promoPrice ? String(p.promoPrice) : prev.promoPrice,
         originalPrice: p.originalPrice ? String(p.originalPrice) : prev.originalPrice,

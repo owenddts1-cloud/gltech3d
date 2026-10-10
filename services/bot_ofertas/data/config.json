@@ -29,5 +29,6 @@
   "dispatchEndHour": 23,
   "defaultHashtags": "#anúncio #cacadoresderenda",
   "groupInviteUrl": "",
-  "watermarkText": "Tech Ofertas"
+  "watermarkText": "Tech Ofertas",
+  "whatsappConnected": true
 }

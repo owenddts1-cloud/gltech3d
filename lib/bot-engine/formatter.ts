@@ -38,6 +38,34 @@ export function detectMarketplace(url: string = ""): string {
   return "outro";
 }
 
+export type ProductNicheType = "impressao_3d" | "ferramentas" | "eletronicos" | "geral";
+
+export function detectProductNiche(title: string = "", category: string = ""): ProductNicheType {
+  const text = `${title} ${category}`.toLowerCase();
+  if (
+    /pla|petg|abs|tpu|resina|filamento|impressora\s*3d|creality|ender|bambu|anycubic|elegoo|k1|hotend|nozzle|bico|mesa\s*pei|extrusor|bowden|fatiador|3d\s*pen/i.test(
+      text,
+    )
+  ) {
+    return "impressao_3d";
+  }
+  if (
+    /alicate|chave|allen|parafus|trena|solda|paquimetro|soprador|retifica|furadeira|parafusadeira|dremel|broca|ferramenta|nivel|torquimetro|lima/i.test(
+      text,
+    )
+  ) {
+    return "ferramentas";
+  }
+  if (
+    /esp32|arduino|sensor|smart|tomada|alexa|fonte|rele|cabo|placa|camera|wifi|zigbee|bateria|led|modulo|display|multimetro|usb/i.test(
+      text,
+    )
+  ) {
+    return "eletronicos";
+  }
+  return "geral";
+}
+
 export function formatWelcomeMessage(
   participantPhone: string = "",
   groupName: string = "GLTech Ofertas - Impressão 3D",
@@ -70,6 +98,8 @@ export interface FormatOptions {
 
 export interface FormatOfferInput {
   title?: string;
+  category?: string;
+  niche?: string;
   originalPrice?: number | string;
   promoPrice?: number | string;
   coupon?: string;
@@ -87,86 +117,120 @@ export function formatOfferMessage(
   const lines: string[] = [];
   const style = offer.copyStyle || "padrao";
   const title = (offer.title || "Super Oferta").trim();
+  const niche = detectProductNiche(title, offer.category || offer.niche || "");
 
-  // Cabeçalho de acordo com o estilo de copy
-  if (style === "achado") {
-    lines.push("✨ Achado sensacional! ✨");
-    lines.push("");
-    lines.push(title);
-  } else if (style === "cupom_mes") {
-    lines.push("🔥 Liberado para resgate o melhor cupom do MÊS! 🔥");
-    lines.push("");
-    lines.push(title);
-  } else if (style === "urgencia") {
-    lines.push("⚡ CORRE QUE VAI ESGOTAR! ⚡");
-    lines.push("");
-    lines.push(title);
+  // 1. HEADLINE ESPECÍFICA DE ACORDO COM O TIPO DE PRODUTO E ESTILO
+  if (niche === "impressao_3d") {
+    if (style === "achado") {
+      lines.push("🧵 ACHADO IMPERDÍVEL PARA QUEM IMPRIME EM 3D! 🖨️");
+    } else if (style === "cupom_mes") {
+      lines.push("🔥 CUPOM HISTÓRICO: FILAMENTOS & PEÇAS 3D! 🎟️");
+    } else if (style === "urgencia") {
+      lines.push("⚡ CORRE! FILAMENTO 3D COM PREÇO BAIXÍSSIMO! 🚨");
+    } else {
+      lines.push("🖨️ OFERTA ESPECIAL: FILAMENTOS & PEÇAS 3D 🧵");
+    }
+  } else if (niche === "ferramentas") {
+    if (style === "achado") {
+      lines.push("🛠️ ACHADO PARA SUA BANCADA / OFICINA MAKER! 🔧");
+    } else if (style === "cupom_mes") {
+      lines.push("🔥 CUPOM LIBERADO: FERRAMENTAS & MANUTENÇÃO! 🎟️");
+    } else if (style === "urgencia") {
+      lines.push("⚡ ÚLTIMAS UNIDADES! FERRAMENTA COM SUPER DESCONTO! 🚨");
+    } else {
+      lines.push("🔧 FERRAMENTA ESSENCIAL PARA SUA BANCADA 🛠️");
+    }
+  } else if (niche === "eletronicos") {
+    if (style === "achado") {
+      lines.push("💡 ACHADO TECH: SMART HOME & ELETRÔNICOS! ⚡");
+    } else if (style === "cupom_mes") {
+      lines.push("🔥 SUPER CUPOM TECH: AUTOMAÇÃO & SMART HOME! 🎟️");
+    } else if (style === "urgencia") {
+      lines.push("⚡ CORRE QUE VAI ESGOTAR! ELETRÔNICO EM PROMOÇÃO! 🚨");
+    } else {
+      lines.push("💡 SMART HOME & ELETRÔNICOS EM PROMOÇÃO ⚡");
+    }
   } else {
-    // Padrão de alta conversão
-    lines.push(`🛍️ ${title}`);
+    if (style === "achado") {
+      lines.push("✨ ACHADO SENSACIONAL DO DIA! ✨");
+    } else if (style === "cupom_mes") {
+      lines.push("🔥 LIBERADO O MELHOR CUPOM DO MÊS! 🔥");
+    } else if (style === "urgencia") {
+      lines.push("⚡ CORRE QUE VAI ESGOTAR RÁPIDO! ⚡");
+    } else {
+      lines.push("🛍️ SUPER OPORTUNIDADE COM DESCONTO REAL! 🔥");
+    }
   }
 
   lines.push("");
+  lines.push(`📦 ${title}`);
 
-  // Bloco de Preços
+  // 2. BENEFÍCIO / DESTAQUE TÉCNICO POR NICHO
+  lines.push("");
+  if (niche === "impressao_3d") {
+    lines.push("✨ Alta precisão dimensional | Sem bolhas | Acabamento premium");
+  } else if (niche === "ferramentas") {
+    lines.push("✨ Precisão, durabilidade e acabamento reforçado para projetos");
+  } else if (niche === "eletronicos") {
+    lines.push("✨ Alta performance, conectividade e estabilidade garantida");
+  } else {
+    lines.push("✨ Produto selecionado com garantia de procedência e entrega rápida");
+  }
+
+  // 3. BLOCO DE PREÇOS COM CÁLCULO DE ECONOMIA REAL
   const orig = Number(offer.originalPrice) || 0;
   const promo = Number(offer.promoPrice) || 0;
   const discount = calculateDiscount(orig, promo);
+  const diffSavings = orig > promo ? orig - promo : 0;
 
+  lines.push("");
   if (orig > promo && promo > 0) {
-    lines.push(`De: R$ ${formatCurrency(orig)}`);
-    const discountTag = discount > 0 ? ` (${discount}% OFF)` : "";
-    lines.push(`Por: R$ ${formatCurrency(promo)} ✅${discountTag}`);
+    lines.push(`❌ De: R$ ${formatCurrency(orig)}`);
+    const savingsTag = diffSavings > 0 ? ` (Economia de R$ ${formatCurrency(diffSavings)}!)` : "";
+    lines.push(`✅ Por apenas: R$ ${formatCurrency(promo)} 🔥 ${discount}% OFF${savingsTag}`);
   } else if (promo > 0) {
-    lines.push(`Por: R$ ${formatCurrency(promo)} ✅`);
+    lines.push(`✅ Valor promocional: R$ ${formatCurrency(promo)} 🔥`);
   }
 
-  // Cupom
+  // 4. CUPOM DE DESCONTO EM DESTAQUE
   if (offer.coupon && offer.coupon.trim().length > 0) {
     const cp = offer.coupon.trim();
-    const cupomText = cp.toLowerCase().includes("cupom") ? cp : `Use o cupom ${cp}`;
-    lines.push(`🎟️ ${cupomText}`);
+    lines.push("");
+    lines.push(`🎟️ CUPOM: *${cp.toUpperCase()}*`);
+    lines.push("👉 Aplique o cupom no carrinho para garantir o menor valor!");
   }
 
-  // Tutorial de Cupom (se houver)
+  // 5. TUTORIAL DE RESGATE DE CUPOM
   if (offer.couponTutorial && offer.couponTutorial.trim().length > 0) {
     lines.push("");
-    lines.push("🔥 TUTORIAL DE RESGATE DO CUPOM:");
+    lines.push("💡 Como resgatar o desconto:");
     lines.push(offer.couponTutorial.trim());
   }
 
-  // Frases de efeito por estilo
-  if (style === "achado") {
-    lines.push("");
-    lines.push("Atenção: Oferta sujeita a alterações de preço e disponibilidade no site. Garanta o seu!");
-  } else if (style === "cupom_mes") {
-    lines.push("");
-    lines.push("Atenção: Cupom com quantidade limitada, aplique imediatamente no carrinho!");
-  } else if (style === "urgencia") {
-    lines.push("");
-    lines.push("Quem viu, levou. Estoque extremamente limitado!");
-  }
-
-  lines.push("");
-
-  // Link de Afiliado
+  // 6. CALL TO ACTION E LINK DE AFILIADO
   if (offer.affiliateUrl && offer.affiliateUrl.trim().length > 0) {
-    lines.push(`🛒 ${offer.affiliateUrl.trim()}`);
+    lines.push("");
+    lines.push("🛒 Garanta o seu pelo link oficial:");
+    lines.push(`👉 ${offer.affiliateUrl.trim()}`);
   }
 
-  // Central de Cupons do Marketplace
+  // 7. CENTRAL DE CUPONS DO MARKETPLACE
   if (offer.couponHubUrl && offer.couponHubUrl.trim().length > 0) {
     lines.push("");
-    lines.push(`⚠️ Sempre resgate todos os cupons disponíveis aqui:\n${offer.couponHubUrl.trim()}`);
+    lines.push(`🎟️ Resgate cupons adicionais da loja aqui:\n${offer.couponHubUrl.trim()}`);
   }
 
-  // Link de Convite do Grupo
+  // 8. LINK DE CONVITE DO GRUPO
   if (options.groupInviteUrl && options.groupInviteUrl.trim().length > 0) {
     lines.push("");
-    lines.push(`🚀 Participe do Grupo: ${options.groupInviteUrl.trim()}`);
+    lines.push(`🚀 Participe do nosso grupo de ofertas VIP:\n${options.groupInviteUrl.trim()}`);
   }
 
-  // Hashtags oficiais
+  // 9. ESCASSEZ E AVISO LEGAL
+  lines.push("");
+  lines.push("⚠️ Atenção: Os preços e estoques podem sofrer alteração a qualquer momento pela loja.");
+
+  // 10. HASHTAGS OFICIAIS
   const hashtags = options.defaultHashtags || "#anúncio #cacadoresderenda #GLTech3D";
   if (hashtags.trim().length > 0) {
     lines.push("");

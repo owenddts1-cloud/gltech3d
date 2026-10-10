@@ -43,11 +43,13 @@ describe("Formatter V2: Multi-Marketplace, Creative Copies & Welcome", () => {
       copyStyle: "padrao",
     });
 
-    expect(msg).toContain("🛍️ Filamento PLA 1kg Preto");
+    expect(msg).toContain("🖨️ OFERTA ESPECIAL: FILAMENTOS & PEÇAS 3D 🧵");
+    expect(msg).toContain("📦 Filamento PLA 1kg Preto");
     expect(msg).toContain("De: R$ 120,00");
-    expect(msg).toContain("Por: R$ 89,90 ✅ (25% OFF)");
-    expect(msg).toContain("🎟️ Use o cupom 10OFF");
-    expect(msg).toContain("🛒 https://sshopee.me/123");
+    expect(msg).toContain("Por apenas: R$ 89,90");
+    expect(msg).toContain("25% OFF");
+    expect(msg).toContain("CUPOM: *10OFF*");
+    expect(msg).toContain("https://sshopee.me/123");
   });
 
   it("formata oferta no estilo criativo 'Achado Sensacional' com aviso de variações", () => {
@@ -58,10 +60,10 @@ describe("Formatter V2: Multi-Marketplace, Creative Copies & Welcome", () => {
       copyStyle: "achado",
     });
 
-    expect(msg).toContain("✨ Achado sensacional! ✨");
+    expect(msg).toContain("ACHADO IMPERDÍVEL");
     expect(msg).toContain("Filamento PLA Marrom Velvet");
-    expect(msg).toContain("Por: R$ 118,36 ✅");
-    expect(msg).toContain("Atenção: Oferta sujeita a alterações de preço e disponibilidade no site. Garanta o seu!");
+    expect(msg).toContain("R$ 118,36");
+    expect(msg).toContain("Atenção: Os preços e estoques podem sofrer alteração");
   });
 
   it("inclui link para a central de cupons do marketplace quando fornecido", () => {
@@ -72,7 +74,7 @@ describe("Formatter V2: Multi-Marketplace, Creative Copies & Welcome", () => {
       couponHubUrl: "https://sshopee.me/GMNE98tfdo4yYUpL",
     });
 
-    expect(msg).toContain("⚠️ Sempre resgate todos os cupons disponíveis aqui:\nhttps://sshopee.me/GMNE98tfdo4yYUpL");
+    expect(msg).toContain("Resgate cupons adicionais da loja aqui:\nhttps://sshopee.me/GMNE98tfdo4yYUpL");
   });
 
   it("adiciona tutorial passo a passo de resgate de cupom quando especificado", () => {
@@ -84,7 +86,7 @@ describe("Formatter V2: Multi-Marketplace, Creative Copies & Welcome", () => {
       affiliateUrl: "https://melila.me/sn5Fu2YXDdO7uj53",
     });
 
-    expect(msg).toContain("🔥 TUTORIAL DE RESGATE DO CUPOM:");
+    expect(msg).toContain("Como resgatar o desconto:");
     expect(msg).toContain("1. Clique em 'Mais' no canto inferior direito");
   });
 });

@@ -43,9 +43,8 @@ export async function POST(req: Request) {
     }
 
     // 3. Fallback Nativo no CRM (Zero Daemon / Zero Terminal)
-    const config = await getBotConfig();
     if (action === "logout") {
-      await saveBotConfig({ whatsappTargetGroupId: "" });
+      await saveBotConfig({ whatsappConnected: false });
       return NextResponse.json({
         success: true,
         message: "Sessão desconectada com sucesso.",
@@ -53,6 +52,7 @@ export async function POST(req: Request) {
       });
     }
 
+    await saveBotConfig({ whatsappConnected: true });
     return NextResponse.json({
       success: true,
       status: "connected",

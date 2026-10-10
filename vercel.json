@@ -11,6 +11,10 @@
     {
       "path": "/api/bot-ofertas/sync-prices",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/bot-ofertas/auto-dispatch",
+      "schedule": "*/10 * * * *"
     }
   ],
   "functions": {
