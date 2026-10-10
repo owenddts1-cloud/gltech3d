@@ -1,10 +1,10 @@
 /**
  * Formata mensagens promocionais no estilo de alta conversão
- * baseado no padrão real de grupos como "Tech Ofertas - Impressão 3D".
+ * com suporte a múltiplos estilos criativos, central de cupons e boas-vindas oficiais.
  */
 
 function formatCurrency(val) {
-  if (!val || isNaN(val)) return '0,00';
+  if (!val || isNaN(Number(val))) return '0,00';
   return Number(val).toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -12,27 +12,86 @@ function formatCurrency(val) {
 }
 
 function calculateDiscount(original, promo) {
-  if (!original || !promo || original <= promo) return 0;
-  return Math.round(((original - promo) / original) * 100);
+  const o = Number(original) || 0;
+  const p = Number(promo) || 0;
+  if (!o || !p || o <= p) return 0;
+  return Math.round(((o - p) / o) * 100);
 }
 
-/**
- * Monta o texto promocional para o WhatsApp / Telegram.
- * 
- * @param {Object} offer - Dados da oferta
- * @param {Object} options - Configurações extras (hashtags, invite link, etc.)
- */
+function detectMarketplace(url = '') {
+  const lower = (url || '').toLowerCase();
+  if (
+    lower.includes('mercadolivre.com') ||
+    lower.includes('mercadolivre.com.br') ||
+    lower.includes('meli.la') ||
+    lower.includes('melila.me')
+  ) {
+    return 'mercadolivre';
+  }
+  if (lower.includes('shopee.com') || lower.includes('shope.ee') || lower.includes('sshopee.me')) {
+    return 'shopee';
+  }
+  if (lower.includes('amazon.com') || lower.includes('amzn.to')) {
+    return 'amazon';
+  }
+  if (lower.includes('aliexpress.com') || lower.includes('s.click.aliexpress.com')) {
+    return 'aliexpress';
+  }
+  if (lower.includes('tiktok.com')) {
+    return 'tiktok';
+  }
+  return 'outro';
+}
+
+function formatWelcomeMessage(participantPhone = '', groupName = 'GLTech Ofertas - Impressão 3D') {
+  const cleanPhone = (participantPhone || '').replace(/\D/g, '') || participantPhone;
+  return [
+    `🖨️ Bem-vindo @${cleanPhone} ao ${groupName}!`,
+    '',
+    'Aqui você encontra promoções de:',
+    '🧵 Filamentos',
+    '🧪 Resinas',
+    '🔧 Ferramentas',
+    '🖨️ Impressoras 3D',
+    '⚙️ Peças, acessórios e upgrades',
+    '',
+    '🤖 Promoções monitoradas automaticamente ao longo do dia',
+    '✅ Ofertas compartilhadas diariamente',
+    '✅ Grupo gratuito',
+    '🚫 Sem spam',
+    '🚫 Sem conversas paralelas',
+    '',
+    '🔥 Muitas promoções possuem estoque limitado e podem esgotar rapidamente.'
+  ].join('\n');
+}
+
 function formatOfferMessage(offer, options = {}) {
   const lines = [];
-
-  // Título com emoji de sacola de compras (igual ao padrão do grupo)
+  const style = offer.copyStyle || 'padrao';
   const title = (offer.title || 'Super Oferta').trim();
-  lines.push(`🛍️ ${title}`);
+
+  // Cabeçalho por estilo
+  if (style === 'achado') {
+    lines.push('✨ Achado sensacional! ✨');
+    lines.push('');
+    lines.push(title);
+  } else if (style === 'cupom_mes') {
+    lines.push('🔥 Liberado para resgate o melhor cupom do MÊS! 🔥');
+    lines.push('');
+    lines.push(title);
+  } else if (style === 'urgencia') {
+    lines.push('⚡ CORRE QUE VAI ESGOTAR! ⚡');
+    lines.push('');
+    lines.push(title);
+  } else {
+    lines.push(`🛍️ ${title}`);
+  }
+
   lines.push('');
 
   // Bloco de Preços
-  const orig = parseFloat(offer.originalPrice) || 0;
-  const promo = parseFloat(offer.promoPrice) || 0;
+  const orig = Number(offer.originalPrice) || 0;
+  const promo = Number(offer.promoPrice) || 0;
   const discount = calculateDiscount(orig, promo);
 
   if (orig > promo && promo > 0) {
@@ -43,28 +102,53 @@ function formatOfferMessage(offer, options = {}) {
     lines.push(`Por: R$ ${formatCurrency(promo)} ✅`);
   }
 
-  // Cupom (se houver)
+  // Cupom
   if (offer.coupon && offer.coupon.trim().length > 0) {
     const cp = offer.coupon.trim();
     const cupomText = cp.toLowerCase().includes('cupom') ? cp : `Use o cupom ${cp}`;
     lines.push(`🎟️ ${cupomText}`);
   }
 
+  // Tutorial de Cupom (se houver)
+  if (offer.couponTutorial && offer.couponTutorial.trim().length > 0) {
+    lines.push('');
+    lines.push('🔥 TUTORIAL DE RESGATE DO CUPOM:');
+    lines.push(offer.couponTutorial.trim());
+  }
+
+  // Frases de efeito por estilo
+  if (style === 'achado') {
+    lines.push('');
+    lines.push('Atenção: Oferta sujeita a alterações de preço e disponibilidade no site. Garanta o seu!');
+  } else if (style === 'cupom_mes') {
+    lines.push('');
+    lines.push('Atenção: Cupom com quantidade limitada, aplique imediatamente no carrinho!');
+  } else if (style === 'urgencia') {
+    lines.push('');
+    lines.push('Quem viu, levou. Estoque extremamente limitado!');
+  }
+
   lines.push('');
 
-  // Link de Afiliado (com carrinho de compras)
+  // Link de Afiliado
   if (offer.affiliateUrl && offer.affiliateUrl.trim().length > 0) {
     lines.push(`🛒 ${offer.affiliateUrl.trim()}`);
   }
 
-  // Link de Convite do Grupo (opcional para atrair mais membros se encaminharem a mensagem)
-  if (options.groupInviteUrl && options.groupInviteUrl.trim().length > 0) {
+  // Central de Cupons do Marketplace
+  if (offer.couponHubUrl && offer.couponHubUrl.trim().length > 0) {
     lines.push('');
-    lines.push(`🚀 Entre no grupo: ${options.groupInviteUrl.trim()}`);
+    lines.push(`⚠️ Sempre resgate todos os cupons disponíveis aqui:\n${offer.couponHubUrl.trim()}`);
   }
 
-  // Hashtags e Identificação do Grupo
-  const hashtags = options.defaultHashtags || '#anúncio #ofertas';
+  // Link de Convite do Grupo
+  if (options.groupInviteUrl && options.groupInviteUrl.trim().length > 0) {
+    lines.push('');
+    lines.push(`🚀 Participe do Grupo: ${options.groupInviteUrl.trim()}`);
+  }
+
+  // Hashtags oficiais
+  const hashtags = options.defaultHashtags || '#anúncio #cacadoresderenda #GLTech3D';
   if (hashtags.trim().length > 0) {
     lines.push('');
     lines.push(hashtags.trim());
@@ -76,5 +160,7 @@ function formatOfferMessage(offer, options = {}) {
 module.exports = {
   formatCurrency,
   calculateDiscount,
+  detectMarketplace,
+  formatWelcomeMessage,
   formatOfferMessage
 };
