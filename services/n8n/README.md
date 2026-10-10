@@ -7,10 +7,10 @@ Esta pasta centraliza toda a infraestrutura, credenciais, templates de fluxos e 
 ## 📌 Visão Geral da Arquitetura
 
 * **Plataforma n8n:** Web Service hospedado no Render ([n8n-636f.onrender.com](https://n8n-636f.onrender.com))
-* **Workflow Ativo:** [7iua4dTJrDU9QrUd](https://n8n-636f.onrender.com/workflow/7iua4dTJrDU9QrUd)
+* **Workflow Ativo:** [3B6VULNjIV9yKeQQ](https://n8n-636f.onrender.com/workflow/3B6VULNjIV9yKeQQ)
 * **Banco de Dados Dedicado:** Supabase PostgreSQL (pooler em `aws-1-us-west-2.pooler.supabase.com`)
 * **Manutenção Keep-Alive 24/7:** Webhook disparado a cada 5 minutos pelo [cron-job.org](https://console.cron-job.org/jobs/8619437)
-* **URL do Webhook Keep-Alive:** `https://n8n-636f.onrender.com/webhook/780020eb-c627-4e45-baf1-c046447e5a7b`
+* **URL do Webhook Keep-Alive:** `https://n8n-636f.onrender.com/webhook/a7a52aba-ec0b-4c3c-a75a-4e9c65d6b123`
 
 ---
 

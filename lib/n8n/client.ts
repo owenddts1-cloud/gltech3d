@@ -16,13 +16,13 @@ import type { N8nWorkflowStatus, N8nExecutionLog } from "@/types/hub";
  */
 export const N8N_DEMO_WORKFLOWS: (N8nWorkflowStatus & { url?: string })[] = [
   {
-    id: "7iua4dTJrDU9QrUd",
+    id: "3B6VULNjIV9yKeQQ",
     name: "Keep-Alive & Webhook Ping (cron-job.org 24/7)",
     active: true,
     createdAt: "2026-10-10",
     updatedAt: "Hoje",
     lastExecutionStatus: "success",
-    url: "https://n8n-636f.onrender.com/workflow/7iua4dTJrDU9QrUd",
+    url: "https://n8n-636f.onrender.com/workflow/3B6VULNjIV9yKeQQ",
   },
   { id: "wf_1", name: "Lead CRM -> WhatsApp Notification", active: true, createdAt: "2026-07-01", updatedAt: "2026-07-20", lastExecutionStatus: "success" },
   { id: "wf_2", name: "Shopee Orders Sync -> Impressão 3D OS", active: true, createdAt: "2026-07-05", updatedAt: "2026-07-22", lastExecutionStatus: "success" },

@@ -4,10 +4,10 @@
     "provider": "Render",
     "serviceId": "srv-db56gpo473hc73a297tg",
     "baseUrl": "https://n8n-636f.onrender.com",
-    "workflowUrl": "https://n8n-636f.onrender.com/workflow/7iua4dTJrDU9QrUd",
-    "activeWorkflowId": "7iua4dTJrDU9QrUd",
-    "keepAliveWebhookPath": "780020eb-c627-4e45-baf1-c046447e5a7b",
-    "keepAliveWebhookUrl": "https://n8n-636f.onrender.com/webhook/780020eb-c627-4e45-baf1-c046447e5a7b"
+    "workflowUrl": "https://n8n-636f.onrender.com/workflow/3B6VULNjIV9yKeQQ",
+    "activeWorkflowId": "3B6VULNjIV9yKeQQ",
+    "keepAliveWebhookPath": "a7a52aba-ec0b-4c3c-a75a-4e9c65d6b123",
+    "keepAliveWebhookUrl": "https://n8n-636f.onrender.com/webhook/a7a52aba-ec0b-4c3c-a75a-4e9c65d6b123"
   },
   "database": {
     "provider": "Supabase (Dedicated n8n)",
@@ -26,7 +26,7 @@
     "jobConsoleUrl": "https://console.cron-job.org/jobs/8619437",
     "schedule": "*/5 * * * *",
     "frequency": "A cada 5 minutos",
-    "targetUrl": "https://n8n-636f.onrender.com/webhook/780020eb-c627-4e45-baf1-c046447e5a7b",
+    "targetUrl": "https://n8n-636f.onrender.com/webhook/a7a52aba-ec0b-4c3c-a75a-4e9c65d6b123",
     "purpose": "Evitar spin-down do plano gratuito do Render mantendo o container aquecido 24/7."
   },
   "security": {

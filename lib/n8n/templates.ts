@@ -22,7 +22,7 @@ export const WORKSPACE_TEMPLATES: N8nTemplateItem[] = [
     jsonContent: {
       name: "GLTech3D - Keep-Alive & Health Ping (cron-job.org)",
       file: "services/n8n/templates/keepalive-monitor.json",
-      webhookPath: "780020eb-c627-4e45-baf1-c046447e5a7b",
+      webhookPath: "a7a52aba-ec0b-4c3c-a75a-4e9c65d6b123",
     },
   },
 ];

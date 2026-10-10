@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 const N8N_KEEPALIVE_URL =
   process.env.N8N_WEBHOOK_URL ||
-  "https://n8n-636f.onrender.com/webhook/780020eb-c627-4e45-baf1-c046447e5a7b";
+  "https://n8n-636f.onrender.com/webhook/a7a52aba-ec0b-4c3c-a75a-4e9c65d6b123";
 
 export async function POST(req: Request) {
   const startTime = Date.now();

@@ -27,8 +27,8 @@ import type { N8nWorkflowStatus, N8nExecutionLog, N8nTemplateItem } from "@/type
 import { toast } from "sonner";
 
 const N8N_INSTANCE_URL = "https://n8n-636f.onrender.com";
-const N8N_ACTIVE_WORKFLOW_URL = "https://n8n-636f.onrender.com/workflow/7iua4dTJrDU9QrUd";
-const N8N_KEEPALIVE_WEBHOOK = "https://n8n-636f.onrender.com/webhook/780020eb-c627-4e45-baf1-c046447e5a7b";
+const N8N_ACTIVE_WORKFLOW_URL = "https://n8n-636f.onrender.com/workflow/3B6VULNjIV9yKeQQ";
+const N8N_KEEPALIVE_WEBHOOK = "https://n8n-636f.onrender.com/webhook/a7a52aba-ec0b-4c3c-a75a-4e9c65d6b123";
 const CRONJOB_CONSOLE_URL = "https://console.cron-job.org/jobs/8619437";
 
 export default function AutomationsPage() {
