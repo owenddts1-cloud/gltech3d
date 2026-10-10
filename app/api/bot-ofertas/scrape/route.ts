@@ -37,10 +37,37 @@ export async function POST(req: Request) {
         html.match(/<meta property="og:price:amount" content="([^"]+)"/i);
 
       const rawTitle = titleMatch?.[1] || "";
-      const title = rawTitle.replace(/\s*\|.*$/, "").replace(/\s*-.*Mercado Livre.*$/i, "").trim();
+      const title = rawTitle
+        .replace(/\s*\|.*$/, "")
+        .replace(/\s*-.*Mercado Livre.*$/i, "")
+        .replace(/\s*-.*Shopee.*$/i, "")
+        .replace(/\s*-.*Amazon.*$/i, "")
+        .replace(/\s*-.*AliExpress.*$/i, "")
+        .trim();
 
       const imageUrl = imageMatch?.[1] || "";
       const promoPrice = priceMatch?.[1] ? parseFloat(priceMatch[1].replace(",", ".")) : 0;
+
+      // Detecção de marketplace e central de cupons
+      const lower = url.toLowerCase();
+      let marketplace = "outro";
+      let couponHubUrl = "";
+      if (lower.includes("mercadolivre") || lower.includes("meli.la") || lower.includes("melila.me")) {
+        marketplace = "mercadolivre";
+        couponHubUrl = "https://www.mercadolivre.com.br/cupons";
+      } else if (lower.includes("shopee") || lower.includes("shope.ee") || lower.includes("sshopee.me")) {
+        marketplace = "shopee";
+        couponHubUrl = "https://shopee.com.br/m/cupons-diarios";
+      } else if (lower.includes("amazon") || lower.includes("amzn.to")) {
+        marketplace = "amazon";
+        couponHubUrl = "https://www.amazon.com.br/cupom";
+      } else if (lower.includes("aliexpress")) {
+        marketplace = "aliexpress";
+        couponHubUrl = "https://best.aliexpress.com";
+      } else if (lower.includes("tiktok")) {
+        marketplace = "tiktok";
+        couponHubUrl = "https://www.tiktok.com";
+      }
 
       return NextResponse.json({
         success: true,
@@ -48,6 +75,8 @@ export async function POST(req: Request) {
           title,
           imageUrl,
           promoPrice,
+          marketplace,
+          couponHubUrl,
           originalUrl: url,
         },
       });
