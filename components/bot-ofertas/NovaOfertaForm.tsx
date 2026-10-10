@@ -61,6 +61,8 @@ export function NovaOfertaForm({
         imageUrl: p.imageUrl || prev.imageUrl,
         promoPrice: p.promoPrice ? String(p.promoPrice) : prev.promoPrice,
         originalPrice: p.originalPrice ? String(p.originalPrice) : prev.originalPrice,
+        coupon: p.coupon || prev.coupon,
+        couponTutorial: p.couponTutorial || prev.couponTutorial,
         marketplace: p.marketplace || prev.marketplace || "mercadolivre",
         couponHubUrl: p.couponHubUrl || prev.couponHubUrl || "",
         affiliateUrl: scrapeUrl.trim(),

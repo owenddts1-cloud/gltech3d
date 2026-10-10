@@ -23,6 +23,42 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
   const [nicheToolsJid, setNicheToolsJid] = useState(config.nicheGroups?.ferramentas?.whatsappJid || "");
   const [nicheElecJid, setNicheElecJid] = useState(config.nicheGroups?.eletronicos?.whatsappJid || "");
 
+  // Lista unificada de grupos (socket ao vivo + grupos salvos em config) para que nunca fiquem em branco
+  const allGroups = [...(status.whatsapp.groups || [])];
+  const knownIds = new Set(allGroups.map((g) => g.id));
+  if (config.whatsappTargetGroupId && !knownIds.has(config.whatsappTargetGroupId)) {
+    allGroups.unshift({
+      id: config.whatsappTargetGroupId,
+      name: config.whatsappTargetGroupName || "GLTech Ofertas (Principal)",
+      participantsCount: 0,
+    });
+    knownIds.add(config.whatsappTargetGroupId);
+  }
+  Object.values(config.nicheGroups || {}).forEach((ng) => {
+    if (ng?.whatsappJid && !knownIds.has(ng.whatsappJid)) {
+      allGroups.push({
+        id: ng.whatsappJid,
+        name: ng.whatsappName || "GLTech Ofertas",
+        participantsCount: 0,
+      });
+      knownIds.add(ng.whatsappJid);
+    }
+  });
+
+  const renderGroupOption = (g: { id: string; name: string; participantsCount?: number }) => {
+    const isGltech = (g.name || "").toUpperCase().includes("GLTECH");
+    return (
+      <option
+        key={g.id}
+        value={g.id}
+        className={isGltech ? "bg-emerald-100 text-emerald-950 font-bold" : ""}
+        style={isGltech ? { backgroundColor: "#dcfce7", color: "#14532d", fontWeight: "bold" } : undefined}
+      >
+        {isGltech ? "🟢 " : ""}{g.name} ({g.participantsCount ?? 0} membros)
+      </option>
+    );
+  };
+
   const handleConnect = async () => {
     setConnecting(true);
     try {
@@ -277,11 +313,7 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
               className="w-full rounded-xl border border-[#e8e2d9] bg-white px-3 py-2 text-xs text-[#2d241e] focus:border-[#ea580c] focus:outline-none"
             >
               <option value="">Selecione o grupo de Impressão 3D...</option>
-              {status.whatsapp.groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name} ({g.participantsCount} membros)
-                </option>
-              ))}
+              {allGroups.map(renderGroupOption)}
             </select>
           </div>
 
@@ -295,11 +327,7 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
               className="w-full rounded-xl border border-[#e8e2d9] bg-white px-3 py-2 text-xs text-[#2d241e] focus:border-[#ea580c] focus:outline-none"
             >
               <option value="">Selecione o grupo de Ferramentas...</option>
-              {status.whatsapp.groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name} ({g.participantsCount} membros)
-                </option>
-              ))}
+              {allGroups.map(renderGroupOption)}
             </select>
           </div>
 
@@ -313,11 +341,7 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
               className="w-full rounded-xl border border-[#e8e2d9] bg-white px-3 py-2 text-xs text-[#2d241e] focus:border-[#ea580c] focus:outline-none"
             >
               <option value="">Selecione o grupo de Eletrônicos...</option>
-              {status.whatsapp.groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name} ({g.participantsCount} membros)
-                </option>
-              ))}
+              {allGroups.map(renderGroupOption)}
             </select>
           </div>
         </div>
@@ -334,11 +358,7 @@ export function ConexoesManager({ status, config, onRefreshStatus, onSaveConfig 
               className="rounded-xl border border-[#e8e2d9] bg-[#faf9f6] px-3 py-2 text-xs text-[#2d241e] focus:border-[#ea580c] focus:outline-none"
             >
               <option value="">Selecione um grupo padrão...</option>
-              {status.whatsapp.groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name} ({g.participantsCount} membros)
-                </option>
-              ))}
+              {allGroups.map(renderGroupOption)}
             </select>
           </div>
 

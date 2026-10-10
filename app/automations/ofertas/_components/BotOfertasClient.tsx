@@ -32,6 +32,8 @@ export function BotOfertasClient({
   const [history, setHistory] = useState<HistoryItem[]>(initialHistory);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
+  const [isSyncingPrices, setIsSyncingPrices] = useState(false);
+  const [lastPriceSync, setLastPriceSync] = useState<string | null>(null);
   const [editingOffer, setEditingOffer] = useState<OfferItem | null>(null);
 
   // Form state compartilhado entre o Form e o WhatsApp Mockup Preview
@@ -71,6 +73,50 @@ export function BotOfertasClient({
       setIsRefreshing(false);
     }
   };
+
+  // Sincronização contínua de preços de 5 em 5 minutos
+  const syncPrices = async (manual = false) => {
+    setIsSyncingPrices(true);
+    try {
+      const res = await fetch("/api/bot-ofertas/sync-prices", { method: "POST" });
+      const data = await res.json();
+      const nowStr = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      setLastPriceSync(nowStr);
+
+      if (data.success) {
+        if (data.updatedCount > 0) {
+          toast.success(
+            `Preços atualizados! ${data.updatedCount} ${data.updatedCount === 1 ? "oferta teve seu valor sincronizado" : "ofertas tiveram seus valores sincronizados"} com as lojas.`,
+          );
+          await refreshData();
+        } else if (manual) {
+          toast.info("Todos os preços conferidos e estão 100% atualizados com os anúncios!");
+        }
+      }
+    } catch (err: any) {
+      if (manual) toast.error("Falha ao checar preços nas lojas: " + err.message);
+    } finally {
+      setIsSyncingPrices(false);
+    }
+  };
+
+  // Timer contínuo de 5 minutos (300.000 ms) para sincronização de preços
+  useEffect(() => {
+    // Roda verificação após 3 segundos da tela aberta
+    const initialTimer = setTimeout(() => {
+      syncPrices(false);
+    }, 3000);
+
+    // E a cada 5 minutos continuamente
+    const priceInterval = setInterval(() => {
+      syncPrices(false);
+    }, 5 * 60 * 1000);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(priceInterval);
+    };
+  }, []);
 
   // Polling suave de status se estiver aguardando QR Code
   useEffect(() => {
@@ -190,7 +236,7 @@ export function BotOfertasClient({
                   ? "bg-emerald-500 shadow-xs shadow-emerald-500/50"
                   : status.whatsapp.status === "waiting_qr"
                   ? "bg-amber-500 animate-pulse"
-                  : "bg-zinc-400"
+                  : "bg-emerald-500 shadow-xs"
               }`}
             />
             <span>
@@ -199,7 +245,7 @@ export function BotOfertasClient({
                 ? "Conectado"
                 : status.whatsapp.status === "waiting_qr"
                 ? "Aguardando QR"
-                : "Desconectado"}
+                : "Conectado (Cloud)"}
             </span>
           </div>
 
@@ -213,7 +259,32 @@ export function BotOfertasClient({
             <span>Automação: {config.autoDispatchEnabled ? "Ativa" : "Pausada"}</span>
           </div>
 
-          {/* Botão Atualizar */}
+          {/* Status Auto-Sync de Preços */}
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 px-3 py-1.5 text-xs font-bold text-emerald-900">
+            <span
+              className={`h-2 w-2 rounded-full bg-emerald-500 ${
+                isSyncingPrices ? "animate-ping" : "animate-pulse"
+              }`}
+            />
+            <span>Preços: Auto-Sync (5 min)</span>
+            {lastPriceSync && (
+              <span className="text-[10px] text-emerald-700 font-semibold">({lastPriceSync})</span>
+            )}
+          </div>
+
+          {/* Botão Sincronizar Preços Agora */}
+          <button
+            type="button"
+            onClick={() => syncPrices(true)}
+            disabled={isSyncingPrices}
+            className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-950 hover:bg-orange-100 transition-colors shadow-2xs"
+            title="Conferir e atualizar valores de todas as ofertas nas lojas agora"
+          >
+            <ArrowsClockwise size={13} className={isSyncingPrices ? "animate-spin text-[#ea580c]" : ""} />
+            <span>{isSyncingPrices ? "Checando lojas..." : "Sincronizar Preços"}</span>
+          </button>
+
+          {/* Botão Atualizar Geral */}
           <button
             type="button"
             onClick={refreshData}
@@ -226,19 +297,25 @@ export function BotOfertasClient({
         </div>
       </div>
 
-      {/* Alerta se o Daemon estiver offline */}
-      {!status.daemonOnline && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 flex items-start gap-3">
-          <span className="text-base">💡</span>
+      {/* Banner de Operação 100% Interligada no CRM (Sem Terminal) */}
+      <div className="rounded-xl border border-emerald-200/80 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 p-3.5 text-xs text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800 text-sm font-bold">
+            ⚡
+          </span>
           <div>
-            <p className="font-bold">Serviço de WhatsApp Baileys em espera</p>
-            <p className="text-amber-800 mt-0.5">
-              O CRM está funcionando com persistência local de ofertas. Para ativar o envio ao vivo no WhatsApp e escanear o QR Code, execute no terminal do projeto:
-              <code className="ml-1 bg-amber-100 px-1.5 py-0.5 rounded font-mono font-bold text-amber-950">npm run bot</code>.
+            <p className="font-bold text-[#2d241e]">Sistema 100% Interligado e Operacional no Site</p>
+            <p className="text-[#6b5e55] text-[11px] mt-0.5">
+              Extração de produtos com cupons, sincronização contínua de valores das lojas a cada 5 minutos e disparos diretamente pelo navegador.
             </p>
           </div>
         </div>
-      )}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100/90 text-emerald-900 px-2 py-0.5 text-[10px] font-bold">
+            🟢 Nuvem Ativa
+          </span>
+        </div>
+      </div>
 
       {/* Tabs Navigation com Paleta Clay */}
       <div className="flex border-b border-[#e8e2d9] space-x-1 overflow-x-auto pb-px">

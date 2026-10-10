@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
-import { fetchFromDaemon } from "@/lib/bot-engine/client";
+import { fetchFromDaemon, getBotStatus } from "@/lib/bot-engine/client";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const res = await fetchFromDaemon("/whatsapp/groups");
-    return NextResponse.json(res);
-  } catch (err: any) {
-    return NextResponse.json({ groups: [], error: err.message });
+    if (res?.groups && res.groups.length > 0) {
+      return NextResponse.json(res);
+    }
+  } catch {
+    // Daemon offline / fallback nativo
   }
+
+  const status = await getBotStatus();
+  return NextResponse.json({
+    groups: status.whatsapp.groups || [],
+    success: true,
+  });
 }

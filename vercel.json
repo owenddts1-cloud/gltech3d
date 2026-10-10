@@ -7,6 +7,10 @@
     {
       "path": "/api/v1/cron/agent-dispatcher",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/bot-ofertas/sync-prices",
+      "schedule": "*/10 * * * *"
     }
   ],
   "functions": {

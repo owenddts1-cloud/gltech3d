@@ -184,6 +184,39 @@ async function checkScheduleTick() {
       console.log('[Agendador] Nenhuma oferta pendente ou ativa disponível no momento.');
     }
   }
+
+  // 🔄 Sincronização automática contínua de preços (de 5 em 5 minutos)
+  await checkPriceSyncTick();
+}
+
+let lastPriceSyncTime = 0;
+async function checkPriceSyncTick() {
+  const elapsed = Date.now() - lastPriceSyncTime;
+  if (elapsed < 5 * 60 * 1000) return; // ainda não passaram 5 min
+  lastPriceSyncTime = Date.now();
+
+  try {
+    const scraper = require('./scraper');
+    const offers = storage.getOffers();
+    const candidates = offers.filter((o) => o.affiliateUrl && o.affiliateUrl.startsWith('http') && o.status !== 'esgotado').slice(0, 10);
+    for (const off of candidates) {
+      try {
+        const fresh = await scraper.scrapeProductInfo(off.affiliateUrl);
+        if (fresh && fresh.promoPrice > 0 && Math.abs(off.promoPrice - fresh.promoPrice) > 0.05) {
+          console.log(`[AutoSync Preço] 🏷️ "${off.title}" atualizado: R$ ${off.promoPrice} -> R$ ${fresh.promoPrice}${fresh.coupon ? ` (Cupom: ${fresh.coupon})` : ''}`);
+          storage.updateOffer(off.id, {
+            promoPrice: fresh.promoPrice,
+            originalPrice: fresh.originalPrice || off.originalPrice,
+            coupon: fresh.coupon || off.coupon,
+            couponTutorial: fresh.couponTutorial || off.couponTutorial,
+            lastPriceCheckAt: new Date().toISOString()
+          });
+        }
+      } catch (_) {}
+    }
+  } catch (err) {
+    console.warn('[AutoSync Preço] Falha na checagem periódica:', err.message);
+  }
 }
 
 function startScheduler() {

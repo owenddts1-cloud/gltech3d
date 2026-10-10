@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { fetchFromDaemon } from "@/lib/bot-engine/client";
+import { scrapeProductInfo } from "@/lib/bot-engine/scraper";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
@@ -8,80 +11,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Informe uma URL válida iniciando com http:// ou https://" }, { status: 400 });
     }
 
-    // Tenta via daemon primeiro
+    // 1. Tenta via daemon se estiver disponível
     try {
       const res = await fetchFromDaemon("/offers/scrape", {
         method: "POST",
         body: JSON.stringify({ url }),
       });
-      return NextResponse.json(res);
-    } catch {
-      // Fallback nativo simples
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        },
-      });
-      const html = await response.text();
-
-      const titleMatch =
-        html.match(/<meta property="og:title" content="([^"]+)"/i) ||
-        html.match(/<title>([^<]+)<\/title>/i);
-      const imageMatch =
-        html.match(/<meta property="og:image" content="([^"]+)"/i) ||
-        html.match(/<meta name="twitter:image" content="([^"]+)"/i);
-      const priceMatch =
-        html.match(/<meta property="product:price:amount" content="([^"]+)"/i) ||
-        html.match(/<meta property="og:price:amount" content="([^"]+)"/i);
-
-      const rawTitle = titleMatch?.[1] || "";
-      const title = rawTitle
-        .replace(/\s*\|.*$/, "")
-        .replace(/\s*-.*Mercado Livre.*$/i, "")
-        .replace(/\s*-.*Shopee.*$/i, "")
-        .replace(/\s*-.*Amazon.*$/i, "")
-        .replace(/\s*-.*AliExpress.*$/i, "")
-        .trim();
-
-      const imageUrl = imageMatch?.[1] || "";
-      const promoPrice = priceMatch?.[1] ? parseFloat(priceMatch[1].replace(",", ".")) : 0;
-
-      // Detecção de marketplace e central de cupons
-      const lower = url.toLowerCase();
-      let marketplace = "outro";
-      let couponHubUrl = "";
-      if (lower.includes("mercadolivre") || lower.includes("meli.la") || lower.includes("melila.me")) {
-        marketplace = "mercadolivre";
-        couponHubUrl = "https://www.mercadolivre.com.br/cupons";
-      } else if (lower.includes("shopee") || lower.includes("shope.ee") || lower.includes("sshopee.me")) {
-        marketplace = "shopee";
-        couponHubUrl = "https://shopee.com.br/m/cupons-diarios";
-      } else if (lower.includes("amazon") || lower.includes("amzn.to")) {
-        marketplace = "amazon";
-        couponHubUrl = "https://www.amazon.com.br/cupom";
-      } else if (lower.includes("aliexpress")) {
-        marketplace = "aliexpress";
-        couponHubUrl = "https://best.aliexpress.com";
-      } else if (lower.includes("tiktok")) {
-        marketplace = "tiktok";
-        couponHubUrl = "https://www.tiktok.com";
+      if (res?.success && res?.data) {
+        return NextResponse.json(res);
       }
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          title,
-          imageUrl,
-          promoPrice,
-          marketplace,
-          couponHubUrl,
-          originalUrl: url,
-        },
-      });
+    } catch {
+      // Daemon offline / ambiente Serverless Vercel: usa scraper nativo
     }
+
+    // 2. Executa Scraper Nativo do CRM
+    const scraped = await scrapeProductInfo(url);
+    return NextResponse.json({
+      success: true,
+      data: scraped,
+    });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message || "Erro ao processar extração" }, { status: 500 });
   }
 }

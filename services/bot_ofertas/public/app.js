@@ -407,11 +407,17 @@ async function loadGroups() {
     }
 
     select.innerHTML = '<option value="">-- Selecione o Grupo de Ofertas --</option>' +
-      state.groups.map((g) => `
-        <option value="${g.id}" ${g.id === state.config.whatsappTargetGroupId ? 'selected' : ''}>
-          ${escapeHtml(g.name)} (${g.participantsCount} membros)
-        </option>
-      `).join('');
+      state.groups.map((g) => {
+        const isGltech = (g.name || '').toUpperCase().includes('GLTECH');
+        const styleAttr = isGltech ? 'style="background-color: #dcfce7; color: #14532d; font-weight: bold;"' : '';
+        const prefix = isGltech ? '🟢 ' : '';
+        const isSelected = g.id === state.config.whatsappTargetGroupId ? 'selected' : '';
+        return `
+          <option value="${g.id}" ${isSelected} ${styleAttr}>
+            ${prefix}${escapeHtml(g.name)} (${g.participantsCount} membros)
+          </option>
+        `;
+      }).join('');
   } catch (err) {
     select.innerHTML = '<option value="">Erro ao carregar grupos</option>';
   }
