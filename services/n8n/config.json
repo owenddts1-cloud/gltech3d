@@ -44,7 +44,7 @@
     "port": 8080,
     "supabaseProject": "https://plfwkvnhhhjnqrmrlbzl.supabase.co",
     "supabaseAnonKey": "sb_publishable_eqHJtg__0p0urXDFPwUEzw_2cKnTitd",
-    "databaseConnectionUri": "postgresql://postgres:Guidata%404834@db.plfwkvnhhhjnqrmrlbzl.supabase.co:5432/postgres",
+    "databaseConnectionUri": "postgresql://postgres.plfwkvnhhhjnqrmrlbzl:Guidata%404834@aws-1-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require",
     "databaseProvider": "postgresql"
   },
   "integrations": {
